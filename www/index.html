@@ -131,7 +131,7 @@
 
   #settings-panel {
     position: fixed; inset: 0; z-index: 950; display: none;
-    align-items: center; justify-content: center;
+    justify-content: center;
     background: rgba(6,10,18,0.92);
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
     overflow-y: auto;
@@ -151,13 +151,15 @@
 
   #match-end {
     position: fixed; inset: 0; z-index: 960; display: none;
-    align-items: center; justify-content: center;
+    justify-content: center;
     background: rgba(6,10,18,0.92);
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
+    overflow-y: auto;
   }
   .overlay-card {
     background: #0f1626; border: 1px solid rgba(255,203,61,0.35);
     border-radius: 18px; padding: 28px 32px; width: 100%; max-width: 420px; text-align:center;
+    margin: auto 0; /* centers vertically when it fits, scrolls from the top instead of clipping when it doesn't */
   }
   .overlay-card h2 {
     font-family: 'Orbitron', sans-serif; font-size: 22px; margin: 0 0 18px 0;
@@ -239,7 +241,7 @@
   </div>
 </div>
 
-<div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; align-items:center; justify-content:center; overflow-y:auto; padding:20px;">
+<div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px;">
   <div class="overlay-card">
     <h2>PRIVATE MATCH</h2>
     <div style="font-size:14px; opacity:0.75; margin-bottom:20px;">2v2 &nbsp;•&nbsp; up to 4 players &nbsp;•&nbsp; empty slots filled by bots</div>
@@ -252,7 +254,7 @@
   </div>
 </div>
 
-<div id="lobby-screen" style="position:fixed; inset:0; z-index:900; display:none; align-items:center; justify-content:center; overflow-y:auto; padding:20px;">
+<div id="lobby-screen" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px;">
   <div class="overlay-card">
     <h2>ROOM CODE</h2>
     <div id="lobbyCode" style="font-family:'Orbitron',sans-serif; font-size:44px; font-weight:900; letter-spacing:10px; color:#ffcb3d; margin-bottom:6px;">-----</div>
@@ -890,6 +892,13 @@ class MainScene extends Phaser.Scene {
         fontFamily: 'Orbitron', fontSize: '18px', color: '#ffcb3d', fontStyle: '700'
       }).setOrigin(0.5);
     }
+
+    // ---- Exit button (mid-match) ----
+    const exitBtn = this.add.text(W-16, 16, '✕ EXIT', {
+      fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff', fontStyle:'700',
+      backgroundColor:'#00000066', padding:{x:10,y:6}
+    }).setOrigin(1,0).setInteractive();
+    exitBtn.on('pointerdown', () => { SFX.click(); mainMenu(); });
 
     // ---- Keyboard (Player 2 local test) ----
     cursors = this.input.keyboard.createCursorKeys();
