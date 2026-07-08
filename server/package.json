@@ -1,0 +1,14 @@
+{
+  "name": "kickoff-duel-server",
+  "version": "1.0.0",
+  "description": "Authoritative Socket.io server for Kickoff Duel private matches (2v2, up to 4 players)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}

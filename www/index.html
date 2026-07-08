@@ -600,6 +600,7 @@ function joinPrivateRoom() {
 
 function renderLobby(data) {
   if (!data || data.code !== roomCode) return;
+  if (data.hostSlot) isHost = (mySlot === data.hostSlot);
   const slotsEl = document.getElementById('lobbySlots');
   const labels = { A1: 'Team A — Slot 1', A2: 'Team A — Slot 2', B1: 'Team B — Slot 1', B2: 'Team B — Slot 2' };
   slotsEl.innerHTML = '';
