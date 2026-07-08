@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Kickoff Duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    background: #060a12;
+    width: 100%; height: 100%;
+    touch-action: none;
+    font-family: 'Rajdhani', -apple-system, Helvetica, Arial, sans-serif;
+  }
+  #game-container {
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #rotate-warning {
+    position: fixed; inset: 0; color: white;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(46,134,245,0.25), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(255,71,87,0.25), transparent 40%),
+      #060a12;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center; z-index: 1000; padding: 20px;
+  }
+  @media (orientation: portrait) {
+    #rotate-warning { display: flex; }
+    #game-container { display: none; }
+  }
+  #rotate-warning .icon { font-size: 48px; margin-bottom: 16px; }
+
+  /* ---- Layer 1: fixed illustrated stadium-night background (never scrolls) ---- */
+  #stadium-bg {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    background:
+      radial-gradient(2px 2px at 10% 15%, rgba(255,255,255,0.55), transparent),
+      radial-gradient(2px 2px at 25% 9%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1.5px 1.5px at 40% 22%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(2px 2px at 58% 6%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1.5px 1.5px at 74% 16%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(2px 2px at 90% 11%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(circle at 12% 0%, rgba(46,134,245,0.30), transparent 45%),
+      radial-gradient(circle at 88% 0%, rgba(255,71,87,0.30), transparent 45%),
+      linear-gradient(180deg, #0a1128 0%, #12213d 55%, #16324f 100%);
+  }
+  #stadium-bg .floodlight {
+    position: absolute; top: 0; width: 6px; height: 64px; background: #24314a;
+  }
+  #stadium-bg .floodlight::after {
+    content: ''; position: absolute; top: -12px; left: -11px; width: 28px; height: 13px;
+    background: #3a4b6b; border-radius: 3px;
+    box-shadow: 0 0 46px 20px rgba(255,255,255,0.16);
+  }
+  #stadium-bg .crowd-band {
+    position: absolute; left: 0; right: 0; bottom: 16%; height: 16%;
+    background:
+      repeating-radial-gradient(circle at 0 50%, rgba(255,255,255,0.07) 0 2px, transparent 2px 7px),
+      linear-gradient(180deg, rgba(10,17,40,0), rgba(8,14,32,0.9));
+  }
+  #stadium-bg .pitch-glimpse {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 16%;
+    background: repeating-linear-gradient(90deg, #1b6b3a 0 46px, #1f7a41 46px 92px);
+    filter: brightness(0.55);
+  }
+
+  /* ---- Layer 2: fixed decorative floating balls (never scrolls) ---- */
+  #decor-layer { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+  .floating-ball {
+    position: absolute; opacity: 0.18;
+    animation: floatBall 6s ease-in-out infinite, spinBall 14s linear infinite;
+  }
+  @keyframes floatBall { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-26px); } }
+  @keyframes spinBall { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* ---- Layer 3: scrollable menu content ---- */
+  #mode-select {
+    position: fixed; inset: 0; z-index: 2; color: white;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    display: flex; justify-content: center;
+    padding: 18px 20px 34px;
+  }
+  #mode-select .content {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; margin: auto 0; width: 100%;
+  }
+  #mode-select h1 {
+    margin: 10px 0 4px 0; font-size: 40px; letter-spacing: 3px;
+    font-family: 'Orbitron', sans-serif; font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 18px rgba(255,203,61,0.55), 0 0 4px rgba(255,255,255,0.6);
+  }
+  #mode-select .subtitle {
+    font-family: 'Rajdhani', sans-serif; font-size: 14px; letter-spacing: 4px;
+    color: #ffcb3d; text-transform: uppercase; margin-bottom: 22px; opacity: 0.9;
+  }
+  #mode-select .mode-btn {
+    font-family: 'Rajdhani', sans-serif;
+    color: white; border: none; border-radius: 14px;
+    font-size: 20px; font-weight: 700; letter-spacing: 1px;
+    padding: 15px 36px; margin: 7px;
+    min-width: 260px; cursor: pointer;
+    background: linear-gradient(135deg, #2e86f5, #1a5bb8);
+    box-shadow: 0 6px 0 #123f82, 0 8px 20px rgba(46,134,245,0.35);
+  }
+  #mode-select .mode-btn.alt {
+    background: linear-gradient(135deg, #ff4757, #c22232);
+    box-shadow: 0 6px 0 #8a1a26, 0 8px 20px rgba(255,71,87,0.35);
+  }
+  #mode-select .mode-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #123f82, 0 4px 10px rgba(46,134,245,0.35);
+  }
+  #mode-select .mode-btn.alt:active {
+    box-shadow: 0 2px 0 #8a1a26, 0 4px 10px rgba(255,71,87,0.35);
+  }
+
+  .settings-gear {
+    position: fixed; top: 16px; right: 16px; z-index: 3;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
+    color: white; font-size: 22px; width: 44px; height: 44px; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  #settings-panel {
+    position: fixed; inset: 0; z-index: 950; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(6,10,18,0.92);
+    font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
+    overflow-y: auto;
+  }
+  .duration-row { margin-bottom: 24px; }
+  .duration-label {
+    font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: 3px;
+    color: #9fb3c8; margin-bottom: 10px; text-align: center;
+  }
+  .duration-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 340px; }
+  .duration-chip {
+    font-family: 'Rajdhani', sans-serif; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 20px;
+    padding: 9px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .duration-chip.selected { background: #ffcb3d; color: #1a1a1a; border-color: #ffcb3d; }
+
+  #match-end {
+    position: fixed; inset: 0; z-index: 960; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(6,10,18,0.92);
+    font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
+  }
+  .overlay-card {
+    background: #0f1626; border: 1px solid rgba(255,203,61,0.35);
+    border-radius: 18px; padding: 28px 32px; width: 100%; max-width: 420px; text-align:center;
+  }
+  .overlay-card h2 {
+    font-family: 'Orbitron', sans-serif; font-size: 22px; margin: 0 0 18px 0;
+    letter-spacing: 1px; color: #ffcb3d; text-align: center;
+  }
+  #matchEndWinner { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #ffcb3d; margin-bottom: 12px; }
+  #matchEndScore { font-family: 'Orbitron', sans-serif; font-size: 38px; margin-bottom: 26px; font-weight: 800; }
+  .setting-row { margin-bottom: 26px; }
+  .setting-row .label-row {
+    display: flex; justify-content: space-between; font-size: 17px;
+    font-weight: 700; margin-bottom: 10px;
+  }
+  .setting-row .label-row span.val { color: #ffcb3d; }
+  .setting-row input[type=range] {
+    width: 100%; accent-color: #ffcb3d; height: 6px;
+  }
+  .preview-row {
+    display: flex; align-items: center; justify-content: center;
+    height: 90px; margin-top: 8px;
+  }
+  .preview-circle {
+    border-radius: 50%; transition: width 0.05s, height 0.05s;
+  }
+  .preview-joy { background: rgba(46,134,245,0.5); border: 3px solid #9ccdff; }
+  .preview-kick { background: rgba(255,203,61,0.6); border: 3px solid #fff3cf;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .done-btn {
+    display: block; width: 100%; margin-top: 6px;
+    background: linear-gradient(135deg, #ffcb3d, #d9a316);
+    color: #1a1a1a; border: none; border-radius: 12px;
+    font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 700;
+    padding: 14px; cursor: pointer;
+  }
+  .done-btn.blue {
+    background: linear-gradient(135deg, #2e86f5, #1a5bb8); color: white;
+  }
+</style>
+</head>
+<body>
+
+<div id="stadium-bg">
+  <div class="floodlight" style="left:6%;"></div>
+  <div class="floodlight" style="left:22%;"></div>
+  <div class="floodlight" style="right:6%;"></div>
+  <div class="floodlight" style="right:22%;"></div>
+  <div class="crowd-band"></div>
+  <div class="pitch-glimpse"></div>
+</div>
+
+<div id="decor-layer">
+  <div class="floating-ball" style="top:8%; left:9%; font-size:34px; animation-delay:0s;">⚽</div>
+  <div class="floating-ball" style="top:68%; left:13%; font-size:52px; animation-delay:1.2s;">⚽</div>
+  <div class="floating-ball" style="top:18%; right:10%; font-size:44px; animation-delay:0.6s;">⚽</div>
+  <div class="floating-ball" style="top:74%; right:16%; font-size:28px; animation-delay:2s;">⚽</div>
+  <div class="floating-ball" style="top:42%; left:4%; font-size:22px; animation-delay:2.6s;">⚽</div>
+</div>
+
+<button class="settings-gear" onclick="SFX.click(); openSettings()">⚙️</button>
+
+<div id="mode-select">
+  <div class="content">
+    <h1>KICKOFF DUEL</h1>
+    <div class="subtitle">1 v 1 &nbsp;•&nbsp; PICK YOUR MATCH</div>
+
+    <div class="duration-row">
+      <div class="duration-label">MATCH LENGTH</div>
+      <div class="duration-chips">
+        <button class="duration-chip" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
+        <button class="duration-chip" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
+        <button class="duration-chip selected" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
+        <button class="duration-chip" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
+        <button class="duration-chip" onclick="SFX.click(); setDuration(0,this)">NO LIMIT</button>
+      </div>
+    </div>
+
+    <button class="mode-btn" onclick="SFX.click(); startGame('bot')">🤖 VS BOT</button>
+    <button class="mode-btn alt" onclick="SFX.click(); startGame('local')">👥 LOCAL 2 PLAYER</button>
+    <button class="mode-btn" style="background:linear-gradient(135deg,#8e54e9,#4776e6); box-shadow:0 6px 0 #3a2c86, 0 8px 20px rgba(142,84,233,0.35);" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-4P)</button>
+  </div>
+</div>
+
+<div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; align-items:center; justify-content:center; overflow-y:auto; padding:20px;">
+  <div class="overlay-card">
+    <h2>PRIVATE MATCH</h2>
+    <div style="font-size:14px; opacity:0.75; margin-bottom:20px;">2v2 &nbsp;•&nbsp; up to 4 players &nbsp;•&nbsp; empty slots filled by bots</div>
+    <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE ROOM</button>
+    <div style="margin:18px 0 8px; font-size:14px; opacity:0.7;">— or join with a code —</div>
+    <input id="joinCodeInput" maxlength="5" placeholder="ENTER CODE" style="width:100%; box-sizing:border-box; text-align:center; letter-spacing:6px; font-family:'Orbitron',sans-serif; font-size:20px; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; margin-bottom:14px; text-transform:uppercase;">
+    <button class="done-btn blue" onclick="SFX.click(); joinPrivateRoom()">JOIN ROOM</button>
+    <div id="privateError" style="color:#ff6b6b; font-size:14px; margin-top:14px; min-height:18px;"></div>
+    <button class="done-btn" style="background:rgba(255,255,255,0.1); color:white; margin-top:16px;" onclick="SFX.click(); closePrivateMenu()">⬅ BACK</button>
+  </div>
+</div>
+
+<div id="lobby-screen" style="position:fixed; inset:0; z-index:900; display:none; align-items:center; justify-content:center; overflow-y:auto; padding:20px;">
+  <div class="overlay-card">
+    <h2>ROOM CODE</h2>
+    <div id="lobbyCode" style="font-family:'Orbitron',sans-serif; font-size:44px; font-weight:900; letter-spacing:10px; color:#ffcb3d; margin-bottom:6px;">-----</div>
+    <button onclick="SFX.click(); copyRoomCode()" style="font-family:'Rajdhani',sans-serif; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white; border-radius:20px; padding:6px 16px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:20px;">📋 COPY CODE</button>
+    <div id="lobbySlots" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
+    <button id="lobbyStartBtn" class="done-btn" style="display:none;" onclick="SFX.click(); startPrivateMatch()">▶ START MATCH</button>
+    <div id="lobbyWaitMsg" style="font-size:14px; opacity:0.7; margin-bottom:10px;">Waiting for the host to start…</div>
+    <button class="done-btn" style="background:rgba(255,255,255,0.1); color:white;" onclick="SFX.click(); leavePrivateRoom()">⬅ LEAVE ROOM</button>
+  </div>
+</div>
+
+<div id="match-end">
+  <div class="overlay-card">
+    <h2 id="matchEndTitle">FULL TIME</h2>
+    <div id="matchEndWinner"></div>
+    <div id="matchEndScore"></div>
+    <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); rematch()">🔁 REMATCH</button>
+    <button id="matchEndMenuBtn" class="done-btn blue" style="margin-top:10px;" onclick="SFX.click(); mainMenu()">🏠 MAIN MENU</button>
+  </div>
+</div>
+
+<div id="settings-panel">
+  <div class="overlay-card">
+    <h2>SETTINGS</h2>
+    <div class="setting-row" style="display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-size:17px; font-weight:700;">Sound Effects</span>
+      <button id="sfxToggleBtn" onclick="toggleSFX()" style="font-family:'Rajdhani',sans-serif; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white; border-radius:20px; padding:8px 18px; font-size:15px; font-weight:700; cursor:pointer;">🔊 ON</button>
+    </div>
+    <div class="setting-row" style="text-align:left;">
+      <div class="label-row"><span>Multiplayer Server URL</span></div>
+      <input id="serverUrlInput" placeholder="https://your-server.up.railway.app" oninput="SERVER_URL = this.value.trim()" style="width:100%; box-sizing:border-box; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:14px;">
+      <div style="font-size:12px; opacity:0.6; margin-top:6px;">Only needed for Private Match. Paste the URL you get after deploying the server.</div>
+    </div>
+    <div style="text-align:center; font-size:14px; opacity:0.7; margin: 18px 0 20px;">
+      Left half of the screen = move (tap &amp; drag anywhere)<br/>Right half = kick (tap anywhere)
+    </div>
+    <div class="setting-row">
+      <div class="label-row"><span>Joystick Size</span><span class="val" id="joyVal">100%</span></div>
+      <input type="range" id="joySlider" min="70" max="160" value="100" oninput="updateJoyPreview(this.value)">
+      <div class="preview-row"><div class="preview-circle preview-joy" id="joyPreview" style="width:80px;height:80px;"></div></div>
+    </div>
+    <div class="setting-row">
+      <div class="label-row"><span>Kick Feedback Size</span><span class="val" id="kickVal">100%</span></div>
+      <input type="range" id="kickSlider" min="70" max="160" value="100" oninput="updateKickPreview(this.value)">
+      <div class="preview-row"><div class="preview-circle preview-kick" id="kickPreview" style="width:80px;height:80px;">⚽</div></div>
+    </div>
+    <button class="done-btn" onclick="SFX.click(); closeSettings()">DONE</button>
+  </div>
+</div>
+
+<div id="rotate-warning">
+  <div class="icon">📱↻</div>
+  <div style="font-size:19px; font-family:'Rajdhani',sans-serif; letter-spacing:0.5px;">Rotate your phone to landscape<br/>to play Kickoff Duel</div>
+</div>
+
+<div id="game-container" style="display:none;"></div>
+
+<div id="engine-error" style="position:fixed; inset:0; z-index:999; display:none; align-items:center; justify-content:center; background:#060a12; color:white; font-family:'Rajdhani',sans-serif; text-align:center; padding:30px;">
+  <div>
+    <div style="font-size:40px; margin-bottom:14px;">⚠️</div>
+    <div style="font-size:20px; font-weight:700; margin-bottom:10px;">Couldn't load the game engine</div>
+    <div style="font-size:15px; opacity:0.8; margin-bottom:22px;">Check your internet connection, then try again.</div>
+    <button onclick="location.reload()" style="font-family:'Rajdhani',sans-serif; background:#ffcb3d; color:#1a1a1a; border:none; border-radius:10px; font-size:16px; font-weight:700; padding:12px 26px; cursor:pointer;">RELOAD</button>
+  </div>
+</div>
+
+<!-- Load Phaser with automatic fallbacks: if the primary CDN fails (blocked, offline, timed out),
+     try two alternate CDNs before giving up. document.write here runs synchronously during initial
+     page parsing, so this reliably blocks until a working source is found (or all are exhausted). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.70.0/phaser.min.js"></script>
+<script>
+  if (typeof Phaser === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"><\/script>');
+  }
+</script>
+<script>
+  if (typeof Phaser === 'undefined') {
+    document.write('<script src="https://unpkg.com/[email protected]/dist/phaser.min.js"><\/script>');
+  }
+</script>
+<script>
+  if (typeof Phaser === 'undefined') {
+    document.getElementById('engine-error').style.display = 'flex';
+  }
+</script>
+
+<!-- Socket.io client, only needed for Private Match - same CDN-fallback pattern as Phaser above -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  if (typeof io === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/[email protected]/client-dist/socket.io.min.js"><\/script>');
+  }
+</script>
+<script>
+let GAME_MODE = 'bot';
+let JOYSTICK_SCALE = 1;
+let KICK_SCALE = 1;
+let MATCH_DURATION = 180; // seconds; 0 = no limit
+let SFX_ENABLED = true;
+let gameInstance = null;
+
+// ---- Online / private match state ----
+let SERVER_URL = '';
+let socket = null;
+let roomCode = null;
+let mySlot = null;
+let isHost = false;
+
+// ---- Synthesized sound effects (Web Audio API - no external files, no network,
+// no licensing concerns, and works offline once the page has loaded) ----
+const SFX = (function() {
+  let ctx = null;
+  function ensureCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function envelope(c, startTime, attack, decay, peak) {
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, startTime);
+    g.gain.linearRampToValueAtTime(peak, startTime + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, startTime + attack + decay);
+    return g;
+  }
+  function tone(freq, startTime, duration, type, peak, freqEnd) {
+    const c = ensureCtx();
+    const osc = c.createOscillator();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, startTime);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, startTime + duration);
+    const g = envelope(c, startTime, 0.008, duration, peak != null ? peak : 0.3);
+    osc.connect(g).connect(c.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.05);
+  }
+  function noiseBurst(startTime, duration, peak, filterFreq) {
+    const c = ensureCtx();
+    const size = Math.max(1, Math.floor(c.sampleRate * duration));
+    const buffer = c.createBuffer(1, size, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const filter = c.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = filterFreq || 1200;
+    const g = envelope(c, startTime, 0.004, duration, peak != null ? peak : 0.3);
+    src.connect(filter).connect(g).connect(c.destination);
+    src.start(startTime);
+  }
+  function on() { return typeof SFX_ENABLED === 'undefined' || SFX_ENABLED; }
+
+  return {
+    click() {
+      if (!on()) return;
+      const c = ensureCtx();
+      tone(880, c.currentTime, 0.05, 'square', 0.10);
+    },
+    kick() {
+      if (!on()) return;
+      const c = ensureCtx();
+      const t = c.currentTime;
+      noiseBurst(t, 0.08, 0.45, 1800);
+      tone(180, t, 0.12, 'triangle', 0.3, 55);
+    },
+    bounce() {
+      if (!on()) return;
+      const c = ensureCtx();
+      noiseBurst(c.currentTime, 0.05, 0.14, 900);
+    },
+    goal() {
+      if (!on()) return;
+      const c = ensureCtx();
+      const t = c.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, t + i * 0.09, 0.25, 'triangle', 0.22));
+    },
+    whistle(long) {
+      if (!on()) return;
+      const c = ensureCtx();
+      const t = c.currentTime;
+      tone(2200, t, long ? 0.45 : 0.26, 'sine', 0.2, 2600);
+      if (long) tone(2200, t + 0.55, 0.45, 'sine', 0.2, 2600);
+    }
+  };
+})();
+
+function toggleSFX() {
+  SFX_ENABLED = !SFX_ENABLED;
+  document.getElementById('sfxToggleBtn').textContent = SFX_ENABLED ? '🔊 ON' : '🔇 OFF';
+  if (SFX_ENABLED) SFX.click();
+}
+
+function startGame(mode) {
+  if (typeof Phaser === 'undefined') {
+    document.getElementById('engine-error').style.display = 'flex';
+    return;
+  }
+  GAME_MODE = mode;
+  score = { p1: 0, p2: 0 };
+  resetting = false;
+  document.getElementById('mode-select').style.display = 'none';
+  document.getElementById('stadium-bg').style.display = 'none';
+  document.getElementById('decor-layer').style.display = 'none';
+  document.querySelector('.settings-gear').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  gameInstance = new Phaser.Game(config);
+}
+
+function setDuration(seconds, el) {
+  MATCH_DURATION = seconds;
+  document.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function onMatchEnd(winnerLabel, p1, p2) {
+  document.getElementById('matchEndWinner').textContent = winnerLabel;
+  document.getElementById('matchEndScore').textContent = p1 + '   -   ' + p2;
+  const rematchBtn = document.getElementById('matchEndRematchBtn');
+  const menuBtn = document.getElementById('matchEndMenuBtn');
+  rematchBtn.style.display = 'block';
+  rematchBtn.onclick = () => { SFX.click(); rematch(); };
+  menuBtn.onclick = () => { SFX.click(); mainMenu(); };
+  document.getElementById('match-end').style.display = 'flex';
+}
+
+function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
+  document.getElementById('matchEndWinner').textContent = winnerLabel;
+  document.getElementById('matchEndScore').textContent = scoreA + '   -   ' + scoreB;
+  const rematchBtn = document.getElementById('matchEndRematchBtn');
+  const menuBtn = document.getElementById('matchEndMenuBtn');
+  rematchBtn.style.display = isHost ? 'block' : 'none';
+  rematchBtn.onclick = () => { SFX.click(); restartOnlineMatch(); };
+  menuBtn.onclick = () => { SFX.click(); exitOnlineMatch(); };
+  document.getElementById('match-end').style.display = 'flex';
+}
+
+function restartOnlineMatch() {
+  document.getElementById('match-end').style.display = 'none';
+  if (socket && roomCode) socket.emit('restartMatch', { code: roomCode });
+}
+
+function rematch() {
+  document.getElementById('match-end').style.display = 'none';
+  if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
+  score = { p1: 0, p2: 0 };
+  resetting = false;
+  document.getElementById('game-container').style.display = 'flex';
+  gameInstance = new Phaser.Game(config);
+}
+
+function mainMenu() {
+  document.getElementById('match-end').style.display = 'none';
+  if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('stadium-bg').style.display = 'block';
+  document.getElementById('decor-layer').style.display = 'block';
+  document.querySelector('.settings-gear').style.display = 'flex';
+  document.getElementById('mode-select').style.display = 'flex';
+}
+
+function openSettings() {
+  document.getElementById('settings-panel').style.display = 'flex';
+}
+function closeSettings() {
+  document.getElementById('settings-panel').style.display = 'none';
+}
+function updateJoyPreview(v) {
+  JOYSTICK_SCALE = v / 100;
+  document.getElementById('joyVal').textContent = v + '%';
+  const px = 60 + (v - 70) * (120 - 60) / (160 - 70);
+  document.getElementById('joyPreview').style.width = px + 'px';
+  document.getElementById('joyPreview').style.height = px + 'px';
+}
+function updateKickPreview(v) {
+  KICK_SCALE = v / 100;
+  document.getElementById('kickVal').textContent = v + '%';
+  const px = 60 + (v - 70) * (120 - 60) / (160 - 70);
+  document.getElementById('kickPreview').style.width = px + 'px';
+  document.getElementById('kickPreview').style.height = px + 'px';
+}
+
+// ==================== PRIVATE MATCH (online 1-4 players) ====================
+
+function hideAllMenus() {
+  document.getElementById('mode-select').style.display = 'none';
+  document.getElementById('private-select').style.display = 'none';
+  document.getElementById('lobby-screen').style.display = 'none';
+}
+
+function openPrivateMenu() {
+  hideAllMenus();
+  document.getElementById('privateError').textContent = '';
+  document.getElementById('private-select').style.display = 'flex';
+}
+
+function closePrivateMenu() {
+  hideAllMenus();
+  document.getElementById('mode-select').style.display = 'flex';
+}
+
+function showPrivateError(msg) {
+  document.getElementById('privateError').textContent = msg;
+}
+
+function ensureSocket(onReady) {
+  if (!SERVER_URL) {
+    showPrivateError('Set a Multiplayer Server URL in ⚙️ Settings first.');
+    return;
+  }
+  if (typeof io === 'undefined') {
+    showPrivateError('Could not load multiplayer networking. Check your connection.');
+    return;
+  }
+  if (socket && socket.connected) { onReady(); return; }
+  if (socket) socket.disconnect();
+  showPrivateError('Connecting…');
+  socket = io(SERVER_URL, { transports: ['websocket', 'polling'], timeout: 8000 });
+  socket.on('connect', () => { showPrivateError(''); onReady(); });
+  socket.on('connect_error', () => showPrivateError("Couldn't reach that server. Check the URL and that it's deployed."));
+  socket.on('lobbyUpdate', renderLobby);
+  socket.on('matchStarted', () => startOnlineMatch());
+}
+
+function createPrivateRoom() {
+  ensureSocket(() => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION }, (res) => {
+      if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
+      roomCode = res.code; mySlot = res.slot; isHost = true;
+      hideAllMenus();
+      document.getElementById('lobbyCode').textContent = roomCode;
+      document.getElementById('lobby-screen').style.display = 'flex';
+    });
+  });
+}
+
+function joinPrivateRoom() {
+  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  if (code.length < 4) { showPrivateError('Enter the 5-character room code.'); return; }
+  ensureSocket(() => {
+    socket.emit('joinRoom', { code }, (res) => {
+      if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not join room.'); return; }
+      roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
+      hideAllMenus();
+      document.getElementById('lobbyCode').textContent = roomCode;
+      document.getElementById('lobby-screen').style.display = 'flex';
+    });
+  });
+}
+
+function renderLobby(data) {
+  if (!data || data.code !== roomCode) return;
+  const slotsEl = document.getElementById('lobbySlots');
+  const labels = { A1: 'Team A — Slot 1', A2: 'Team A — Slot 2', B1: 'Team B — Slot 1', B2: 'Team B — Slot 2' };
+  slotsEl.innerHTML = '';
+  ['A1', 'A2', 'B1', 'B2'].forEach((slot) => {
+    const p = data.players[slot];
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid ' + (slot === mySlot ? '#ffcb3d' : 'rgba(255,255,255,0.15)') + ';';
+    const statusText = p.connected ? '🟢 Player' + (slot === mySlot ? ' (you)' : '') : '🤖 Bot';
+    row.innerHTML = '<span style="font-size:14px; opacity:0.85;">' + labels[slot] + '</span><span style="font-size:14px; font-weight:700;">' + statusText + '</span>';
+    slotsEl.appendChild(row);
+  });
+  document.getElementById('lobbyStartBtn').style.display = isHost ? 'block' : 'none';
+  document.getElementById('lobbyWaitMsg').style.display = isHost ? 'none' : 'block';
+}
+
+function copyRoomCode() {
+  if (!roomCode) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(roomCode).catch(() => {});
+}
+
+function startPrivateMatch() {
+  if (!socket || !roomCode) return;
+  socket.emit('startMatch', { code: roomCode });
+}
+
+function startOnlineMatch() {
+  if (gameInstance) {
+    // already running - this is a rematch via restartMatch, not a fresh start
+    hideAllMenus();
+    document.getElementById('match-end').style.display = 'none';
+    return;
+  }
+  if (typeof Phaser === 'undefined') {
+    document.getElementById('engine-error').style.display = 'flex';
+    return;
+  }
+  hideAllMenus();
+  document.getElementById('stadium-bg').style.display = 'none';
+  document.getElementById('decor-layer').style.display = 'none';
+  document.querySelector('.settings-gear').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  gameInstance = new Phaser.Game(onlineConfig);
+}
+
+function leavePrivateRoom() {
+  if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
+  roomCode = null; mySlot = null; isHost = false;
+  hideAllMenus();
+  document.getElementById('mode-select').style.display = 'flex';
+}
+
+function exitOnlineMatch() {
+  if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
+  if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
+  roomCode = null; mySlot = null; isHost = false;
+  document.getElementById('match-end').style.display = 'none';
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('stadium-bg').style.display = 'block';
+  document.getElementById('decor-layer').style.display = 'block';
+  document.querySelector('.settings-gear').style.display = 'flex';
+  document.getElementById('mode-select').style.display = 'flex';
+}
+</script>
+<script>
+// ============================================================
+// KICKOFF DUEL — local test build (Phase 1)
+// Controls: Player 1 = on-screen joystick (bottom-left) + kick
+// button (bottom-right). Player 2 = keyboard (arrows + space)
+// for local testing only — on real phones each device will
+// show the SAME joystick+button layout and control ONE player,
+// synced over the network in Phase 2.
+// ============================================================
+
+const FIELD = { w: 1600, h: 800 };
+const GOAL_WIDTH = 180; // vertical opening size
+const GOAL_DEPTH = 40;
+
+let player1, player2, ball;
+let scoreText;
+let score = { p1: 0, p2: 0 };
+let joystick, kickBtn;
+let cursors, spaceKey;
+let resetting = false;
+
+class MainScene extends Phaser.Scene {
+  constructor() { super('main'); }
+
+  create() {
+    const { width: W, height: H } = this.scale;
+    this.mode = (typeof GAME_MODE !== 'undefined') ? GAME_MODE : 'bot';
+    this.matchDuration = (typeof MATCH_DURATION !== 'undefined') ? MATCH_DURATION : 180;
+    this.timeRemaining = this.matchDuration;
+    this.matchEnded = false;
+
+    // small reusable texture for confetti particles
+    if (!this.textures.exists('particleDot')) {
+      const pg = this.add.graphics();
+      pg.fillStyle(0xffffff, 1);
+      pg.fillCircle(4, 4, 4);
+      pg.generateTexture('particleDot', 8, 8);
+      pg.destroy();
+    }
+
+    // ---- Stadium background ----
+    this.add.rectangle(W/2, H/2, W, H, 0x0b1220);
+    // floodlight glows in the far corners (layered fading circles)
+    const glow = (cx, cy, color) => {
+      this.add.circle(cx, cy, 420, color, 0.05);
+      this.add.circle(cx, cy, 280, color, 0.06);
+      this.add.circle(cx, cy, 150, color, 0.08);
+    };
+    glow(0, 0, 0x2e86f5);
+    glow(W, 0, 0xff4757);
+
+    // ---- Pitch (mowed stripes) ----
+    const pitchX = 20, pitchY = 20, pitchW = W - 40, pitchH = H - 40;
+    const stripeCount = 10;
+    const stripeW = pitchW / stripeCount;
+    for (let i = 0; i < stripeCount; i++) {
+      const c = i % 2 === 0 ? 0x1b6b3a : 0x1f7a41;
+      this.add.rectangle(pitchX + stripeW*i + stripeW/2, H/2, stripeW, pitchH, c);
+    }
+
+    // pitch lines: soft gold glow underlay + crisp white on top
+    const g = this.add.graphics();
+    const drawLines = (color, alpha, width) => {
+      g.lineStyle(width, color, alpha);
+      g.strokeRect(pitchX, pitchY, pitchW, pitchH);
+      g.lineBetween(W/2, pitchY, W/2, H-pitchY);
+      g.strokeCircle(W/2, H/2, 90);
+      // corner arcs
+      g.beginPath(); g.arc(pitchX, pitchY, 26, 0, Math.PI/2, false); g.strokePath();
+      g.beginPath(); g.arc(W-pitchX, pitchY, 26, Math.PI/2, Math.PI, false); g.strokePath();
+      g.beginPath(); g.arc(pitchX, H-pitchY, 26, -Math.PI/2, 0, false); g.strokePath();
+      g.beginPath(); g.arc(W-pitchX, H-pitchY, 26, Math.PI, Math.PI*1.5, false); g.strokePath();
+    };
+    drawLines(0xffcb3d, 0.25, 8); // glow
+    drawLines(0xf5f7fa, 0.9, 3);  // crisp line
+
+    // goal areas (left and right), vertically centered
+    const goalY = H/2 - GOAL_WIDTH/2;
+    g.lineStyle(3, 0xf5f7fa, 0.9);
+    g.strokeRect(20, goalY, 100, GOAL_WIDTH);
+    g.strokeRect(W-120, goalY, 100, GOAL_WIDTH);
+
+    // net crosshatch texture inside each goal box
+    g.lineStyle(1, 0xf5f7fa, 0.35);
+    for (let nx = 20; nx <= 120; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
+    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(20, ny, 120, ny); }
+    for (let nx = W-120; nx <= W-20; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
+    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(W-120, ny, W-20, ny); }
+
+    // goal areas (left and right), vertically centered
+    this.leftGoalZone = this.add.zone(4, H/2, 20, GOAL_WIDTH);
+    this.rightGoalZone = this.add.zone(W-4, H/2, 20, GOAL_WIDTH);
+    this.physics.world.enable([this.leftGoalZone, this.rightGoalZone]);
+    this.leftGoalZone.body.setAllowGravity(false);
+    this.rightGoalZone.body.setAllowGravity(false);
+
+    g.fillStyle(0xffcb3d, 0.9);
+    g.fillRect(0, goalY, 6, GOAL_WIDTH);
+    g.fillRect(W-6, goalY, 6, GOAL_WIDTH);
+
+    // ---- Solid walls with a real gap at each goal mouth ----
+    // (previously we used physics.world.setBounds around the whole pitch,
+    // which blocked the ball everywhere on the end lines - including at the
+    // goal mouth - so a goal could basically never happen. Fixed by building
+    // the side walls out of two segments each, with nothing in between.)
+    const wallT = 20;
+    this.walls = this.physics.add.staticGroup();
+
+    const addWall = (x, y, w, h) => {
+      const r = this.add.rectangle(x, y, w, h, 0x000000, 0);
+      this.walls.add(r);
+    };
+
+    // top & bottom touchlines (full width, including corners)
+    addWall(W/2, 20 - wallT/2, W, wallT);
+    addWall(W/2, H - 20 + wallT/2, W, wallT);
+
+    // left end line: two segments, gap = goal mouth (segments run full height
+    // above/below the mouth, so they overlap the top/bottom walls at the corners)
+    const topSegH = goalY;
+    const botSegY = goalY + GOAL_WIDTH;
+    const botSegH = H - botSegY;
+    addWall(20 - wallT/2, topSegH/2, wallT, topSegH);
+    addWall(20 - wallT/2, botSegY + botSegH/2, wallT, botSegH);
+
+    // right end line: two segments, gap = goal mouth
+    addWall(W - 20 + wallT/2, topSegH/2, wallT, topSegH);
+    addWall(W - 20 + wallT/2, botSegY + botSegH/2, wallT, botSegH);
+
+    // backstops just behind each net, so the ball settles instead of flying off-screen
+    addWall(-8, H/2, 12, GOAL_WIDTH + 20);
+    addWall(W + 8, H/2, 12, GOAL_WIDTH + 20);
+
+    // outer safety bounds (well outside the pitch/nets, just in case)
+    this.physics.world.setBounds(-40, -40, W + 80, H + 80);
+
+    // ---- Players ----
+    player1 = this.add.circle(W*0.25, H/2, 26, 0x2e86f5);
+    player2 = this.add.circle(W*0.75, H/2, 26, 0xff4757);
+    player1.setStrokeStyle(4, 0x9ccdff, 0.9);
+    player2.setStrokeStyle(4, 0xffb3ba, 0.9);
+    this.physics.add.existing(player1);
+    this.physics.add.existing(player2);
+    player1.body.setCollideWorldBounds(true);
+    player2.body.setCollideWorldBounds(true);
+    player1.body.setCircle(26);
+    player2.body.setCircle(26);
+    player1.body.setDamping(true).setDrag(0.85);
+    player2.body.setDamping(true).setDrag(0.85);
+    player1.body.setMaxSpeed(320);
+    player2.body.setMaxSpeed(320);
+    this.physics.add.collider(player1, this.walls);
+    this.physics.add.collider(player2, this.walls);
+
+    // soft shadows + gloss highlights (kept in sync with player position each frame)
+    this.p1Shadow = this.add.ellipse(player1.x, player1.y+22, 34, 12, 0x000000, 0.3);
+    this.p2Shadow = this.add.ellipse(player2.x, player2.y+22, 34, 12, 0x000000, 0.3);
+    this.p1Gloss = this.add.circle(player1.x-8, player1.y-9, 8, 0xffffff, 0.45);
+    this.p2Gloss = this.add.circle(player2.x-8, player2.y-9, 8, 0xffffff, 0.45);
+
+    // small labels
+    this.add.text(player1.x, player1.y-48, 'P1', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#9ccdff'}).setOrigin(0.5);
+    this.add.text(player2.x, player2.y-48, this.mode === 'bot' ? 'BOT' : 'P2', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
+
+    // ---- Ball ----
+    ball = this.add.circle(W/2, H/2, 16, 0xf5f7fa);
+    ball.setStrokeStyle(2, 0x1a1a1a, 0.5);
+    this.physics.add.existing(ball);
+    ball.body.setCircle(16);
+    ball.body.setCollideWorldBounds(true);
+    ball.body.setBounce(0.6);
+    ball.body.setDamping(true).setDrag(0.65);
+    ball.body.setMaxSpeed(600);
+    this.ballShadow = this.add.ellipse(ball.x, ball.y+18, 22, 8, 0x000000, 0.3);
+    // simple pentagon-seam pattern, redrawn each frame at the ball's position
+    this.ballPattern = this.add.graphics();
+
+    // ---- Collisions ----
+    this.physics.add.collider(ball, this.walls, (ballObj) => {
+      const spd = Math.sqrt(ballObj.body.velocity.x**2 + ballObj.body.velocity.y**2);
+      if (spd > 140 && typeof SFX !== 'undefined') SFX.bounce();
+    }, null, this);
+    this.physics.add.collider(ball, player1, this.onPlayerBallHit, null, this);
+    this.physics.add.collider(ball, player2, this.onPlayerBallHit, null, this);
+    this.physics.add.collider(player1, player2);
+
+    // ---- Goal detection ----
+    this.physics.add.overlap(ball, this.leftGoalZone, () => this.scoreGoal('p2'), null, this);
+    this.physics.add.overlap(ball, this.rightGoalZone, () => this.scoreGoal('p1'), null, this);
+
+    // ---- Score UI (scoreboard panel) ----
+    const panelW = 220, panelH = 62;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x0b1220, 0.75);
+    panel.lineStyle(2, 0xffcb3d, 0.6);
+    panel.fillRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
+    panel.strokeRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
+    this.add.rectangle(W/2 - panelW/2 + 14, 14 + panelH/2, 8, 34, 0x2e86f5).setOrigin(0.5);
+    this.add.rectangle(W/2 + panelW/2 - 14, 14 + panelH/2, 8, 34, 0xff4757).setOrigin(0.5);
+    scoreText = this.add.text(W/2, 14 + panelH/2, '0   -   0', {
+      fontFamily: 'Orbitron', fontSize: '30px', color: '#f5f7fa', fontStyle: '800'
+    }).setOrigin(0.5);
+
+    if (this.matchDuration > 0) {
+      this.timerText = this.add.text(W/2, 14 + panelH + 20, this.formatTime(this.timeRemaining), {
+        fontFamily: 'Orbitron', fontSize: '18px', color: '#ffcb3d', fontStyle: '700'
+      }).setOrigin(0.5);
+    }
+
+    // ---- Keyboard (Player 2 local test) ----
+    cursors = this.input.keyboard.createCursorKeys();
+    spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    // ---- Touch controls (Player 1) ----
+    this.createJoystick();
+    this.createKickButton();
+
+    this.lastKickMsg = this.add.text(W/2, 100, '', {
+      fontFamily: 'Rajdhani', fontSize: '24px', color: '#ffffff', fontStyle: '700',
+      backgroundColor: '#000000aa', padding: {x:10,y:5}
+    }).setOrigin(0.5).setAlpha(0);
+
+    if (typeof SFX !== 'undefined') SFX.whistle(false);
+  }
+
+  createJoystick() {
+    const scale = (typeof JOYSTICK_SCALE !== 'undefined') ? JOYSTICK_SCALE : 1;
+    const baseR = 120 * scale, knobR = 58 * scale;
+    const W = this.scale.width, H = this.scale.height;
+
+    // hidden until the player actually touches down - it appears right under their thumb
+    const base = this.add.circle(0, 0, baseR, 0x0b1220, 0.35).setStrokeStyle(3, 0xffcb3d, 0.55).setVisible(false);
+    const inner = this.add.circle(0, 0, baseR - 10, 0xffffff, 0.04).setVisible(false);
+    const knob = this.add.circle(0, 0, knobR, 0x2e86f5, 0.85).setStrokeStyle(3, 0x9ccdff, 0.9).setVisible(false);
+
+    joystick = { baseX: 0, baseY: 0, baseR, active: false, vec: {x:0, y:0}, pointerId: null };
+
+    // subtle low-opacity reminder, doesn't block touches (not interactive)
+    this.add.text(28, H-28, '🕹️ MOVE ANYWHERE', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(0,1).setAlpha(0.22);
+
+    // the ENTIRE left half of the screen drives the joystick
+    const zone = this.add.zone(0, 0, W/2, H).setOrigin(0, 0).setInteractive();
+
+    const showAt = (x, y) => {
+      joystick.baseX = x; joystick.baseY = y;
+      base.setPosition(x, y).setVisible(true);
+      inner.setPosition(x, y).setVisible(true);
+      knob.setPosition(x, y).setVisible(true);
+    };
+    const hide = () => { base.setVisible(false); inner.setVisible(false); knob.setVisible(false); };
+    const updateKnob = (px, py) => {
+      let dx = px - joystick.baseX, dy = py - joystick.baseY;
+      const dist = Math.min(Math.sqrt(dx*dx+dy*dy), baseR);
+      const angle = Math.atan2(dy, dx);
+      const kx = joystick.baseX + Math.cos(angle) * dist;
+      const ky = joystick.baseY + Math.sin(angle) * dist;
+      knob.setPosition(kx, ky);
+      joystick.vec = { x: (kx-joystick.baseX)/baseR, y: (ky-joystick.baseY)/baseR };
+    };
+
+    zone.on('pointerdown', (p) => {
+      if (joystick.active) return; // one finger drives the joystick at a time
+      joystick.active = true;
+      joystick.pointerId = p.id;
+      showAt(p.x, p.y);
+    });
+    this.input.on('pointermove', (p) => {
+      if (joystick.active && p.id === joystick.pointerId) updateKnob(p.x, p.y);
+    });
+    this.input.on('pointerup', (p) => {
+      if (p.id === joystick.pointerId) {
+        joystick.active = false;
+        joystick.vec = {x:0, y:0};
+        hide();
+      }
+    });
+  }
+
+  createKickButton() {
+    const scale = (typeof KICK_SCALE !== 'undefined') ? KICK_SCALE : 1;
+    const W = this.scale.width, H = this.scale.height;
+    this.kickRippleScale = scale;
+
+    // subtle low-opacity reminder, doesn't block touches (not interactive)
+    this.add.text(W-28, H-28, 'TAP ANYWHERE TO KICK ⚽', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(1,1).setAlpha(0.22);
+
+    // the ENTIRE right half of the screen kicks, wherever you tap
+    const zone = this.add.zone(W/2, 0, W/2, H).setOrigin(0, 0).setInteractive();
+    zone.on('pointerdown', (p) => {
+      this.kickRipple(p.x, p.y);
+      this.tryKick(player1);
+    });
+  }
+
+  kickRipple(x, y) {
+    const scale = this.kickRippleScale || 1;
+    const r = this.add.circle(x, y, 26 * scale, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
+    this.tweens.add({
+      targets: r, scale: 2.4, alpha: 0, duration: 320, ease: 'Cubic.Out',
+      onComplete: () => r.destroy()
+    });
+  }
+
+  tryKick(player, targetPoint) {
+    const dist = Phaser.Math.Distance.Between(player.x, player.y, ball.x, ball.y);
+    if (dist < 130) {
+      const angle = targetPoint
+        ? Phaser.Math.Angle.Between(player.x, player.y, targetPoint.x, targetPoint.y)
+        : Phaser.Math.Angle.Between(player.x, player.y, ball.x, ball.y);
+      const power = 520;
+      ball.body.setVelocity(Math.cos(angle)*power, Math.sin(angle)*power);
+      this.tweens.add({ targets: player, scale: 1.15, duration: 80, yoyo: true });
+      this.flashKickMsg('HIT!', '#2ecc71');
+      if (typeof SFX !== 'undefined') SFX.kick();
+    } else {
+      // ball out of range - quick visual so it's clear the button registered but missed
+      this.tweens.add({ targets: player, scale: 0.9, duration: 60, yoyo: true });
+      this.flashKickMsg('TOO FAR (' + Math.round(dist) + 'px)', '#e74c3c');
+    }
+  }
+
+  flashKickMsg(msg, color) {
+    if (!this.lastKickMsg) return;
+    this.lastKickMsg.setText(msg).setColor(color).setAlpha(1);
+    this.tweens.killTweensOf(this.lastKickMsg);
+    this.tweens.add({ targets: this.lastKickMsg, alpha: 0, delay: 500, duration: 400 });
+  }
+
+  onPlayerBallHit(ballObj, playerObj) {
+    const angle = Phaser.Math.Angle.Between(playerObj.x, playerObj.y, ballObj.x, ballObj.y);
+    const push = 180;
+    ballObj.body.velocity.x += Math.cos(angle) * push * 0.15;
+    ballObj.body.velocity.y += Math.sin(angle) * push * 0.15;
+  }
+
+  updateBotAI() {
+    const now = this.time.now;
+    const speed = 90; // easy mode: quite slow
+
+    // simulate slow reaction time: bot only "sees" a fresh ball position
+    // every ~800ms, and sometimes just hesitates instead of moving at all
+    if (!this.botTargetRefresh || now - this.botTargetRefresh > 800) {
+      this.botTargetRefresh = now;
+      this.botTarget = { x: ball.x, y: ball.y };
+      this.botHesitate = Math.random() < 0.3; // 30% chance to freeze this cycle
+    }
+    const target = this.botTarget || ball;
+    const dx = target.x - player2.x;
+    const dy = target.y - player2.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    // shooting: rare, and quite inaccurate
+    const realDist = Phaser.Math.Distance.Between(player2.x, player2.y, ball.x, ball.y);
+    if (realDist < 130 && (!this.lastBotKick || now - this.lastBotKick > 2200)) {
+      this.lastBotKick = now;
+      const goalPoint = { x: 20, y: this.scale.height / 2 };
+      const baseAngle = Phaser.Math.Angle.Between(player2.x, player2.y, goalPoint.x, goalPoint.y);
+      const wobble = (Math.random() - 0.5) * 1.1; // ~ +/-63 degrees of inaccuracy
+      const aimAngle = baseAngle + wobble;
+      const aimPoint = {
+        x: player2.x + Math.cos(aimAngle) * 300,
+        y: player2.y + Math.sin(aimAngle) * 300
+      };
+      this.tryKick(player2, aimPoint);
+    }
+
+    if (this.botHesitate) {
+      player2.body.setVelocity(0, 0);
+    } else if (dist > 4) {
+      const nx = dx / dist, ny = dy / dist;
+      player2.body.setVelocity(nx * speed, ny * speed);
+    } else {
+      player2.body.setVelocity(0, 0);
+    }
+  }
+
+  formatTime(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  endMatch() {
+    if (this.matchEnded) return;
+    this.matchEnded = true;
+    joystick.active = false;
+    player1.body.setVelocity(0, 0);
+    player2.body.setVelocity(0, 0);
+    ball.body.setVelocity(0, 0);
+    if (typeof SFX !== 'undefined') SFX.whistle(true);
+
+    let winnerLabel;
+    if (score.p1 > score.p2) winnerLabel = (this.mode === 'bot' ? '🏆 YOU WIN!' : '🏆 PLAYER 1 WINS!');
+    else if (score.p2 > score.p1) winnerLabel = (this.mode === 'bot' ? '🤖 BOT WINS!' : '🏆 PLAYER 2 WINS!');
+    else winnerLabel = "IT'S A DRAW!";
+
+    if (typeof onMatchEnd === 'function') onMatchEnd(winnerLabel, score.p1, score.p2);
+  }
+
+  scoreGoal(scorer) {
+    if (resetting || this.matchEnded) return;
+    resetting = true;
+    score[scorer]++;
+    scoreText.setText(`${score.p1}   -   ${score.p2}`);
+    this.cameras.main.flash(300, 255, 255, 255);
+    this.cameras.main.shake(250, 0.007);
+    if (typeof SFX !== 'undefined') SFX.goal();
+
+    // big celebratory GOAL text
+    const { width: W, height: H } = this.scale;
+    const goalTxt = this.add.text(W/2, H/2 - 40, 'GOAL!', {
+      fontFamily: 'Orbitron', fontSize: '64px', fontStyle: '900',
+      color: '#ffcb3d', stroke: '#0b1220', strokeThickness: 8
+    }).setOrigin(0.5).setScale(0.2).setAlpha(0);
+    this.tweens.add({
+      targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out',
+      onComplete: () => {
+        this.tweens.add({ targets: goalTxt, alpha: 0, delay: 500, duration: 350, onComplete: () => goalTxt.destroy() });
+      }
+    });
+
+    // small confetti burst using simple emitter
+    const emitter = this.add.particles(ball.x, ball.y, 'particleDot', {
+      lifespan: 700,
+      speed: { min: 150, max: 350 },
+      scale: { start: 1.6, end: 0 },
+      tint: [0x2e86f5, 0xff4757, 0xffcb3d, 0xf5f7fa],
+      quantity: 24,
+      emitting: false
+    });
+    emitter.explode(24, ball.x, ball.y);
+    this.time.delayedCall(800, () => emitter.destroy());
+
+    this.time.delayedCall(900, () => this.resetPositions());
+  }
+
+  resetPositions() {
+    const { width: W, height: H } = this.scale;
+    player1.setPosition(W*0.25, H/2);
+    player2.setPosition(W*0.75, H/2);
+    ball.setPosition(W/2, H/2);
+    ball.body.setVelocity(0,0);
+    player1.body.setVelocity(0,0);
+    player2.body.setVelocity(0,0);
+    resetting = false;
+  }
+
+  update(time, delta) {
+    if (this.matchEnded) return;
+
+    // match timer countdown (skipped entirely when duration is 0 = no limit)
+    if (this.matchDuration > 0) {
+      this.timeRemaining -= delta / 1000;
+      if (this.timeRemaining <= 0) {
+        this.timeRemaining = 0;
+        if (this.timerText) this.timerText.setText(this.formatTime(0));
+        this.endMatch();
+        return;
+      }
+      if (this.timerText) this.timerText.setText(this.formatTime(this.timeRemaining));
+    }
+
+    // Player 1 - joystick movement
+    const speed = 260;
+    if (joystick.active) {
+      player1.body.setVelocity(joystick.vec.x * speed, joystick.vec.y * speed);
+    }
+
+    // Player 2 - bot AI or keyboard (local test stand-in), depending on mode
+    if (this.mode === 'bot') {
+      this.updateBotAI();
+    } else {
+      let vx = 0, vy = 0;
+      if (cursors.left.isDown) vx = -speed;
+      if (cursors.right.isDown) vx = speed;
+      if (cursors.up.isDown) vy = -speed;
+      if (cursors.down.isDown) vy = speed;
+      player2.body.setVelocity(vx, vy);
+      if (Phaser.Input.Keyboard.JustDown(spaceKey)) this.tryKick(player2);
+    }
+
+    // keep visual flair (shadows, gloss, ball pattern) glued to their objects
+    if (this.p1Shadow) this.p1Shadow.setPosition(player1.x, player1.y+22);
+    if (this.p2Shadow) this.p2Shadow.setPosition(player2.x, player2.y+22);
+    if (this.p1Gloss) this.p1Gloss.setPosition(player1.x-8, player1.y-9);
+    if (this.p2Gloss) this.p2Gloss.setPosition(player2.x-8, player2.y-9);
+    if (this.ballShadow) this.ballShadow.setPosition(ball.x, ball.y+18);
+    if (this.ballPattern) {
+      this.ballPattern.clear();
+      this.ballPattern.lineStyle(1.5, 0x1a1a1a, 0.5);
+      this.ballPattern.strokeCircle(ball.x, ball.y, 6);
+      this.ballPattern.lineBetween(ball.x-6, ball.y, ball.x+6, ball.y);
+      this.ballPattern.lineBetween(ball.x, ball.y-6, ball.x, ball.y+6);
+    }
+  }
+}
+
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width: FIELD.w,
+  height: FIELD.h,
+  backgroundColor: '#0b1220',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  physics: {
+    default: 'arcade',
+    arcade: { debug: false }
+  },
+  input: {
+    activePointers: 3 // allow joystick finger + kick finger at the same time
+  },
+  scene: [MainScene]
+};
+</script>
+<script>
+// ============================================================
+// ONLINE SCENE - server-authoritative 2v2 (1-4 human players,
+// empty slots filled by bots). This scene does NOT run any local
+// physics: it just renders whatever position the server sends,
+// and sends the local player's joystick/kick input back to it.
+// ============================================================
+
+const TEAM_COLORS = {
+  A: { fill: 0x2e86f5, stroke: 0x9ccdff },
+  B: { fill: 0xff4757, stroke: 0xffb3ba }
+};
+
+class OnlineScene extends Phaser.Scene {
+  constructor() { super('online'); }
+
+  create() {
+    const { width: W, height: H } = this.scale;
+    this.matchEnded = false;
+    this.lastInputSent = 0;
+
+    // reusable confetti texture
+    if (!this.textures.exists('particleDot')) {
+      const pg = this.add.graphics();
+      pg.fillStyle(0xffffff, 1);
+      pg.fillCircle(4, 4, 4);
+      pg.generateTexture('particleDot', 8, 8);
+      pg.destroy();
+    }
+
+    // ---- Stadium background + pitch (visual only, no physics bodies needed) ----
+    this.add.rectangle(W/2, H/2, W, H, 0x0b1220);
+    const glow = (cx, cy, color) => {
+      this.add.circle(cx, cy, 420, color, 0.05);
+      this.add.circle(cx, cy, 280, color, 0.06);
+      this.add.circle(cx, cy, 150, color, 0.08);
+    };
+    glow(0, 0, 0x2e86f5);
+    glow(W, 0, 0xff4757);
+
+    const pitchX = 20, pitchY = 20, pitchW = W - 40, pitchH = H - 40;
+    const stripeCount = 10, stripeW = pitchW / stripeCount;
+    for (let i = 0; i < stripeCount; i++) {
+      const c = i % 2 === 0 ? 0x1b6b3a : 0x1f7a41;
+      this.add.rectangle(pitchX + stripeW*i + stripeW/2, H/2, stripeW, pitchH, c);
+    }
+
+    const g = this.add.graphics();
+    const drawLines = (color, alpha, width) => {
+      g.lineStyle(width, color, alpha);
+      g.strokeRect(pitchX, pitchY, pitchW, pitchH);
+      g.lineBetween(W/2, pitchY, W/2, H-pitchY);
+      g.strokeCircle(W/2, H/2, 90);
+    };
+    drawLines(0xffcb3d, 0.25, 8);
+    drawLines(0xf5f7fa, 0.9, 3);
+
+    const goalY = H/2 - GOAL_WIDTH/2;
+    g.lineStyle(3, 0xf5f7fa, 0.9);
+    g.strokeRect(20, goalY, 100, GOAL_WIDTH);
+    g.strokeRect(W-120, goalY, 100, GOAL_WIDTH);
+    g.fillStyle(0xffcb3d, 0.9);
+    g.fillRect(0, goalY, 6, GOAL_WIDTH);
+    g.fillRect(W-6, goalY, 6, GOAL_WIDTH);
+
+    // ---- Players (2 per team) - plain sprites, positions driven by server state ----
+    this.entitySprites = {};
+    const startPos = {
+      A1: { x: W*0.22, y: H*0.35 }, A2: { x: W*0.22, y: H*0.65 },
+      B1: { x: W*0.78, y: H*0.35 }, B2: { x: W*0.78, y: H*0.65 }
+    };
+    ['A1','A2','B1','B2'].forEach((slot) => {
+      const team = slot[0];
+      const colors = TEAM_COLORS[team];
+      const p = startPos[slot];
+      const circle = this.add.circle(p.x, p.y, 26, colors.fill).setStrokeStyle(4, colors.stroke, 0.9);
+      const shadow = this.add.ellipse(p.x, p.y+22, 34, 12, 0x000000, 0.3);
+      const gloss = this.add.circle(p.x-8, p.y-9, 8, 0xffffff, 0.45);
+      const label = this.add.text(p.x, p.y-48, slot === mySlot ? 'YOU' : slot, {
+        fontFamily:'Rajdhani', fontSize:'16px', fontStyle:'700',
+        color: team === 'A' ? '#9ccdff' : '#ffb3ba'
+      }).setOrigin(0.5);
+      this.entitySprites[slot] = { circle, shadow, gloss, label, x: p.x, y: p.y, targetX: p.x, targetY: p.y };
+    });
+
+    // ---- Ball ----
+    const ballCircle = this.add.circle(W/2, H/2, 16, 0xf5f7fa).setStrokeStyle(2, 0x1a1a1a, 0.5);
+    const ballShadow = this.add.ellipse(W/2, H/2+18, 22, 8, 0x000000, 0.3);
+    const ballPattern = this.add.graphics();
+    this.ball = { circle: ballCircle, shadow: ballShadow, pattern: ballPattern, x: W/2, y: H/2, targetX: W/2, targetY: H/2 };
+
+    // ---- Scoreboard ----
+    const panelW = 240, panelH = 62;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x0b1220, 0.75);
+    panel.lineStyle(2, 0xffcb3d, 0.6);
+    panel.fillRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
+    panel.strokeRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
+    this.add.rectangle(W/2 - panelW/2 + 14, 14 + panelH/2, 8, 34, 0x2e86f5).setOrigin(0.5);
+    this.add.rectangle(W/2 + panelW/2 - 14, 14 + panelH/2, 8, 34, 0xff4757).setOrigin(0.5);
+    this.scoreText = this.add.text(W/2, 14 + panelH/2, '0   -   0', {
+      fontFamily: 'Orbitron', fontSize: '30px', color: '#f5f7fa', fontStyle: '800'
+    }).setOrigin(0.5);
+    this.timerText = this.add.text(W/2, 14 + panelH + 20, '--:--', {
+      fontFamily: 'Orbitron', fontSize: '18px', color: '#ffcb3d', fontStyle: '700'
+    }).setOrigin(0.5);
+    this.roomText = this.add.text(14, 14, 'ROOM ' + (roomCode || ''), {
+      fontFamily: 'Rajdhani', fontSize: '15px', color: '#ffffff', fontStyle:'700'
+    }).setAlpha(0.55);
+
+    // ---- Exit button (mid-match) ----
+    const exitBtn = this.add.text(W-16, 16, '✕ EXIT', {
+      fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff', fontStyle:'700',
+      backgroundColor:'#00000066', padding:{x:10,y:6}
+    }).setOrigin(1,0).setInteractive();
+    exitBtn.on('pointerdown', () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
+
+    // ---- Controls: reuse the same full-half-screen joystick + kick zone pattern ----
+    this.setupOnlineJoystick();
+    this.setupOnlineKickZone();
+
+    // ---- Socket wiring for this match ----
+    if (typeof socket !== 'undefined' && socket) {
+      socket.off('state');
+      socket.on('state', (data) => this.applyServerState(data));
+    }
+
+    if (typeof SFX !== 'undefined') SFX.whistle(false);
+  }
+
+  setupOnlineJoystick() {
+    const scale = (typeof JOYSTICK_SCALE !== 'undefined') ? JOYSTICK_SCALE : 1;
+    const baseR = 120 * scale, knobR = 58 * scale;
+    const W = this.scale.width, H = this.scale.height;
+
+    const base = this.add.circle(0, 0, baseR, 0x0b1220, 0.35).setStrokeStyle(3, 0xffcb3d, 0.55).setVisible(false);
+    const inner = this.add.circle(0, 0, baseR - 10, 0xffffff, 0.04).setVisible(false);
+    const knob = this.add.circle(0, 0, knobR, 0x2e86f5, 0.85).setStrokeStyle(3, 0x9ccdff, 0.9).setVisible(false);
+
+    this.onlineJoystick = { baseX: 0, baseY: 0, baseR, active: false, vec: {x:0,y:0}, pointerId: null };
+
+    this.add.text(28, H-28, '🕹️ MOVE ANYWHERE', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(0,1).setAlpha(0.22);
+
+    const zone = this.add.zone(0, 0, W/2, H).setOrigin(0,0).setInteractive();
+    const js = this.onlineJoystick;
+
+    const showAt = (x,y) => { js.baseX=x; js.baseY=y; base.setPosition(x,y).setVisible(true); inner.setPosition(x,y).setVisible(true); knob.setPosition(x,y).setVisible(true); };
+    const hide = () => { base.setVisible(false); inner.setVisible(false); knob.setVisible(false); };
+    const updateKnob = (px,py) => {
+      let dx=px-js.baseX, dy=py-js.baseY;
+      const dist = Math.min(Math.sqrt(dx*dx+dy*dy), baseR);
+      const angle = Math.atan2(dy,dx);
+      const kx = js.baseX + Math.cos(angle)*dist, ky = js.baseY + Math.sin(angle)*dist;
+      knob.setPosition(kx,ky);
+      js.vec = { x:(kx-js.baseX)/baseR, y:(ky-js.baseY)/baseR };
+    };
+
+    zone.on('pointerdown', (p) => { if (js.active) return; js.active=true; js.pointerId=p.id; showAt(p.x,p.y); });
+    this.input.on('pointermove', (p) => { if (js.active && p.id===js.pointerId) updateKnob(p.x,p.y); });
+    this.input.on('pointerup', (p) => { if (p.id===js.pointerId) { js.active=false; js.vec={x:0,y:0}; hide(); this.sendInput(); } });
+  }
+
+  setupOnlineKickZone() {
+    const W = this.scale.width, H = this.scale.height;
+    this.add.text(W-28, H-28, 'TAP ANYWHERE TO KICK ⚽', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(1,1).setAlpha(0.22);
+    const zone = this.add.zone(W/2, 0, W/2, H).setOrigin(0,0).setInteractive();
+    zone.on('pointerdown', (p) => {
+      const r = this.add.circle(p.x, p.y, 26, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
+      this.tweens.add({ targets:r, scale:2.4, alpha:0, duration:320, ease:'Cubic.Out', onComplete:()=>r.destroy() });
+      if (typeof socket !== 'undefined' && socket && roomCode) socket.emit('kick', { code: roomCode });
+    });
+  }
+
+  sendInput() {
+    if (typeof socket !== 'undefined' && socket && roomCode) {
+      socket.emit('input', { code: roomCode, vec: this.onlineJoystick.vec });
+    }
+  }
+
+  applyServerState(data) {
+    if (!data) return;
+    Object.keys(data.entities).forEach((slot) => {
+      const s = this.entitySprites[slot];
+      if (!s) return;
+      s.targetX = data.entities[slot].x;
+      s.targetY = data.entities[slot].y;
+    });
+    this.ball.targetX = data.ball.x;
+    this.ball.targetY = data.ball.y;
+    this.scoreText.setText(data.score.A + '   -   ' + data.score.B);
+    if (this.timerText) {
+      if (data.timeRemaining != null) {
+        const sec = Math.max(0, Math.ceil(data.timeRemaining));
+        const m = Math.floor(sec/60), s2 = sec%60;
+        this.timerText.setText((m<10?'0':'')+m+':'+(s2<10?'0':'')+s2);
+      }
+    }
+    if (data.ended && !this.matchEnded) {
+      this.matchEnded = true;
+      if (typeof SFX !== 'undefined') SFX.whistle(true);
+      let label;
+      if (data.score.A > data.score.B) label = (mySlot && mySlot[0]==='A') ? '🏆 YOUR TEAM WINS!' : '🏆 TEAM A WINS!';
+      else if (data.score.B > data.score.A) label = (mySlot && mySlot[0]==='B') ? '🏆 YOUR TEAM WINS!' : '🏆 TEAM B WINS!';
+      else label = "IT'S A DRAW!";
+      if (typeof onOnlineMatchEnd === 'function') onOnlineMatchEnd(label, data.score.A, data.score.B);
+    } else if (!data.ended && this.matchEnded) {
+      // a rematch started server-side - resume normal play
+      this.matchEnded = false;
+    }
+  }
+
+  update(time, delta) {
+    // throttle outgoing input to ~15/sec while the joystick is active
+    if (this.onlineJoystick.active && time - this.lastInputSent > 66) {
+      this.lastInputSent = time;
+      this.sendInput();
+    }
+
+    // smoothly interpolate every entity + the ball toward the latest server position
+    const lerp = 0.28;
+    Object.values(this.entitySprites).forEach((s) => {
+      s.x += (s.targetX - s.x) * lerp;
+      s.y += (s.targetY - s.y) * lerp;
+      s.circle.setPosition(s.x, s.y);
+      s.shadow.setPosition(s.x, s.y+22);
+      s.gloss.setPosition(s.x-8, s.y-9);
+      s.label.setPosition(s.x, s.y-48);
+    });
+    this.ball.x += (this.ball.targetX - this.ball.x) * lerp;
+    this.ball.y += (this.ball.targetY - this.ball.y) * lerp;
+    this.ball.circle.setPosition(this.ball.x, this.ball.y);
+    this.ball.shadow.setPosition(this.ball.x, this.ball.y+18);
+    this.ball.pattern.clear();
+    this.ball.pattern.lineStyle(1.5, 0x1a1a1a, 0.5);
+    this.ball.pattern.strokeCircle(this.ball.x, this.ball.y, 6);
+    this.ball.pattern.lineBetween(this.ball.x-6, this.ball.y, this.ball.x+6, this.ball.y);
+    this.ball.pattern.lineBetween(this.ball.x, this.ball.y-6, this.ball.x, this.ball.y+6);
+  }
+}
+
+const onlineConfig = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width: FIELD.w,
+  height: FIELD.h,
+  backgroundColor: '#0b1220',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  input: {
+    activePointers: 3
+  },
+  scene: [OnlineScene]
+};
+</script>
+</body>
+</html>

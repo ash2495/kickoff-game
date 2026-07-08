@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kickoff Duel</string>
+    <string name="title_activity_main">Kickoff Duel</string>
+    <string name="package_name">com.ash.kickoffduel</string>
+    <string name="custom_url_scheme">com.ash.kickoffduel</string>
+</resources>
