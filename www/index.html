@@ -724,6 +724,10 @@ function createExitButton(scene, onExit) {
 
   const container = scene.add.container(x, y, [bg, label]);
   container.setSize(btnW, btnH);
+  // the kick zone covers the entire right half of the screen (including this
+  // button's corner) - without a higher depth it eats every tap here since
+  // Phaser's input hit-test picks the topmost object at equal depth.
+  container.setDepth(1000);
   container.setInteractive({ useHandCursor: true });
   container.on('pointerdown', () => {
     scene.tweens.add({ targets: container, scale: 0.9, duration: 70, yoyo: true });
@@ -872,9 +876,9 @@ class MainScene extends Phaser.Scene {
     this.p1Gloss = this.add.circle(player1.x-8, player1.y-9, 8, 0xffffff, 0.45);
     this.p2Gloss = this.add.circle(player2.x-8, player2.y-9, 8, 0xffffff, 0.45);
 
-    // small labels
-    this.add.text(player1.x, player1.y-48, 'P1', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#9ccdff'}).setOrigin(0.5);
-    this.add.text(player2.x, player2.y-48, this.mode === 'bot' ? 'BOT' : 'P2', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
+    // small labels (kept in sync with player position each frame, like the shadows/gloss above)
+    this.p1Label = this.add.text(player1.x, player1.y-48, 'P1', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#9ccdff'}).setOrigin(0.5);
+    this.p2Label = this.add.text(player2.x, player2.y-48, this.mode === 'bot' ? 'BOT' : 'P2', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
 
     // ---- Ball ----
     ball = this.add.circle(W/2, H/2, 16, 0xf5f7fa);
@@ -1202,6 +1206,8 @@ class MainScene extends Phaser.Scene {
     if (this.p2Shadow) this.p2Shadow.setPosition(player2.x, player2.y+22);
     if (this.p1Gloss) this.p1Gloss.setPosition(player1.x-8, player1.y-9);
     if (this.p2Gloss) this.p2Gloss.setPosition(player2.x-8, player2.y-9);
+    if (this.p1Label) this.p1Label.setPosition(player1.x, player1.y-48);
+    if (this.p2Label) this.p2Label.setPosition(player2.x, player2.y-48);
     if (this.ballShadow) this.ballShadow.setPosition(ball.x, ball.y+18);
     if (this.ballPattern) {
       this.ballPattern.clear();
@@ -1253,6 +1259,7 @@ class OnlineScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale;
     this.matchEnded = false;
     this.lastInputSent = 0;
+    this.lastScore = { A: 0, B: 0 };
 
     // reusable confetti texture
     if (!this.textures.exists('particleDot')) {
@@ -1419,6 +1426,14 @@ class OnlineScene extends Phaser.Scene {
     this.ball.targetX = data.ball.x;
     this.ball.targetY = data.ball.y;
     this.scoreText.setText(data.score.A + '   -   ' + data.score.B);
+
+    if (data.score.A < this.lastScore.A || data.score.B < this.lastScore.B) {
+      // score went down/reset (rematch) - resync silently, don't celebrate
+      this.lastScore = { A: data.score.A, B: data.score.B };
+    } else if (data.score.A > this.lastScore.A || data.score.B > this.lastScore.B) {
+      this.lastScore = { A: data.score.A, B: data.score.B };
+      this.celebrateGoal();
+    }
     if (this.timerText) {
       if (data.timeRemaining != null) {
         const sec = Math.max(0, Math.ceil(data.timeRemaining));
@@ -1438,6 +1453,35 @@ class OnlineScene extends Phaser.Scene {
       // a rematch started server-side - resume normal play
       this.matchEnded = false;
     }
+  }
+
+  celebrateGoal() {
+    this.cameras.main.flash(300, 255, 255, 255);
+    this.cameras.main.shake(250, 0.007);
+    if (typeof SFX !== 'undefined') SFX.goal();
+
+    const { width: W, height: H } = this.scale;
+    const goalTxt = this.add.text(W/2, H/2 - 40, 'GOAL!', {
+      fontFamily: 'Orbitron', fontSize: '64px', fontStyle: '900',
+      color: '#ffcb3d', stroke: '#0b1220', strokeThickness: 8
+    }).setOrigin(0.5).setScale(0.2).setAlpha(0).setDepth(900);
+    this.tweens.add({
+      targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out',
+      onComplete: () => {
+        this.tweens.add({ targets: goalTxt, alpha: 0, delay: 500, duration: 350, onComplete: () => goalTxt.destroy() });
+      }
+    });
+
+    const emitter = this.add.particles(this.ball.x, this.ball.y, 'particleDot', {
+      lifespan: 700,
+      speed: { min: 150, max: 350 },
+      scale: { start: 1.6, end: 0 },
+      tint: [0x2e86f5, 0xff4757, 0xffcb3d, 0xf5f7fa],
+      quantity: 24,
+      emitting: false
+    });
+    emitter.explode(24, this.ball.x, this.ball.y);
+    this.time.delayedCall(800, () => emitter.destroy());
   }
 
   update(time, delta) {
