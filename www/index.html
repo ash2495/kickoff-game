@@ -821,7 +821,7 @@ class MainScene extends Phaser.Scene {
     // which blocked the ball everywhere on the end lines - including at the
     // goal mouth - so a goal could basically never happen. Fixed by building
     // the side walls out of two segments each, with nothing in between.)
-    const wallT = 20;
+    const wallT = 30; // thicker than the max per-frame ball travel, so it can't tunnel through
     this.walls = this.physics.add.staticGroup();
 
     const addWall = (x, y, w, h) => {
@@ -849,8 +849,10 @@ class MainScene extends Phaser.Scene {
     addWall(-8, H/2, 12, GOAL_WIDTH + 20);
     addWall(W + 8, H/2, 12, GOAL_WIDTH + 20);
 
-    // outer safety bounds (well outside the pitch/nets, just in case)
-    this.physics.world.setBounds(-40, -40, W + 80, H + 80);
+    // outer safety bounds - just past the backstops/walls (not a big empty
+    // margin), so even a rare tunneling glitch stops right at the edge
+    // instead of the ball visibly drifting off into the background
+    this.physics.world.setBounds(-30, -6, W + 60, H + 12);
 
     // ---- Players ----
     player1 = this.add.circle(W*0.25, H/2, 26, 0x2e86f5);

@@ -205,6 +205,11 @@ function updateBall(room, dt) {
     if (inMouth) { if (b.x > FIELD.w + 10) { b.x = FIELD.w + 10; b.vx *= -0.4; } }
     else { b.x = maxX; b.vx *= -0.6; }
   }
+
+  // hard failsafe: regardless of the goal-mouth exception above, the ball
+  // should never end up meaningfully outside the pitch + net pockets
+  b.x = clampNum(b.x, -14, FIELD.w + 14);
+  b.y = clampNum(b.y, minY, maxY);
 }
 
 function separateCircles(a, b, minDist) {
