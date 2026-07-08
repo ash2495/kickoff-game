@@ -81,7 +81,8 @@
     position: fixed; inset: 0; z-index: 2; color: white;
     overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
     display: flex; justify-content: center;
-    padding: 18px 20px 34px;
+    padding: max(18px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+             max(34px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   }
   #mode-select .content {
     display: flex; flex-direction: column; align-items: center;
@@ -119,7 +120,10 @@
   }
 
   .settings-gear {
-    position: fixed; top: 16px; right: 16px; z-index: 3;
+    position: fixed;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    z-index: 3;
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
     color: white; font-size: 22px; width: 44px; height: 44px; border-radius: 50%;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -441,11 +445,24 @@ function toggleSFX() {
   if (SFX_ENABLED) SFX.click();
 }
 
+// Best-effort screen lock for browsers/PWAs that support it (native Android
+// build is already locked via android:screenOrientation="landscape" in the
+// manifest). Silently no-ops where unsupported - the CSS rotate-warning in
+// #rotate-warning is the fallback for those cases.
+function lockOrientation() {
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+  } catch (e) {}
+}
+
 function startGame(mode) {
   if (typeof Phaser === 'undefined') {
     document.getElementById('engine-error').style.display = 'flex';
     return;
   }
+  lockOrientation();
   GAME_MODE = mode;
   score = { p1: 0, p2: 0 };
   resetting = false;
@@ -627,6 +644,7 @@ function startPrivateMatch() {
 }
 
 function startOnlineMatch() {
+  lockOrientation();
   if (gameInstance) {
     // already running - this is a rematch via restartMatch, not a fresh start
     hideAllMenus();
