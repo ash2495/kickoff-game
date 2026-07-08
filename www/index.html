@@ -705,6 +705,34 @@ let joystick, kickBtn;
 let cursors, spaceKey;
 let resetting = false;
 
+// Shared, standard-sized exit button used by every mode (bot, local, online) -
+// a real tappable button (not just text) so it's easy to see and hit mid-match.
+function createExitButton(scene, onExit) {
+  const W = scene.scale.width;
+  const btnW = 118, btnH = 46;
+  const x = W - 16 - btnW / 2, y = 16 + btnH / 2;
+
+  const bg = scene.add.graphics();
+  bg.fillStyle(0xff4757, 0.9);
+  bg.lineStyle(3, 0xffb3ba, 0.95);
+  bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+  bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+
+  const label = scene.add.text(0, 0, '✕ EXIT', {
+    fontFamily: 'Rajdhani', fontSize: '20px', fontStyle: '700', color: '#ffffff'
+  }).setOrigin(0.5);
+
+  const container = scene.add.container(x, y, [bg, label]);
+  container.setSize(btnW, btnH);
+  container.setInteractive({ useHandCursor: true });
+  container.on('pointerdown', () => {
+    scene.tweens.add({ targets: container, scale: 0.9, duration: 70, yoyo: true });
+    if (typeof SFX !== 'undefined') SFX.click();
+    onExit();
+  });
+  return container;
+}
+
 class MainScene extends Phaser.Scene {
   constructor() { super('main'); }
 
@@ -894,11 +922,7 @@ class MainScene extends Phaser.Scene {
     }
 
     // ---- Exit button (mid-match) ----
-    const exitBtn = this.add.text(W-16, 16, '✕ EXIT', {
-      fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff', fontStyle:'700',
-      backgroundColor:'#00000066', padding:{x:10,y:6}
-    }).setOrigin(1,0).setInteractive();
-    exitBtn.on('pointerdown', () => { SFX.click(); mainMenu(); });
+    createExitButton(this, () => mainMenu());
 
     // ---- Keyboard (Player 2 local test) ----
     cursors = this.input.keyboard.createCursorKeys();
@@ -1320,11 +1344,7 @@ class OnlineScene extends Phaser.Scene {
     }).setAlpha(0.55);
 
     // ---- Exit button (mid-match) ----
-    const exitBtn = this.add.text(W-16, 16, '✕ EXIT', {
-      fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff', fontStyle:'700',
-      backgroundColor:'#00000066', padding:{x:10,y:6}
-    }).setOrigin(1,0).setInteractive();
-    exitBtn.on('pointerdown', () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
+    createExitButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
 
     // ---- Controls: reuse the same full-half-screen joystick + kick zone pattern ----
     this.setupOnlineJoystick();
