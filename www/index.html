@@ -301,17 +301,24 @@
 
     <button class="mode-btn" onclick="SFX.click(); startGame('bot')">🤖 VS BOT</button>
     <button class="mode-btn alt" onclick="SFX.click(); startGame('local')">👥 LOCAL 2 PLAYER</button>
-    <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-4P)</button>
+    <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-6P)</button>
   </div>
 </div>
 
 <div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px; color:white;">
   <div class="overlay-card">
     <h2>PRIVATE MATCH</h2>
-    <div style="font-size:14px; opacity:0.75; margin-bottom:20px;">2v2 &nbsp;•&nbsp; up to 4 players &nbsp;•&nbsp; empty slots filled by bots</div>
+    <div style="font-size:14px; opacity:0.75; margin-bottom:20px;">Up to 6 players &nbsp;•&nbsp; empty slots filled by bots</div>
     <div style="margin-bottom:16px; text-align:left;">
       <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:6px;">YOUR NAME</label>
       <input id="playerNameInput" maxlength="16" placeholder="Player" oninput="setPlayerName(this.value)" style="width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:16px;">
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:8px;">TEAM SIZE (for creating a room)</label>
+      <div class="duration-chips" id="teamSizeChips">
+        <button class="duration-chip selected" onclick="SFX.click(); setPrivateTeamSize(2,this)">2 v 2</button>
+        <button class="duration-chip" onclick="SFX.click(); setPrivateTeamSize(3,this)">3 v 3</button>
+      </div>
     </div>
     <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE ROOM</button>
     <div style="margin:18px 0 8px; font-size:14px; opacity:0.7;">— or join with a code —</div>
@@ -455,10 +462,23 @@ function renameInLobby(value) {
   setPlayerName(value);
   if (socket && roomCode) socket.emit('setName', { code: roomCode, name: PLAYER_NAME });
 }
+let PRIVATE_TEAM_SIZE = 2; // only matters for creating a room - joiners use whatever the room already is
+function setPrivateTeamSize(size, el) {
+  PRIVATE_TEAM_SIZE = size;
+  el.parentElement.querySelectorAll('.duration-chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
 let socket = null;
 let roomCode = null;
 let mySlot = null;
 let isHost = false;
+// cached from the most recent lobbyUpdate, so the in-match scene knows real
+// names/bot status by the time it's created (matchStarted always fires after
+// at least one lobbyUpdate)
+let lastLobbyPlayers = {
+  A1: { connected: false, name: 'Player' }, A2: { connected: false, name: 'Player' },
+  B1: { connected: false, name: 'Player' }, B2: { connected: false, name: 'Player' }
+};
 
 // ---- Synthesized sound effects (Web Audio API - no external files, no network,
 // no licensing concerns, and works offline once the page has loaded) ----
@@ -718,7 +738,7 @@ function ensureSocket(onReady) {
 
 function createPrivateRoom() {
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
       hideAllMenus();
@@ -747,17 +767,24 @@ function joinPrivateRoom() {
 function renderLobby(data) {
   if (!data || data.code !== roomCode) return;
   if (data.hostSlot) isHost = (mySlot === data.hostSlot);
+  // slot list is derived from the payload (not hardcoded) so this works for
+  // both 2v2 (4 slots) and 3v3 (6 slots) - sorting alphabetically gives the
+  // right order since 'A1' < 'A2' < 'A3' < 'B1' < 'B2' < 'B3'
+  const slots = Object.keys(data.players).sort();
+  slots.forEach((slot) => {
+    const p = data.players[slot];
+    lastLobbyPlayers[slot] = { connected: !!p.connected, name: p.name || 'Player' };
+  });
   const slotsEl = document.getElementById('lobbySlots');
-  const labels = { A1: 'Team A — Slot 1', A2: 'Team A — Slot 2', B1: 'Team B — Slot 1', B2: 'Team B — Slot 2' };
   slotsEl.innerHTML = '';
-  ['A1', 'A2', 'B1', 'B2'].forEach((slot) => {
+  slots.forEach((slot) => {
     const p = data.players[slot];
     const row = document.createElement('div');
     row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:10px; background:rgba(255,255,255,0.06); color:white; border:1px solid ' + (slot === mySlot ? '#ffcb3d' : 'rgba(255,255,255,0.15)') + ';';
 
     const labelSpan = document.createElement('span');
     labelSpan.style.cssText = 'font-size:14px; opacity:0.85;';
-    labelSpan.textContent = labels[slot];
+    labelSpan.textContent = 'Team ' + slot[0] + ' — Slot ' + slot.slice(1);
 
     const statusSpan = document.createElement('span');
     statusSpan.style.cssText = 'font-size:14px; font-weight:700;';
@@ -1447,25 +1474,11 @@ class OnlineScene extends Phaser.Scene {
     g.fillRect(0, goalY, 6, GOAL_WIDTH);
     g.fillRect(W-6, goalY, 6, GOAL_WIDTH);
 
-    // ---- Players (2 per team) - plain sprites, positions driven by server state ----
+    // ---- Players (2 or 3 per team) - plain sprites, positions driven by
+    // server state. Sprites are created lazily (see ensureEntitySprite) as
+    // the first state broadcast arrives, since team size (2v2 vs 3v3) is
+    // decided by whoever created the room, not known up front here.
     this.entitySprites = {};
-    const startPos = {
-      A1: { x: W*0.22, y: H*0.35 }, A2: { x: W*0.22, y: H*0.65 },
-      B1: { x: W*0.78, y: H*0.35 }, B2: { x: W*0.78, y: H*0.65 }
-    };
-    ['A1','A2','B1','B2'].forEach((slot) => {
-      const team = slot[0];
-      const colors = TEAM_COLORS[team];
-      const p = startPos[slot];
-      const circle = this.add.circle(p.x, p.y, 26, colors.fill).setStrokeStyle(4, colors.stroke, 0.9);
-      const shadow = this.add.ellipse(p.x, p.y+22, 34, 12, 0x000000, 0.3);
-      const gloss = this.add.circle(p.x-8, p.y-9, 8, 0xffffff, 0.45);
-      const label = this.add.text(p.x, p.y-48, slot === mySlot ? 'YOU' : slot, {
-        fontFamily:'Rajdhani', fontSize:'16px', fontStyle:'700',
-        color: team === 'A' ? '#9ccdff' : '#ffb3ba'
-      }).setOrigin(0.5);
-      this.entitySprites[slot] = { circle, shadow, gloss, label, x: p.x, y: p.y, targetX: p.x, targetY: p.y };
-    });
 
     // ---- Ball ----
     const ballCircle = this.add.circle(W/2, H/2, 16, 0xf5f7fa).setStrokeStyle(2, 0x1a1a1a, 0.5);
@@ -1557,13 +1570,31 @@ class OnlineScene extends Phaser.Scene {
     }
   }
 
+  ensureEntitySprite(slot, x, y) {
+    if (this.entitySprites[slot]) return this.entitySprites[slot];
+    const team = slot[0];
+    const colors = TEAM_COLORS[team];
+    const circle = this.add.circle(x, y, 26, colors.fill).setStrokeStyle(4, colors.stroke, 0.9);
+    const shadow = this.add.ellipse(x, y+22, 34, 12, 0x000000, 0.3);
+    const gloss = this.add.circle(x-8, y-9, 8, 0xffffff, 0.45);
+    const info = lastLobbyPlayers[slot] || { connected: false, name: 'Player' };
+    const labelText = info.connected ? info.name : 'BOT';
+    const label = this.add.text(x, y-48, labelText, {
+      fontFamily:'Rajdhani', fontSize:'16px', fontStyle:'700',
+      color: team === 'A' ? '#9ccdff' : '#ffb3ba'
+    }).setOrigin(0.5);
+    const sprite = { circle, shadow, gloss, label, x, y, targetX: x, targetY: y };
+    this.entitySprites[slot] = sprite;
+    return sprite;
+  }
+
   applyServerState(data) {
     if (!data) return;
     Object.keys(data.entities).forEach((slot) => {
-      const s = this.entitySprites[slot];
-      if (!s) return;
-      s.targetX = data.entities[slot].x;
-      s.targetY = data.entities[slot].y;
+      const e = data.entities[slot];
+      const s = this.ensureEntitySprite(slot, e.x, e.y);
+      s.targetX = e.x;
+      s.targetY = e.y;
     });
     this.ball.targetX = data.ball.x;
     this.ball.targetY = data.ball.y;

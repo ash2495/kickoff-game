@@ -1,8 +1,8 @@
 // ============================================================
 // KICKOFF DUEL — authoritative Socket.io server for Private
-// Match (2v2, 1-4 human players, empty slots filled by bots).
-// This owns the entire simulation; clients only send input/kick
-// and render whatever position this server broadcasts.
+// Match (2v2 or 3v3, 1-6 human players, empty slots filled by
+// bots). This owns the entire simulation; clients only send
+// input/kick and render whatever position this server broadcasts.
 // ============================================================
 
 const express = require('express');
@@ -32,20 +32,48 @@ const KICK_POWER = 520;
 const TICK_MS = 50; // 20Hz simulation + broadcast rate
 const GOAL_RESET_DELAY_MS = 900;
 
-const SLOTS = ['A1', 'A2', 'B1', 'B2'];
-const JOIN_ORDER = ['A1', 'B1', 'A2', 'B2']; // fills teams evenly as players arrive
-const START_POS = {
-  A1: { x: FIELD.w * 0.22, y: FIELD.h * 0.35 },
-  A2: { x: FIELD.w * 0.22, y: FIELD.h * 0.65 },
-  B1: { x: FIELD.w * 0.78, y: FIELD.h * 0.35 },
-  B2: { x: FIELD.w * 0.78, y: FIELD.h * 0.65 },
-};
+const TEAM_SIZES = [2, 3]; // 2v2 (4 players) or 3v3 (6 players)
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 
 const rooms = new Map(); // code -> room state
 
 function clampNum(v, min, max) {
   return Math.min(max, Math.max(min, v));
+}
+
+function sanitizeTeamSize(size) {
+  const n = Number(size);
+  return TEAM_SIZES.includes(n) ? n : 2;
+}
+
+// e.g. teamSize=2 -> ['A1','A2','B1','B2'], teamSize=3 -> ['A1','A2','A3','B1','B2','B3']
+function getSlots(teamSize) {
+  const slots = [];
+  ['A', 'B'].forEach((team) => {
+    for (let i = 1; i <= teamSize; i++) slots.push(team + i);
+  });
+  return slots;
+}
+
+// interleaved so teams stay balanced as players join one at a time: A1,B1,A2,B2,...
+function getJoinOrder(teamSize) {
+  const order = [];
+  for (let i = 1; i <= teamSize; i++) { order.push('A' + i); order.push('B' + i); }
+  return order;
+}
+
+// spreads N players evenly down each side's half of the field (matches the
+// existing 0.35/0.65 split exactly when teamSize is 2)
+function getStartPos(slots, teamSize) {
+  const pos = {};
+  slots.forEach((slot) => {
+    const team = slot[0];
+    const idx = parseInt(slot.slice(1), 10);
+    const x = team === 'A' ? FIELD.w * 0.22 : FIELD.w * 0.78;
+    const y = FIELD.h * (0.2 + (idx - 0.5) * (0.6 / teamSize));
+    pos[slot] = { x, y };
+  });
+  return pos;
 }
 
 function sanitizeName(name) {
@@ -62,17 +90,24 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
   const code = makeRoomCode();
+  const size = sanitizeTeamSize(teamSize);
+  const slots = getSlots(size);
+  const startPos = getStartPos(slots, size);
   const entities = {};
-  SLOTS.forEach((slot) => {
+  slots.forEach((slot) => {
     entities[slot] = {
-      x: START_POS[slot].x, y: START_POS[slot].y, vx: 0, vy: 0,
+      x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
       team: slot[0], isBot: true, socketId: null, name: 'Player', inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
     code,
+    teamSize: size,
+    slots,
+    startPos,
+    joinOrder: getJoinOrder(size),
     hostSlot: 'A1',
     matchDuration: matchDuration > 0 ? matchDuration : 0,
     started: false,
@@ -93,15 +128,15 @@ function createRoomState(hostSocketId, matchDuration, hostName) {
 }
 
 function findOpenSlot(room) {
-  return JOIN_ORDER.find((slot) => room.entities[slot].isBot);
+  return room.joinOrder.find((slot) => room.entities[slot].isBot);
 }
 
 function emitLobby(room) {
   const players = {};
-  SLOTS.forEach((slot) => {
+  room.slots.forEach((slot) => {
     players[slot] = { connected: !room.entities[slot].isBot, name: room.entities[slot].name || 'Player' };
   });
-  io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot });
+  io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot, teamSize: room.teamSize });
 }
 
 function resetMatchState(room) {
@@ -110,9 +145,9 @@ function resetMatchState(room) {
   room.resetting = false;
   room.score = { A: 0, B: 0 };
   room.timeRemaining = room.matchDuration > 0 ? room.matchDuration : null;
-  SLOTS.forEach((slot) => {
+  room.slots.forEach((slot) => {
     const e = room.entities[slot];
-    e.x = START_POS[slot].x; e.y = START_POS[slot].y;
+    e.x = room.startPos[slot].x; e.y = room.startPos[slot].y;
     e.vx = 0; e.vy = 0; e.inputVec = { x: 0, y: 0 };
   });
   room.ball.x = FIELD.w / 2; room.ball.y = FIELD.h / 2;
@@ -128,7 +163,7 @@ function clampToPitch(e) {
 }
 
 function updatePlayers(room, dt) {
-  SLOTS.forEach((slot) => {
+  room.slots.forEach((slot) => {
     const e = room.entities[slot];
     if (e.isBot) return;
     let { x: vx, y: vy } = e.inputVec;
@@ -144,7 +179,7 @@ function updatePlayers(room, dt) {
 
 function updateBots(room, dt) {
   const now = Date.now();
-  SLOTS.forEach((slot) => {
+  room.slots.forEach((slot) => {
     const e = room.entities[slot];
     if (!e.isBot) return;
     let bs = room.botState[slot];
@@ -234,12 +269,13 @@ function separateCircles(a, b, minDist) {
 }
 
 function resolveCollisions(room) {
-  for (let i = 0; i < SLOTS.length; i++) {
-    for (let j = i + 1; j < SLOTS.length; j++) {
-      separateCircles(room.entities[SLOTS[i]], room.entities[SLOTS[j]], PLAYER_R * 2);
+  const slots = room.slots;
+  for (let i = 0; i < slots.length; i++) {
+    for (let j = i + 1; j < slots.length; j++) {
+      separateCircles(room.entities[slots[i]], room.entities[slots[j]], PLAYER_R * 2);
     }
   }
-  SLOTS.forEach((slot) => {
+  slots.forEach((slot) => {
     const e = room.entities[slot];
     const dx = room.ball.x - e.x, dy = room.ball.y - e.y;
     const dist = Math.hypot(dx, dy);
@@ -270,9 +306,9 @@ function scoreGoal(room, team) {
   room.score[team]++;
   setTimeout(() => {
     if (rooms.get(room.code) !== room) return; // room was torn down mid-reset
-    SLOTS.forEach((slot) => {
+    room.slots.forEach((slot) => {
       const e = room.entities[slot];
-      e.x = START_POS[slot].x; e.y = START_POS[slot].y; e.vx = 0; e.vy = 0;
+      e.x = room.startPos[slot].x; e.y = room.startPos[slot].y; e.vx = 0; e.vy = 0;
     });
     room.ball.x = FIELD.w / 2; room.ball.y = FIELD.h / 2; room.ball.vx = 0; room.ball.vy = 0;
     room.resetting = false;
@@ -281,7 +317,7 @@ function scoreGoal(room, team) {
 
 function broadcastState(room) {
   const entities = {};
-  SLOTS.forEach((slot) => { entities[slot] = { x: room.entities[slot].x, y: room.entities[slot].y }; });
+  room.slots.forEach((slot) => { entities[slot] = { x: room.entities[slot].x, y: room.entities[slot].y }; });
   io.to(room.code).emit('state', {
     entities,
     ball: { x: room.ball.x, y: room.ball.y },
@@ -338,7 +374,7 @@ function handleLeave(socket) {
   const e = room.entities[slot];
   if (e) { e.isBot = true; e.socketId = null; }
 
-  const connectedSlots = SLOTS.filter((s) => !room.entities[s].isBot);
+  const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
   if (connectedSlots.length === 0) {
     if (room.tickHandle) clearInterval(room.tickHandle);
     rooms.delete(code);
@@ -352,7 +388,7 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (data, cb) => {
     if (typeof cb !== 'function') return;
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration, data && data.name);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
