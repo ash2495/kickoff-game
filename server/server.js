@@ -48,6 +48,12 @@ function clampNum(v, min, max) {
   return Math.min(max, Math.max(min, v));
 }
 
+function sanitizeName(name) {
+  if (typeof name !== 'string') return 'Player';
+  const trimmed = name.trim().slice(0, 16);
+  return trimmed || 'Player';
+}
+
 function makeRoomCode() {
   let code;
   do {
@@ -56,13 +62,13 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration) {
+function createRoomState(hostSocketId, matchDuration, hostName) {
   const code = makeRoomCode();
   const entities = {};
   SLOTS.forEach((slot) => {
     entities[slot] = {
       x: START_POS[slot].x, y: START_POS[slot].y, vx: 0, vy: 0,
-      team: slot[0], isBot: true, socketId: null, inputVec: { x: 0, y: 0 },
+      team: slot[0], isBot: true, socketId: null, name: 'Player', inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
@@ -81,6 +87,7 @@ function createRoomState(hostSocketId, matchDuration) {
   };
   entities.A1.isBot = false;
   entities.A1.socketId = hostSocketId;
+  entities.A1.name = sanitizeName(hostName);
   rooms.set(code, room);
   return room;
 }
@@ -91,7 +98,9 @@ function findOpenSlot(room) {
 
 function emitLobby(room) {
   const players = {};
-  SLOTS.forEach((slot) => { players[slot] = { connected: !room.entities[slot].isBot }; });
+  SLOTS.forEach((slot) => {
+    players[slot] = { connected: !room.entities[slot].isBot, name: room.entities[slot].name || 'Player' };
+  });
   io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot });
 }
 
@@ -205,6 +214,11 @@ function updateBall(room, dt) {
     if (inMouth) { if (b.x > FIELD.w + 10) { b.x = FIELD.w + 10; b.vx *= -0.4; } }
     else { b.x = maxX; b.vx *= -0.6; }
   }
+
+  // hard failsafe: regardless of the goal-mouth exception above, the ball
+  // should never end up meaningfully outside the pitch + net pockets
+  b.x = clampNum(b.x, -14, FIELD.w + 14);
+  b.y = clampNum(b.y, minY, maxY);
 }
 
 function separateCircles(a, b, minDist) {
@@ -338,7 +352,7 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (data, cb) => {
     if (typeof cb !== 'function') return;
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration);
+    const room = createRoomState(socket.id, matchDuration, data && data.name);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
@@ -357,10 +371,21 @@ io.on('connection', (socket) => {
 
     room.entities[slot].isBot = false;
     room.entities[slot].socketId = socket.id;
+    room.entities[slot].name = sanitizeName(data && data.name);
     socket.join(code);
     socket.data.code = code;
     socket.data.slot = slot;
     cb({ ok: true, code, slot, isHost: slot === room.hostSlot });
+    emitLobby(room);
+  });
+
+  socket.on('setName', (data) => {
+    const code = data && data.code;
+    const room = rooms.get(code);
+    if (!room || socket.data.code !== code) return;
+    const e = room.entities[socket.data.slot];
+    if (!e || e.isBot) return;
+    e.name = sanitizeName(data && data.name);
     emitLobby(room);
   });
 
