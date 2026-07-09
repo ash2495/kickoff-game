@@ -36,17 +36,37 @@
   /* ---- Layer 1: fixed illustrated stadium-night background (never scrolls) ---- */
   #stadium-bg {
     position: fixed; inset: 0; z-index: 0; overflow: hidden;
-    background:
-      radial-gradient(2px 2px at 10% 15%, rgba(255,255,255,0.55), transparent),
-      radial-gradient(2px 2px at 25% 9%, rgba(255,255,255,0.4), transparent),
-      radial-gradient(1.5px 1.5px at 40% 22%, rgba(255,255,255,0.4), transparent),
-      radial-gradient(2px 2px at 58% 6%, rgba(255,255,255,0.35), transparent),
-      radial-gradient(1.5px 1.5px at 74% 16%, rgba(255,255,255,0.4), transparent),
-      radial-gradient(2px 2px at 90% 11%, rgba(255,255,255,0.3), transparent),
-      radial-gradient(circle at 12% 0%, rgba(46,134,245,0.30), transparent 45%),
-      radial-gradient(circle at 88% 0%, rgba(255,71,87,0.30), transparent 45%),
-      linear-gradient(180deg, #0a1128 0%, #12213d 55%, #16324f 100%);
+    background: linear-gradient(180deg, #060a16 0%, #0d1730 55%, #122544 100%);
   }
+  #stadium-bg::before {
+    content: ''; position: absolute; inset: -15%;
+    background:
+      radial-gradient(circle at 18% 22%, rgba(46,134,245,0.38), transparent 42%),
+      radial-gradient(circle at 82% 18%, rgba(255,71,87,0.32), transparent 42%),
+      radial-gradient(circle at 30% 85%, rgba(142,84,233,0.26), transparent 46%),
+      radial-gradient(circle at 78% 78%, rgba(255,203,61,0.20), transparent 46%);
+    filter: blur(70px);
+    animation: auroraDrift 24s ease-in-out infinite alternate;
+  }
+  #stadium-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(2px 2px at 10% 15%, rgba(255,255,255,0.6), transparent),
+      radial-gradient(2px 2px at 25% 9%, rgba(255,255,255,0.45), transparent),
+      radial-gradient(1.5px 1.5px at 40% 22%, rgba(255,255,255,0.45), transparent),
+      radial-gradient(2px 2px at 58% 6%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1.5px 1.5px at 74% 16%, rgba(255,255,255,0.45), transparent),
+      radial-gradient(2px 2px at 90% 11%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1.5px 1.5px at 15% 45%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1.5px 1.5px at 65% 38%, rgba(255,255,255,0.3), transparent);
+    animation: twinkle 4s ease-in-out infinite alternate;
+  }
+  @keyframes auroraDrift {
+    0% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-3%, 2%) scale(1.08); }
+    100% { transform: translate(2%, -3%) scale(1.04); }
+  }
+  @keyframes twinkle { 0% { opacity: 0.7; } 100% { opacity: 1; } }
   #stadium-bg .floodlight {
     position: absolute; top: 0; width: 6px; height: 64px; background: #24314a;
   }
@@ -70,7 +90,8 @@
   /* ---- Layer 2: fixed decorative floating balls (never scrolls) ---- */
   #decor-layer { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
   .floating-ball {
-    position: absolute; opacity: 0.18;
+    position: absolute; opacity: 0.35;
+    filter: drop-shadow(0 0 14px rgba(255,203,61,0.45));
     animation: floatBall 6s ease-in-out infinite, spinBall 14s linear infinite;
   }
   @keyframes floatBall { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-26px); } }
@@ -86,37 +107,63 @@
   }
   #mode-select .content {
     display: flex; flex-direction: column; align-items: center;
-    text-align: center; margin: auto 0; width: 100%;
+    text-align: center; margin: auto 0; width: 100%; max-width: 380px;
+    background: rgba(15, 22, 40, 0.42);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 26px;
+    padding: 30px 26px 26px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
   }
   #mode-select h1 {
     margin: 10px 0 4px 0; font-size: 40px; letter-spacing: 3px;
     font-family: 'Orbitron', sans-serif; font-weight: 900;
-    color: #fff;
-    text-shadow: 0 0 18px rgba(255,203,61,0.55), 0 0 4px rgba(255,255,255,0.6);
+    background: linear-gradient(120deg, #ffffff 0%, #ffcb3d 45%, #ffffff 70%, #ffcb3d 100%);
+    background-size: 220% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 22px rgba(255,203,61,0.45);
+    animation: titleShine 6s linear infinite;
   }
+  @keyframes titleShine { to { background-position: 220% center; } }
   #mode-select .subtitle {
     font-family: 'Rajdhani', sans-serif; font-size: 14px; letter-spacing: 4px;
     color: #ffcb3d; text-transform: uppercase; margin-bottom: 22px; opacity: 0.9;
   }
   #mode-select .mode-btn {
     font-family: 'Rajdhani', sans-serif;
-    color: white; border: none; border-radius: 14px;
+    color: white; border: none; border-radius: 16px;
     font-size: 20px; font-weight: 700; letter-spacing: 1px;
     padding: 15px 36px; margin: 7px;
     min-width: 260px; cursor: pointer;
     background: linear-gradient(135deg, #2e86f5, #1a5bb8);
-    box-shadow: 0 6px 0 #123f82, 0 8px 20px rgba(46,134,245,0.35);
+    box-shadow: 0 6px 0 #123f82, 0 10px 24px rgba(46,134,245,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    position: relative; overflow: hidden;
   }
+  #mode-select .mode-btn::after {
+    content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    animation: btnShine 3.6s ease-in-out infinite;
+  }
+  @keyframes btnShine { 0% { left: -60%; } 40%, 100% { left: 130%; } }
   #mode-select .mode-btn.alt {
     background: linear-gradient(135deg, #ff4757, #c22232);
-    box-shadow: 0 6px 0 #8a1a26, 0 8px 20px rgba(255,71,87,0.35);
+    box-shadow: 0 6px 0 #8a1a26, 0 10px 24px rgba(255,71,87,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  #mode-select .mode-btn.purple {
+    background: linear-gradient(135deg, #8e54e9, #4776e6);
+    box-shadow: 0 6px 0 #3a2c86, 0 10px 24px rgba(142,84,233,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
   }
   #mode-select .mode-btn:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 #123f82, 0 4px 10px rgba(46,134,245,0.35);
+    box-shadow: 0 2px 0 #123f82, 0 4px 10px rgba(46,134,245,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
   }
   #mode-select .mode-btn.alt:active {
-    box-shadow: 0 2px 0 #8a1a26, 0 4px 10px rgba(255,71,87,0.35);
+    box-shadow: 0 2px 0 #8a1a26, 0 4px 10px rgba(255,71,87,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  #mode-select .mode-btn.purple:active {
+    box-shadow: 0 2px 0 #3a2c86, 0 4px 10px rgba(142,84,233,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
   }
 
   .settings-gear {
@@ -143,11 +190,16 @@
   }
   .duration-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 340px; }
   .duration-chip {
-    font-family: 'Rajdhani', sans-serif; background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 20px;
+    font-family: 'Rajdhani', sans-serif; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.22); color: white; border-radius: 20px;
     padding: 9px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
   }
-  .duration-chip.selected { background: #ffcb3d; color: #1a1a1a; border-color: #ffcb3d; }
+  .duration-chip:active { transform: scale(0.94); }
+  .duration-chip.selected {
+    background: linear-gradient(135deg, #ffcb3d, #e8a825); color: #1a1a1a; border-color: #ffcb3d;
+    box-shadow: 0 4px 14px rgba(255,203,61,0.4);
+  }
 
   #match-end {
     position: fixed; inset: 0; z-index: 960; display: none;
@@ -196,6 +248,18 @@
   .done-btn.blue {
     background: linear-gradient(135deg, #2e86f5, #1a5bb8); color: white;
   }
+  .done-btn.red {
+    background: linear-gradient(135deg, #ff4757, #c22232); color: white;
+  }
+  .done-btn.neutral {
+    background: rgba(255,255,255,0.1); color: white;
+  }
+  #exit-confirm {
+    position: fixed; inset: 0; z-index: 970; display: none;
+    justify-content: center; overflow-y: auto; padding: 20px;
+    background: rgba(6,10,18,0.78);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
 </style>
 </head>
 <body>
@@ -237,14 +301,18 @@
 
     <button class="mode-btn" onclick="SFX.click(); startGame('bot')">🤖 VS BOT</button>
     <button class="mode-btn alt" onclick="SFX.click(); startGame('local')">👥 LOCAL 2 PLAYER</button>
-    <button class="mode-btn" style="background:linear-gradient(135deg,#8e54e9,#4776e6); box-shadow:0 6px 0 #3a2c86, 0 8px 20px rgba(142,84,233,0.35);" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-4P)</button>
+    <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-4P)</button>
   </div>
 </div>
 
-<div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px;">
+<div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px; color:white;">
   <div class="overlay-card">
     <h2>PRIVATE MATCH</h2>
     <div style="font-size:14px; opacity:0.75; margin-bottom:20px;">2v2 &nbsp;•&nbsp; up to 4 players &nbsp;•&nbsp; empty slots filled by bots</div>
+    <div style="margin-bottom:16px; text-align:left;">
+      <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:6px;">YOUR NAME</label>
+      <input id="playerNameInput" maxlength="16" placeholder="Player" oninput="setPlayerName(this.value)" style="width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:16px;">
+    </div>
     <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE ROOM</button>
     <div style="margin:18px 0 8px; font-size:14px; opacity:0.7;">— or join with a code —</div>
     <input id="joinCodeInput" maxlength="5" placeholder="ENTER CODE" style="width:100%; box-sizing:border-box; text-align:center; letter-spacing:6px; font-family:'Orbitron',sans-serif; font-size:20px; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; margin-bottom:14px; text-transform:uppercase;">
@@ -254,11 +322,15 @@
   </div>
 </div>
 
-<div id="lobby-screen" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px;">
+<div id="lobby-screen" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px; color:white;">
   <div class="overlay-card">
     <h2>ROOM CODE</h2>
     <div id="lobbyCode" style="font-family:'Orbitron',sans-serif; font-size:44px; font-weight:900; letter-spacing:10px; color:#ffcb3d; margin-bottom:6px;">-----</div>
     <button onclick="SFX.click(); copyRoomCode()" style="font-family:'Rajdhani',sans-serif; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white; border-radius:20px; padding:6px 16px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:20px;">📋 COPY CODE</button>
+    <div style="margin-bottom:16px; text-align:left;">
+      <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:6px;">YOUR NAME</label>
+      <input id="lobbyNameInput" maxlength="16" placeholder="Player" oninput="renameInLobby(this.value)" style="width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:16px;">
+    </div>
     <div id="lobbySlots" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
     <button id="lobbyStartBtn" class="done-btn" style="display:none;" onclick="SFX.click(); startPrivateMatch()">▶ START MATCH</button>
     <div id="lobbyWaitMsg" style="font-size:14px; opacity:0.7; margin-bottom:10px;">Waiting for the host to start…</div>
@@ -276,6 +348,15 @@
   </div>
 </div>
 
+<div id="exit-confirm">
+  <div class="overlay-card">
+    <h2>EXIT MATCH?</h2>
+    <div style="font-size:15px; opacity:0.8; margin-bottom:22px;">Your current progress will be lost.</div>
+    <button class="done-btn red" onclick="SFX.click(); confirmExitYes()">✕ YES, EXIT</button>
+    <button class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); confirmExitNo()">CONTINUE PLAYING</button>
+  </div>
+</div>
+
 <div id="settings-panel">
   <div class="overlay-card">
     <h2>SETTINGS</h2>
@@ -285,8 +366,8 @@
     </div>
     <div class="setting-row" style="text-align:left;">
       <div class="label-row"><span>Multiplayer Server URL</span></div>
-      <input id="serverUrlInput" placeholder="https://your-server.up.railway.app" oninput="SERVER_URL = this.value.trim()" style="width:100%; box-sizing:border-box; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:14px;">
-      <div style="font-size:12px; opacity:0.6; margin-top:6px;">Only needed for Private Match. Paste the URL you get after deploying the server.</div>
+      <input id="serverUrlInput" placeholder="https://your-server.up.railway.app" oninput="setServerUrl(this.value)" style="width:100%; box-sizing:border-box; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:14px;">
+      <div style="font-size:12px; opacity:0.6; margin-top:6px;">Already set to the default Kickoff Duel server - only change this if you're running your own.</div>
     </div>
     <div style="text-align:center; font-size:14px; opacity:0.7; margin: 18px 0 20px;">
       Left half of the screen = move (tap &amp; drag anywhere)<br/>Right half = kick (tap anywhere)
@@ -357,7 +438,23 @@ let SFX_ENABLED = true;
 let gameInstance = null;
 
 // ---- Online / private match state ----
-let SERVER_URL = '';
+// Ships with a default so players never have to find/paste a URL themselves;
+// the settings field is only there for anyone running their own server instead.
+const DEFAULT_SERVER_URL = 'https://kickoff-game-production.up.railway.app';
+let SERVER_URL = localStorage.getItem('kickoffDuelServerUrl') || DEFAULT_SERVER_URL;
+function setServerUrl(value) {
+  SERVER_URL = value.trim();
+  localStorage.setItem('kickoffDuelServerUrl', SERVER_URL);
+}
+let PLAYER_NAME = localStorage.getItem('kickoffDuelPlayerName') || 'Player';
+function setPlayerName(value) {
+  PLAYER_NAME = (value || '').trim().slice(0, 16) || 'Player';
+  localStorage.setItem('kickoffDuelPlayerName', PLAYER_NAME);
+}
+function renameInLobby(value) {
+  setPlayerName(value);
+  if (socket && roomCode) socket.emit('setName', { code: roomCode, name: PLAYER_NAME });
+}
 let socket = null;
 let roomCode = null;
 let mySlot = null;
@@ -518,6 +615,32 @@ function rematch() {
   gameInstance = new Phaser.Game(config);
 }
 
+// ---- Exit confirmation (shared by every mode via createExitButton) ----
+let pendingExitCallback = null;
+let pausedSceneForExit = null;
+
+function requestExitConfirm(onExit, scene) {
+  pendingExitCallback = onExit;
+  pausedSceneForExit = scene || null;
+  if (pausedSceneForExit) pausedSceneForExit.scene.pause();
+  document.getElementById('exit-confirm').style.display = 'flex';
+}
+
+function confirmExitYes() {
+  document.getElementById('exit-confirm').style.display = 'none';
+  const cb = pendingExitCallback;
+  pendingExitCallback = null;
+  pausedSceneForExit = null;
+  if (cb) cb();
+}
+
+function confirmExitNo() {
+  document.getElementById('exit-confirm').style.display = 'none';
+  if (pausedSceneForExit) pausedSceneForExit.scene.resume();
+  pendingExitCallback = null;
+  pausedSceneForExit = null;
+}
+
 function mainMenu() {
   document.getElementById('match-end').style.display = 'none';
   if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
@@ -529,6 +652,7 @@ function mainMenu() {
 }
 
 function openSettings() {
+  document.getElementById('serverUrlInput').value = SERVER_URL;
   document.getElementById('settings-panel').style.display = 'flex';
 }
 function closeSettings() {
@@ -560,6 +684,7 @@ function hideAllMenus() {
 function openPrivateMenu() {
   hideAllMenus();
   document.getElementById('privateError').textContent = '';
+  document.getElementById('playerNameInput').value = PLAYER_NAME;
   document.getElementById('private-select').style.display = 'flex';
 }
 
@@ -593,11 +718,12 @@ function ensureSocket(onReady) {
 
 function createPrivateRoom() {
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
       hideAllMenus();
       document.getElementById('lobbyCode').textContent = roomCode;
+      document.getElementById('lobbyNameInput').value = PLAYER_NAME;
       document.getElementById('lobby-screen').style.display = 'flex';
     });
   });
@@ -607,11 +733,12 @@ function joinPrivateRoom() {
   const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   if (code.length < 4) { showPrivateError('Enter the 5-character room code.'); return; }
   ensureSocket(() => {
-    socket.emit('joinRoom', { code }, (res) => {
+    socket.emit('joinRoom', { code, name: PLAYER_NAME }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not join room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
       hideAllMenus();
       document.getElementById('lobbyCode').textContent = roomCode;
+      document.getElementById('lobbyNameInput').value = PLAYER_NAME;
       document.getElementById('lobby-screen').style.display = 'flex';
     });
   });
@@ -626,9 +753,22 @@ function renderLobby(data) {
   ['A1', 'A2', 'B1', 'B2'].forEach((slot) => {
     const p = data.players[slot];
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid ' + (slot === mySlot ? '#ffcb3d' : 'rgba(255,255,255,0.15)') + ';';
-    const statusText = p.connected ? '🟢 Player' + (slot === mySlot ? ' (you)' : '') : '🤖 Bot';
-    row.innerHTML = '<span style="font-size:14px; opacity:0.85;">' + labels[slot] + '</span><span style="font-size:14px; font-weight:700;">' + statusText + '</span>';
+    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:10px; background:rgba(255,255,255,0.06); color:white; border:1px solid ' + (slot === mySlot ? '#ffcb3d' : 'rgba(255,255,255,0.15)') + ';';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.style.cssText = 'font-size:14px; opacity:0.85;';
+    labelSpan.textContent = labels[slot];
+
+    const statusSpan = document.createElement('span');
+    statusSpan.style.cssText = 'font-size:14px; font-weight:700;';
+    // .textContent, not innerHTML - player names come from other sockets and
+    // must never be interpreted as HTML/script
+    statusSpan.textContent = p.connected
+      ? ('🟢 ' + (p.name || 'Player') + (slot === mySlot ? ' (you)' : ''))
+      : '🤖 Bot';
+
+    row.appendChild(labelSpan);
+    row.appendChild(statusSpan);
     slotsEl.appendChild(row);
   });
   document.getElementById('lobbyStartBtn').style.display = isHost ? 'block' : 'none';
@@ -732,7 +872,7 @@ function createExitButton(scene, onExit) {
   container.on('pointerdown', () => {
     scene.tweens.add({ targets: container, scale: 0.9, duration: 70, yoyo: true });
     if (typeof SFX !== 'undefined') SFX.click();
-    onExit();
+    requestExitConfirm(onExit, scene);
   });
   return container;
 }
