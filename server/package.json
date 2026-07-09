@@ -1,7 +1,7 @@
 {
   "name": "kickoff-duel-server",
   "version": "1.0.0",
-  "description": "Authoritative Socket.io server for Kickoff Duel private matches (2v2, up to 4 players)",
+  "description": "Authoritative Socket.io server for Kickoff Duel private matches (2v2 or 3v3, up to 6 players)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
