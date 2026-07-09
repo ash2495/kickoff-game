@@ -913,6 +913,7 @@ class MainScene extends Phaser.Scene {
     this.matchDuration = (typeof MATCH_DURATION !== 'undefined') ? MATCH_DURATION : 180;
     this.timeRemaining = this.matchDuration;
     this.matchEnded = false;
+    this.stallTracker = null;
 
     // small reusable texture for confetti particles
     if (!this.textures.exists('particleDot')) {
@@ -1336,6 +1337,32 @@ class MainScene extends Phaser.Scene {
     resetting = false;
   }
 
+  // anti-stalling: if the ball sits pinned near a pitch corner (not moving
+  // more than a small jitter radius) for 5s, reset it and both players back
+  // to their starting spots instead of letting play stall out indefinitely
+  checkBallStall(now) {
+    if (resetting || this.matchEnded) { this.stallTracker = null; return; }
+    const corners = [
+      { x: 20, y: 20 }, { x: FIELD.w - 20, y: 20 },
+      { x: 20, y: FIELD.h - 20 }, { x: FIELD.w - 20, y: FIELD.h - 20 },
+    ];
+    const nearCorner = corners.some((c) => Phaser.Math.Distance.Between(ball.x, ball.y, c.x, c.y) < 150);
+    if (!nearCorner) { this.stallTracker = null; return; }
+
+    if (!this.stallTracker || Phaser.Math.Distance.Between(ball.x, ball.y, this.stallTracker.x, this.stallTracker.y) > 60) {
+      this.stallTracker = { x: ball.x, y: ball.y, since: now };
+      return;
+    }
+
+    if (now - this.stallTracker.since >= 5000) {
+      this.stallTracker = null;
+      resetting = true;
+      this.flashKickMsg('⚠ BALL RESET - STUCK IN CORNER', '#ffcb3d');
+      if (typeof SFX !== 'undefined') SFX.whistle(false);
+      this.time.delayedCall(500, () => this.resetPositions());
+    }
+  }
+
   update(time, delta) {
     if (this.matchEnded) return;
 
@@ -1350,6 +1377,8 @@ class MainScene extends Phaser.Scene {
       }
       if (this.timerText) this.timerText.setText(this.formatTime(this.timeRemaining));
     }
+
+    this.checkBallStall(time);
 
     // Player 1 - joystick movement
     const speed = 260;
@@ -1429,6 +1458,7 @@ class OnlineScene extends Phaser.Scene {
     this.matchEnded = false;
     this.lastInputSent = 0;
     this.lastScore = { A: 0, B: 0 };
+    this.lastStallResetCount = 0;
 
     // reusable confetti texture
     if (!this.textures.exists('particleDot')) {
@@ -1607,6 +1637,10 @@ class OnlineScene extends Phaser.Scene {
       this.lastScore = { A: data.score.A, B: data.score.B };
       this.celebrateGoal();
     }
+    if (data.stallResetCount > this.lastStallResetCount) {
+      this.lastStallResetCount = data.stallResetCount;
+      this.showStallReset();
+    }
     if (this.timerText) {
       if (data.timeRemaining != null) {
         const sec = Math.max(0, Math.ceil(data.timeRemaining));
@@ -1655,6 +1689,21 @@ class OnlineScene extends Phaser.Scene {
     });
     emitter.explode(24, this.ball.x, this.ball.y);
     this.time.delayedCall(800, () => emitter.destroy());
+  }
+
+  showStallReset() {
+    if (typeof SFX !== 'undefined') SFX.whistle(false);
+    const { width: W, height: H } = this.scale;
+    const msg = this.add.text(W/2, H/2 - 40, '⚠ BALL RESET — STUCK IN CORNER', {
+      fontFamily: 'Rajdhani', fontSize: '26px', fontStyle: '700', align: 'center',
+      color: '#ffcb3d', stroke: '#0b1220', strokeThickness: 5
+    }).setOrigin(0.5).setAlpha(0).setDepth(900);
+    this.tweens.add({
+      targets: msg, alpha: 1, duration: 200,
+      onComplete: () => {
+        this.tweens.add({ targets: msg, alpha: 0, delay: 700, duration: 400, onComplete: () => msg.destroy() });
+      }
+    });
   }
 
   update(time, delta) {

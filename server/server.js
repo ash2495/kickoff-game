@@ -32,6 +32,14 @@ const KICK_POWER = 520;
 const TICK_MS = 50; // 20Hz simulation + broadcast rate
 const GOAL_RESET_DELAY_MS = 900;
 
+// anti-stalling: if the ball sits pinned near a pitch corner (not moving more
+// than a small jitter radius) for this long, reset it and every player back
+// to their starting spots instead of letting play stall out indefinitely
+const STALL_CORNER_RADIUS = 150;
+const STALL_MOVE_THRESHOLD = 60;
+const STALL_DURATION_MS = 5000;
+const STALL_RESET_DELAY_MS = 500;
+
 const TEAM_SIZES = [2, 3]; // 2v2 (4 players) or 3v3 (6 players)
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 
@@ -119,6 +127,8 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
     timeRemaining: null,
     tickHandle: null,
     botState: {},
+    stallTracker: null,
+    stallResetCount: 0,
   };
   entities.A1.isBot = false;
   entities.A1.socketId = hostSocketId;
@@ -153,6 +163,38 @@ function resetMatchState(room) {
   room.ball.x = FIELD.w / 2; room.ball.y = FIELD.h / 2;
   room.ball.vx = 0; room.ball.vy = 0;
   room.botState = {};
+  room.stallTracker = null;
+}
+
+const PITCH_CORNERS = [
+  { x: PITCH.x, y: PITCH.y }, { x: PITCH.x + PITCH.w, y: PITCH.y },
+  { x: PITCH.x, y: PITCH.y + PITCH.h }, { x: PITCH.x + PITCH.w, y: PITCH.y + PITCH.h },
+];
+
+function checkBallStall(room, now) {
+  const b = room.ball;
+  const nearCorner = PITCH_CORNERS.some((c) => Math.hypot(b.x - c.x, b.y - c.y) < STALL_CORNER_RADIUS);
+  if (!nearCorner) { room.stallTracker = null; return; }
+
+  if (!room.stallTracker || Math.hypot(b.x - room.stallTracker.x, b.y - room.stallTracker.y) > STALL_MOVE_THRESHOLD) {
+    room.stallTracker = { x: b.x, y: b.y, since: now };
+    return;
+  }
+
+  if (now - room.stallTracker.since >= STALL_DURATION_MS) {
+    room.stallTracker = null;
+    room.resetting = true;
+    room.stallResetCount++;
+    setTimeout(() => {
+      if (rooms.get(room.code) !== room) return; // room was torn down mid-reset
+      room.slots.forEach((slot) => {
+        const e = room.entities[slot];
+        e.x = room.startPos[slot].x; e.y = room.startPos[slot].y; e.vx = 0; e.vy = 0;
+      });
+      room.ball.x = FIELD.w / 2; room.ball.y = FIELD.h / 2; room.ball.vx = 0; room.ball.vy = 0;
+      room.resetting = false;
+    }, STALL_RESET_DELAY_MS);
+  }
 }
 
 function clampToPitch(e) {
@@ -324,6 +366,7 @@ function broadcastState(room) {
     score: room.score,
     timeRemaining: room.timeRemaining,
     ended: room.ended,
+    stallResetCount: room.stallResetCount,
   });
 }
 
@@ -352,6 +395,9 @@ function tick(room) {
     updateBall(room, dt);
     resolveCollisions(room);
     checkGoals(room);
+    checkBallStall(room, Date.now());
+  } else {
+    room.stallTracker = null;
   }
 
   broadcastState(room);
