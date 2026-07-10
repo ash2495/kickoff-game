@@ -471,6 +471,40 @@ io.on('connection', (socket) => {
     emitLobby(room);
   });
 
+  // manual team/slot selection in the lobby - move yourself into an open
+  // (bot) slot, swapping your old slot back to a bot
+  socket.on('switchSlot', (data, cb) => {
+    const ok = () => { if (typeof cb === 'function') cb({ ok: true }); };
+    const fail = (error) => { if (typeof cb === 'function') cb({ ok: false, error }); };
+
+    const code = data && data.code;
+    const room = rooms.get(code);
+    if (!room || socket.data.code !== code) return fail('Not in that room.');
+    if (room.started) return fail('The match already started.');
+
+    const fromSlot = socket.data.slot;
+    const toSlot = data && data.slot;
+    const fromEntity = room.entities[fromSlot];
+    if (!fromEntity || fromEntity.isBot) return fail('You are not in this room.');
+    if (!toSlot || !room.entities[toSlot]) return fail('Invalid slot.');
+    if (toSlot === fromSlot) return ok();
+    const toEntity = room.entities[toSlot];
+    if (!toEntity.isBot) return fail('That slot is taken.');
+
+    toEntity.isBot = false;
+    toEntity.socketId = fromEntity.socketId;
+    toEntity.name = fromEntity.name;
+    fromEntity.isBot = true;
+    fromEntity.socketId = null;
+    fromEntity.name = 'Player';
+
+    if (room.hostSlot === fromSlot) room.hostSlot = toSlot;
+    socket.data.slot = toSlot;
+
+    ok();
+    emitLobby(room);
+  });
+
   socket.on('startMatch', (data) => {
     const code = data && data.code;
     const room = rooms.get(code);
