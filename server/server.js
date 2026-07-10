@@ -26,8 +26,7 @@ const BALL_R = 16;
 const PLAYER_SPEED = 260;
 const BALL_MAX_SPEED = 600;
 const BALL_DRAG = 0.96; // per-tick velocity multiplier
-const BOT_SPEED = 90;
-const KICK_RANGE = 130;
+const KICK_RANGE = 90;
 const KICK_POWER = 520;
 const TICK_MS = 50; // 20Hz simulation + broadcast rate
 const GOAL_RESET_DELAY_MS = 900;
@@ -43,6 +42,18 @@ const STALL_RESET_DELAY_MS = 500;
 const TEAM_SIZES = [2, 3]; // 2v2 (4 players) or 3v3 (6 players)
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 
+// same pool the client uses for VS Bot mode, so bot names feel consistent
+// across local and online play
+const BOT_NAMES = [
+  'RoboStriker', 'IronKicker', 'ByteRunner', 'CircuitAce', 'TurboBoot',
+  'SteelToe', 'QuickBot', 'GhostKicker', 'ChromeDribbler', 'ClockworkAce',
+  'PixelStriker', 'VoltRunner', 'ScrapKicker', 'NitroBot', 'ShadowStriker',
+  'BoltRunner', 'CyberKicker', 'RustyBoot', 'SparkStriker', 'GearGoalie',
+];
+function randomBotName() {
+  return BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+}
+
 const rooms = new Map(); // code -> room state
 
 function clampNum(v, min, max) {
@@ -52,6 +63,18 @@ function clampNum(v, min, max) {
 function sanitizeTeamSize(size) {
   const n = Number(size);
   return TEAM_SIZES.includes(n) ? n : 2;
+}
+
+// mirrors the client's BOT_DIFFICULTY table (www/index.html) exactly, so
+// the same difficulty picker on the main menu controls VS Bot and the
+// bots that fill empty Private Match slots
+const BOT_DIFFICULTY = {
+  easy:   { speed: 90,  reactionMs: 800, hesitateChance: 0.30, kickCooldownMs: 2200, wobble: 1.1 },
+  medium: { speed: 150, reactionMs: 450, hesitateChance: 0.15, kickCooldownMs: 1500, wobble: 0.6 },
+  hard:   { speed: 210, reactionMs: 150, hesitateChance: 0.03, kickCooldownMs: 900,  wobble: 0.22 },
+};
+function sanitizeBotDifficulty(level) {
+  return Object.prototype.hasOwnProperty.call(BOT_DIFFICULTY, level) ? level : 'easy';
 }
 
 // e.g. teamSize=2 -> ['A1','A2','B1','B2'], teamSize=3 -> ['A1','A2','A3','B1','B2','B3']
@@ -98,7 +121,7 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize, botDifficulty) {
   const code = makeRoomCode();
   const size = sanitizeTeamSize(teamSize);
   const slots = getSlots(size);
@@ -107,7 +130,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
   slots.forEach((slot) => {
     entities[slot] = {
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
-      team: slot[0], isBot: true, socketId: null, name: 'Player', inputVec: { x: 0, y: 0 },
+      team: slot[0], isBot: true, socketId: null, name: randomBotName(), inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
@@ -116,6 +139,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
     slots,
     startPos,
     joinOrder: getJoinOrder(size),
+    botDifficulty: sanitizeBotDifficulty(botDifficulty),
     hostSlot: 'A1',
     matchDuration: matchDuration > 0 ? matchDuration : 0,
     started: false,
@@ -221,17 +245,18 @@ function updatePlayers(room, dt) {
 
 function updateBots(room, dt) {
   const now = Date.now();
+  const cfg = BOT_DIFFICULTY[room.botDifficulty] || BOT_DIFFICULTY.easy;
   room.slots.forEach((slot) => {
     const e = room.entities[slot];
     if (!e.isBot) return;
     let bs = room.botState[slot];
     if (!bs) bs = room.botState[slot] = { targetRefresh: 0, target: null, hesitate: false, lastKick: 0 };
 
-    // slow "reaction time" + occasional hesitation, same easy-mode feel as the local bot
-    if (now - bs.targetRefresh > 800) {
+    // reaction time + hesitation chance both tighten as difficulty increases
+    if (now - bs.targetRefresh > cfg.reactionMs) {
       bs.targetRefresh = now;
       bs.target = { x: room.ball.x, y: room.ball.y };
-      bs.hesitate = Math.random() < 0.3;
+      bs.hesitate = Math.random() < cfg.hesitateChance;
     }
     const target = bs.target || room.ball;
     const dx = target.x - e.x, dy = target.y - e.y;
@@ -240,19 +265,19 @@ function updateBots(room, dt) {
     if (bs.hesitate || dist <= 4) {
       e.vx = 0; e.vy = 0;
     } else {
-      e.vx = (dx / dist) * BOT_SPEED;
-      e.vy = (dy / dist) * BOT_SPEED;
+      e.vx = (dx / dist) * cfg.speed;
+      e.vy = (dy / dist) * cfg.speed;
     }
     e.x += e.vx * dt;
     e.y += e.vy * dt;
     clampToPitch(e);
 
     const realDist = Math.hypot(room.ball.x - e.x, room.ball.y - e.y);
-    if (!room.resetting && realDist < KICK_RANGE && now - bs.lastKick > 2200) {
+    if (!room.resetting && realDist < KICK_RANGE && now - bs.lastKick > cfg.kickCooldownMs) {
       bs.lastKick = now;
       const goalX = e.team === 'A' ? FIELD.w - 20 : 20; // attack the opposing goal
       const baseAngle = Math.atan2(FIELD.h / 2 - e.y, goalX - e.x);
-      const wobble = (Math.random() - 0.5) * 1.1; // wide, inaccurate shots
+      const wobble = (Math.random() - 0.5) * cfg.wobble;
       const aimAngle = baseAngle + wobble;
       room.ball.vx = Math.cos(aimAngle) * KICK_POWER;
       room.ball.vy = Math.sin(aimAngle) * KICK_POWER;
@@ -418,7 +443,7 @@ function handleLeave(socket) {
   const room = rooms.get(code);
   if (!room) return;
   const e = room.entities[slot];
-  if (e) { e.isBot = true; e.socketId = null; }
+  if (e) { e.isBot = true; e.socketId = null; e.name = randomBotName(); }
 
   const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
   if (connectedSlots.length === 0) {
@@ -434,7 +459,7 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (data, cb) => {
     if (typeof cb !== 'function') return;
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, data && data.botDifficulty);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
@@ -496,7 +521,7 @@ io.on('connection', (socket) => {
     toEntity.name = fromEntity.name;
     fromEntity.isBot = true;
     fromEntity.socketId = null;
-    fromEntity.name = 'Player';
+    fromEntity.name = randomBotName();
 
     if (room.hostSlot === fromSlot) room.hostSlot = toSlot;
     socket.data.slot = toSlot;

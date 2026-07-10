@@ -234,16 +234,6 @@
   .setting-row input[type=range] {
     width: 100%; accent-color: #ffcb3d; height: 6px;
   }
-  .preview-row {
-    display: flex; align-items: center; justify-content: center;
-    height: 90px; margin-top: 8px;
-  }
-  .preview-circle {
-    border-radius: 50%; transition: width 0.05s, height 0.05s;
-  }
-  .preview-joy { background: rgba(46,134,245,0.5); border: 3px solid #9ccdff; }
-  .preview-kick { background: rgba(255,203,61,0.6); border: 3px solid #fff3cf;
-    display: flex; align-items: center; justify-content: center; font-size: 20px; }
   .done-btn {
     display: block; width: 100%; margin-top: 6px;
     background: linear-gradient(135deg, #ffcb3d, #d9a316);
@@ -346,9 +336,18 @@
       </div>
     </div>
 
+    <div class="duration-row">
+      <div class="duration-label">BOT DIFFICULTY</div>
+      <div class="duration-chips">
+        <button class="duration-chip selected" onclick="SFX.click(); setBotDifficulty('easy',this)">EASY</button>
+        <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('medium',this)">MEDIUM</button>
+        <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('hard',this)">HARD</button>
+      </div>
+    </div>
+
     <button class="mode-btn" onclick="SFX.click(); startGame('bot')">🤖 VS BOT</button>
-    <button class="mode-btn alt" onclick="SFX.click(); startGame('local')">👥 LOCAL 2 PLAYER</button>
     <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-6P)</button>
+    <button class="mode-btn alt" onclick="SFX.click(); startGame('local')">👥 LOCAL 2 PLAYER</button>
   </div>
 </div>
 
@@ -427,16 +426,6 @@
     <div style="text-align:center; font-size:14px; opacity:0.7; margin: 18px 0 20px;">
       Left half of the screen = move (tap &amp; drag anywhere)<br/>Right half = kick (tap anywhere)
     </div>
-    <div class="setting-row">
-      <div class="label-row"><span>Joystick Size</span><span class="val" id="joyVal">100%</span></div>
-      <input type="range" id="joySlider" min="70" max="160" value="100" oninput="updateJoyPreview(this.value)">
-      <div class="preview-row"><div class="preview-circle preview-joy" id="joyPreview" style="width:80px;height:80px;"></div></div>
-    </div>
-    <div class="setting-row">
-      <div class="label-row"><span>Kick Feedback Size</span><span class="val" id="kickVal">100%</span></div>
-      <input type="range" id="kickSlider" min="70" max="160" value="100" oninput="updateKickPreview(this.value)">
-      <div class="preview-row"><div class="preview-circle preview-kick" id="kickPreview" style="width:80px;height:80px;">⚽</div></div>
-    </div>
     <button class="done-btn" onclick="SFX.click(); closeSettings()">DONE</button>
   </div>
 </div>
@@ -486,9 +475,8 @@
 </script>
 <script>
 let GAME_MODE = 'bot';
-let JOYSTICK_SCALE = 1;
-let KICK_SCALE = 1;
 let MATCH_DURATION = 180; // seconds; 0 = no limit
+let BOT_DIFFICULTY_LEVEL = 'easy'; // 'easy' | 'medium' | 'hard' - VS Bot mode only
 let SFX_ENABLED = true;
 let gameInstance = null;
 
@@ -657,7 +645,14 @@ function startGame(mode) {
 
 function setDuration(seconds, el) {
   MATCH_DURATION = seconds;
-  document.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
+  // scoped to this row only - there's a separate .duration-chip row for bot
+  // difficulty now, and a global query would wipe its selection too
+  el.parentElement.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function setBotDifficulty(level, el) {
+  BOT_DIFFICULTY_LEVEL = level;
+  el.parentElement.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
 }
 
@@ -740,20 +735,6 @@ function openSettings() {
 function closeSettings() {
   document.getElementById('settings-panel').style.display = 'none';
 }
-function updateJoyPreview(v) {
-  JOYSTICK_SCALE = v / 100;
-  document.getElementById('joyVal').textContent = v + '%';
-  const px = 60 + (v - 70) * (120 - 60) / (160 - 70);
-  document.getElementById('joyPreview').style.width = px + 'px';
-  document.getElementById('joyPreview').style.height = px + 'px';
-}
-function updateKickPreview(v) {
-  KICK_SCALE = v / 100;
-  document.getElementById('kickVal').textContent = v + '%';
-  const px = 60 + (v - 70) * (120 - 60) / (160 - 70);
-  document.getElementById('kickPreview').style.width = px + 'px';
-  document.getElementById('kickPreview').style.height = px + 'px';
-}
 
 // ==================== PRIVATE MATCH (online 1-4 players) ====================
 
@@ -800,7 +781,7 @@ function ensureSocket(onReady) {
 
 function createPrivateRoom() {
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, botDifficulty: BOT_DIFFICULTY_LEVEL }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
       hideAllMenus();
@@ -859,7 +840,8 @@ function renderLobby(data) {
     if (p.connected) {
       statusSpan.textContent = '🟢 ' + (p.name || 'Player') + (slot === mySlot ? ' (you)' : '');
     } else {
-      statusSpan.textContent = canSwitchHere ? '🤖 Bot · tap to switch' : '🤖 Bot';
+      const botName = p.name || 'Bot';
+      statusSpan.textContent = canSwitchHere ? ('🤖 ' + botName + ' · tap to switch') : ('🤖 ' + botName);
     }
 
     row.appendChild(labelSpan);
@@ -932,6 +914,25 @@ function exitOnlineMatch() {
 const FIELD = { w: 1600, h: 800 };
 const GOAL_WIDTH = 180; // vertical opening size
 const GOAL_DEPTH = 40;
+const KICK_RANGE = 90; // max player-to-ball center distance for a kick to register
+
+// VS Bot difficulty tuning - speed/reactionMs/hesitateChance control how well
+// the bot tracks the ball, kickCooldownMs/wobble control how often and how
+// accurately it shoots (wobble is the total random-angle spread in radians)
+const BOT_DIFFICULTY = {
+  easy:   { speed: 90,  reactionMs: 800, hesitateChance: 0.30, kickCooldownMs: 2200, wobble: 1.1 },
+  medium: { speed: 150, reactionMs: 450, hesitateChance: 0.15, kickCooldownMs: 1500, wobble: 0.6 },
+  hard:   { speed: 210, reactionMs: 150, hesitateChance: 0.03, kickCooldownMs: 900,  wobble: 0.22 },
+};
+
+// flavor names for VS Bot mode (Private Match bots get their names from the
+// server, which keeps the same pool so it feels consistent either way)
+const BOT_NAMES = [
+  'RoboStriker', 'IronKicker', 'ByteRunner', 'CircuitAce', 'TurboBoot',
+  'SteelToe', 'QuickBot', 'GhostKicker', 'ChromeDribbler', 'ClockworkAce',
+  'PixelStriker', 'VoltRunner', 'ScrapKicker', 'NitroBot', 'ShadowStriker',
+  'BoltRunner', 'CyberKicker', 'RustyBoot', 'SparkStriker', 'GearGoalie',
+];
 
 let player1, player2, ball;
 let scoreText;
@@ -944,21 +945,25 @@ let resetting = false;
 // a real tappable button (not just text) so it's easy to see and hit mid-match.
 function createExitButton(scene, onExit) {
   const W = scene.scale.width;
-  const btnW = 118, btnH = 46;
-  const x = W - 16 - btnW / 2, y = 16 + btnH / 2;
+  // small circular icon button (not a wide solid rectangle) - the top-right
+  // corner is exactly where the ball ends up during corner stalls, so a
+  // smaller, semi-transparent button leaves the ball/players visible
+  // instead of getting fully hidden behind it
+  const r = 22; // ~44px diameter, same tap-target size as the settings gear
+  const x = W - 16 - r, y = 16 + r;
 
   const bg = scene.add.graphics();
-  bg.fillStyle(0xff4757, 0.9);
-  bg.lineStyle(3, 0xffb3ba, 0.95);
-  bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
-  bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+  bg.fillStyle(0xff4757, 0.55);
+  bg.lineStyle(2, 0xffb3ba, 0.85);
+  bg.fillCircle(0, 0, r);
+  bg.strokeCircle(0, 0, r);
 
-  const label = scene.add.text(0, 0, '✕ EXIT', {
+  const label = scene.add.text(0, 0, '✕', {
     fontFamily: 'Rajdhani', fontSize: '20px', fontStyle: '700', color: '#ffffff'
   }).setOrigin(0.5);
 
   const container = scene.add.container(x, y, [bg, label]);
-  container.setSize(btnW, btnH);
+  container.setSize(r * 2, r * 2);
   // the kick zone covers the entire right half of the screen (including this
   // button's corner) - without a higher depth it eats every tap here since
   // Phaser's input hit-test picks the topmost object at equal depth.
@@ -978,6 +983,9 @@ class MainScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = this.scale;
     this.mode = (typeof GAME_MODE !== 'undefined') ? GAME_MODE : 'bot';
+    const difficultyLevel = (typeof BOT_DIFFICULTY_LEVEL !== 'undefined') ? BOT_DIFFICULTY_LEVEL : 'easy';
+    this.botConfig = BOT_DIFFICULTY[difficultyLevel] || BOT_DIFFICULTY.easy;
+    this.botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
     this.matchDuration = (typeof MATCH_DURATION !== 'undefined') ? MATCH_DURATION : 180;
     this.timeRemaining = this.matchDuration;
     this.matchEnded = false;
@@ -1116,7 +1124,8 @@ class MainScene extends Phaser.Scene {
 
     // small labels (kept in sync with player position each frame, like the shadows/gloss above)
     this.p1Label = this.add.text(player1.x, player1.y-48, 'P1', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#9ccdff'}).setOrigin(0.5);
-    this.p2Label = this.add.text(player2.x, player2.y-48, this.mode === 'bot' ? 'BOT' : 'P2', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
+    const p2LabelText = this.mode === 'bot' ? (this.botName + ' (' + difficultyLevel.toUpperCase() + ')') : 'P2';
+    this.p2Label = this.add.text(player2.x, player2.y-48, p2LabelText, {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
 
     // ---- Ball ----
     ball = this.add.circle(W/2, H/2, 16, 0xf5f7fa);
@@ -1183,8 +1192,7 @@ class MainScene extends Phaser.Scene {
   }
 
   createJoystick() {
-    const scale = (typeof JOYSTICK_SCALE !== 'undefined') ? JOYSTICK_SCALE : 1;
-    const baseR = 120 * scale, knobR = 58 * scale;
+    const baseR = 120, knobR = 58;
     const W = this.scale.width, H = this.scale.height;
 
     // hidden until the player actually touches down - it appears right under their thumb
@@ -1236,9 +1244,7 @@ class MainScene extends Phaser.Scene {
   }
 
   createKickButton() {
-    const scale = (typeof KICK_SCALE !== 'undefined') ? KICK_SCALE : 1;
     const W = this.scale.width, H = this.scale.height;
-    this.kickRippleScale = scale;
 
     // subtle low-opacity reminder, doesn't block touches (not interactive)
     this.add.text(W-28, H-28, 'TAP ANYWHERE TO KICK ⚽', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(1,1).setAlpha(0.22);
@@ -1252,8 +1258,7 @@ class MainScene extends Phaser.Scene {
   }
 
   kickRipple(x, y) {
-    const scale = this.kickRippleScale || 1;
-    const r = this.add.circle(x, y, 26 * scale, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
+    const r = this.add.circle(x, y, 26, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
     this.tweens.add({
       targets: r, scale: 2.4, alpha: 0, duration: 320, ease: 'Cubic.Out',
       onComplete: () => r.destroy()
@@ -1262,19 +1267,17 @@ class MainScene extends Phaser.Scene {
 
   tryKick(player, targetPoint) {
     const dist = Phaser.Math.Distance.Between(player.x, player.y, ball.x, ball.y);
-    if (dist < 130) {
+    if (dist < KICK_RANGE) {
       const angle = targetPoint
         ? Phaser.Math.Angle.Between(player.x, player.y, targetPoint.x, targetPoint.y)
         : Phaser.Math.Angle.Between(player.x, player.y, ball.x, ball.y);
       const power = 520;
       ball.body.setVelocity(Math.cos(angle)*power, Math.sin(angle)*power);
       this.tweens.add({ targets: player, scale: 1.15, duration: 80, yoyo: true });
-      this.flashKickMsg('HIT!', '#2ecc71');
       if (typeof SFX !== 'undefined') SFX.kick();
     } else {
       // ball out of range - quick visual so it's clear the button registered but missed
       this.tweens.add({ targets: player, scale: 0.9, duration: 60, yoyo: true });
-      this.flashKickMsg('TOO FAR (' + Math.round(dist) + 'px)', '#e74c3c');
     }
   }
 
@@ -1294,27 +1297,28 @@ class MainScene extends Phaser.Scene {
 
   updateBotAI() {
     const now = this.time.now;
-    const speed = 90; // easy mode: quite slow
+    const cfg = this.botConfig;
 
-    // simulate slow reaction time: bot only "sees" a fresh ball position
-    // every ~800ms, and sometimes just hesitates instead of moving at all
-    if (!this.botTargetRefresh || now - this.botTargetRefresh > 800) {
+    // simulate reaction time: bot only "sees" a fresh ball position every
+    // reactionMs, and sometimes just hesitates instead of moving at all -
+    // both get tighter as difficulty increases
+    if (!this.botTargetRefresh || now - this.botTargetRefresh > cfg.reactionMs) {
       this.botTargetRefresh = now;
       this.botTarget = { x: ball.x, y: ball.y };
-      this.botHesitate = Math.random() < 0.3; // 30% chance to freeze this cycle
+      this.botHesitate = Math.random() < cfg.hesitateChance;
     }
     const target = this.botTarget || ball;
     const dx = target.x - player2.x;
     const dy = target.y - player2.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
 
-    // shooting: rare, and quite inaccurate
+    // shooting: cooldown and aim wobble both shrink with difficulty
     const realDist = Phaser.Math.Distance.Between(player2.x, player2.y, ball.x, ball.y);
-    if (realDist < 130 && (!this.lastBotKick || now - this.lastBotKick > 2200)) {
+    if (realDist < KICK_RANGE && (!this.lastBotKick || now - this.lastBotKick > cfg.kickCooldownMs)) {
       this.lastBotKick = now;
       const goalPoint = { x: 20, y: this.scale.height / 2 };
       const baseAngle = Phaser.Math.Angle.Between(player2.x, player2.y, goalPoint.x, goalPoint.y);
-      const wobble = (Math.random() - 0.5) * 1.1; // ~ +/-63 degrees of inaccuracy
+      const wobble = (Math.random() - 0.5) * cfg.wobble;
       const aimAngle = baseAngle + wobble;
       const aimPoint = {
         x: player2.x + Math.cos(aimAngle) * 300,
@@ -1327,7 +1331,7 @@ class MainScene extends Phaser.Scene {
       player2.body.setVelocity(0, 0);
     } else if (dist > 4) {
       const nx = dx / dist, ny = dy / dist;
-      player2.body.setVelocity(nx * speed, ny * speed);
+      player2.body.setVelocity(nx * cfg.speed, ny * cfg.speed);
     } else {
       player2.body.setVelocity(0, 0);
     }
@@ -1527,6 +1531,12 @@ class OnlineScene extends Phaser.Scene {
     this.lastInputSent = 0;
     this.lastScore = { A: 0, B: 0 };
     this.lastStallResetCount = 0;
+    // mirror the whole world horizontally for Team B viewers, so every
+    // player sees their own side on the left regardless of which team
+    // they were actually assigned. Only x needs mirroring - teams split
+    // left/right, not top/bottom.
+    this.flip = !!(mySlot && mySlot[0] === 'B');
+    this.mirrorX = (x) => this.flip ? (W - x) : x;
 
     // reusable confetti texture
     if (!this.textures.exists('particleDot')) {
@@ -1544,8 +1554,8 @@ class OnlineScene extends Phaser.Scene {
       this.add.circle(cx, cy, 280, color, 0.06);
       this.add.circle(cx, cy, 150, color, 0.08);
     };
-    glow(0, 0, 0x2e86f5);
-    glow(W, 0, 0xff4757);
+    glow(this.mirrorX(0), 0, 0x2e86f5);
+    glow(this.mirrorX(W), 0, 0xff4757);
 
     const pitchX = 20, pitchY = 20, pitchW = W - 40, pitchH = H - 40;
     const stripeCount = 10, stripeW = pitchW / stripeCount;
@@ -1591,8 +1601,8 @@ class OnlineScene extends Phaser.Scene {
     panel.lineStyle(2, 0xffcb3d, 0.6);
     panel.fillRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
     panel.strokeRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
-    this.add.rectangle(W/2 - panelW/2 + 14, 14 + panelH/2, 8, 34, 0x2e86f5).setOrigin(0.5);
-    this.add.rectangle(W/2 + panelW/2 - 14, 14 + panelH/2, 8, 34, 0xff4757).setOrigin(0.5);
+    this.add.rectangle(this.flip ? (W/2 + panelW/2 - 14) : (W/2 - panelW/2 + 14), 14 + panelH/2, 8, 34, 0x2e86f5).setOrigin(0.5);
+    this.add.rectangle(this.flip ? (W/2 - panelW/2 + 14) : (W/2 + panelW/2 - 14), 14 + panelH/2, 8, 34, 0xff4757).setOrigin(0.5);
     this.scoreText = this.add.text(W/2, 14 + panelH/2, '0   -   0', {
       fontFamily: 'Orbitron', fontSize: '30px', color: '#f5f7fa', fontStyle: '800'
     }).setOrigin(0.5);
@@ -1620,8 +1630,7 @@ class OnlineScene extends Phaser.Scene {
   }
 
   setupOnlineJoystick() {
-    const scale = (typeof JOYSTICK_SCALE !== 'undefined') ? JOYSTICK_SCALE : 1;
-    const baseR = 120 * scale, knobR = 58 * scale;
+    const baseR = 120, knobR = 58;
     const W = this.scale.width, H = this.scale.height;
 
     const base = this.add.circle(0, 0, baseR, 0x0b1220, 0.35).setStrokeStyle(3, 0xffcb3d, 0.55).setVisible(false);
@@ -1664,7 +1673,12 @@ class OnlineScene extends Phaser.Scene {
 
   sendInput() {
     if (typeof socket !== 'undefined' && socket && roomCode) {
-      socket.emit('input', { code: roomCode, vec: this.onlineJoystick.vec });
+      const vec = this.onlineJoystick.vec;
+      // the joystick vector is in screen space; invert x for flipped
+      // viewers so "push right on my screen" always moves the world in
+      // the direction that renders as "right" once mirrored back
+      const sendVec = this.flip ? { x: -vec.x, y: vec.y } : vec;
+      socket.emit('input', { code: roomCode, vec: sendVec });
     }
   }
 
@@ -1675,8 +1689,10 @@ class OnlineScene extends Phaser.Scene {
     const circle = this.add.circle(x, y, 26, colors.fill).setStrokeStyle(4, colors.stroke, 0.9);
     const shadow = this.add.ellipse(x, y+22, 34, 12, 0x000000, 0.3);
     const gloss = this.add.circle(x-8, y-9, 8, 0xffffff, 0.45);
-    const info = lastLobbyPlayers[slot] || { connected: false, name: 'Player' };
-    const labelText = info.connected ? info.name : 'BOT';
+    const info = lastLobbyPlayers[slot] || { connected: false, name: 'Bot' };
+    // server always assigns a real name to bot slots too (random flavor name),
+    // so we never need to hardcode "BOT" here anymore
+    const labelText = info.name;
     const label = this.add.text(x, y-48, labelText, {
       fontFamily:'Rajdhani', fontSize:'16px', fontStyle:'700',
       color: team === 'A' ? '#9ccdff' : '#ffb3ba'
@@ -1688,15 +1704,23 @@ class OnlineScene extends Phaser.Scene {
 
   applyServerState(data) {
     if (!data) return;
+    // server sends world-space coordinates; mirror to screen space here so
+    // every downstream consumer (sprite creation, lerp, rendering) only
+    // ever deals in screen space and never needs to know about flip
     Object.keys(data.entities).forEach((slot) => {
       const e = data.entities[slot];
-      const s = this.ensureEntitySprite(slot, e.x, e.y);
-      s.targetX = e.x;
-      s.targetY = e.y;
+      const sx = this.mirrorX(e.x), sy = e.y;
+      const s = this.ensureEntitySprite(slot, sx, sy);
+      s.targetX = sx;
+      s.targetY = sy;
     });
-    this.ball.targetX = data.ball.x;
+    this.ball.targetX = this.mirrorX(data.ball.x);
     this.ball.targetY = data.ball.y;
-    this.scoreText.setText(data.score.A + '   -   ' + data.score.B);
+    // display order matches the visual mirror too - my score always shows
+    // on the left, opponent's on the right
+    const leftScore = this.flip ? data.score.B : data.score.A;
+    const rightScore = this.flip ? data.score.A : data.score.B;
+    this.scoreText.setText(leftScore + '   -   ' + rightScore);
 
     if (data.score.A < this.lastScore.A || data.score.B < this.lastScore.B) {
       // score went down/reset (rematch) - resync silently, don't celebrate
