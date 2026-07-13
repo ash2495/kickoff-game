@@ -977,6 +977,23 @@ function createExitButton(scene, onExit) {
   return container;
 }
 
+// ---- shared "game feel" for player circles (used by MainScene + OnlineScene) ----
+// a small facing chevron plus velocity-based squash/stretch, so players read
+// as more alive without needing an actual character rig.
+function createFacingChevron(scene, color) {
+  return scene.add.triangle(0, 0, -6, -6, -6, 6, 9, 0, color, 0.9).setDepth(1);
+}
+
+function applyFacingAndSquash(circle, chevron, angle, stretchAmt, squashAmt) {
+  circle.setRotation(angle);
+  circle.setScale(stretchAmt, squashAmt);
+  if (chevron) {
+    const r = 30;
+    chevron.setPosition(circle.x + Math.cos(angle) * r, circle.y + Math.sin(angle) * r);
+    chevron.setRotation(angle);
+  }
+}
+
 class MainScene extends Phaser.Scene {
   constructor() { super('main'); }
 
@@ -990,6 +1007,7 @@ class MainScene extends Phaser.Scene {
     this.timeRemaining = this.matchDuration;
     this.matchEnded = false;
     this.stallTracker = null;
+    this.extraTime = false;
 
     // small reusable texture for confetti particles
     if (!this.textures.exists('particleDot')) {
@@ -1121,6 +1139,13 @@ class MainScene extends Phaser.Scene {
     this.p2Shadow = this.add.ellipse(player2.x, player2.y+22, 34, 12, 0x000000, 0.3);
     this.p1Gloss = this.add.circle(player1.x-8, player1.y-9, 8, 0xffffff, 0.45);
     this.p2Gloss = this.add.circle(player2.x-8, player2.y-9, 8, 0xffffff, 0.45);
+
+    // facing chevron + kick-lunge state (see updateFeel()) - p1 starts facing
+    // right (toward the opponent), p2 starts facing left
+    this.p1Chevron = createFacingChevron(this, 0x9ccdff);
+    this.p2Chevron = createFacingChevron(this, 0xffb3ba);
+    this.p1Angle = 0;
+    this.p2Angle = Math.PI;
 
     // small labels (kept in sync with player position each frame, like the shadows/gloss above)
     this.p1Label = this.add.text(player1.x, player1.y-48, 'P1', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#9ccdff'}).setOrigin(0.5);
@@ -1267,17 +1292,21 @@ class MainScene extends Phaser.Scene {
 
   tryKick(player, targetPoint) {
     const dist = Phaser.Math.Distance.Between(player.x, player.y, ball.x, ball.y);
+    const kickKey = player === player1 ? 'p1Kick' : 'p2Kick';
     if (dist < KICK_RANGE) {
       const angle = targetPoint
         ? Phaser.Math.Angle.Between(player.x, player.y, targetPoint.x, targetPoint.y)
         : Phaser.Math.Angle.Between(player.x, player.y, ball.x, ball.y);
       const power = 520;
       ball.body.setVelocity(Math.cos(angle)*power, Math.sin(angle)*power);
-      this.tweens.add({ targets: player, scale: 1.15, duration: 80, yoyo: true });
+      // directional lunge toward the kick angle, read by updateFeel() instead
+      // of a plain uniform scale pop
+      this[kickKey] = { angle, until: this.time.now + 220, duration: 220 };
       if (typeof SFX !== 'undefined') SFX.kick();
     } else {
       // ball out of range - quick visual so it's clear the button registered but missed
-      this.tweens.add({ targets: player, scale: 0.9, duration: 60, yoyo: true });
+      const angle = Phaser.Math.Angle.Between(player.x, player.y, ball.x, ball.y);
+      this[kickKey] = { angle, until: this.time.now + 160, duration: 160 };
     }
   }
 
@@ -1346,6 +1375,7 @@ class MainScene extends Phaser.Scene {
 
   endMatch() {
     if (this.matchEnded) return;
+    if (score.p1 === score.p2 && !this.extraTime) { this.startExtraTime(); return; }
     this.matchEnded = true;
     joystick.active = false;
     player1.body.setVelocity(0, 0);
@@ -1353,12 +1383,22 @@ class MainScene extends Phaser.Scene {
     ball.body.setVelocity(0, 0);
     if (typeof SFX !== 'undefined') SFX.whistle(true);
 
-    let winnerLabel;
-    if (score.p1 > score.p2) winnerLabel = (this.mode === 'bot' ? '🏆 YOU WIN!' : '🏆 PLAYER 1 WINS!');
-    else if (score.p2 > score.p1) winnerLabel = (this.mode === 'bot' ? '🤖 BOT WINS!' : '🏆 PLAYER 2 WINS!');
-    else winnerLabel = "IT'S A DRAW!";
+    const winnerLabel = score.p1 > score.p2
+      ? (this.mode === 'bot' ? '🏆 YOU WIN!' : '🏆 PLAYER 1 WINS!')
+      : (this.mode === 'bot' ? '🤖 BOT WINS!' : '🏆 PLAYER 2 WINS!');
 
     if (typeof onMatchEnd === 'function') onMatchEnd(winnerLabel, score.p1, score.p2);
+  }
+
+  // Scores level at full time - golden-goal extra time: play just continues
+  // (kickoff restart, timer swapped for an "EXTRA TIME" label) and the very
+  // next goal ends the match immediately via scoreGoal() below. No time cap,
+  // so it always produces a winner without needing a separate tie-breaker.
+  startExtraTime() {
+    this.extraTime = true;
+    if (typeof SFX !== 'undefined') SFX.whistle(false);
+    this.flashKickMsg('LEVEL! EXTRA TIME - NEXT GOAL WINS!', '#ffcb3d');
+    this.resetPositions();
   }
 
   scoreGoal(scorer) {
@@ -1395,7 +1435,13 @@ class MainScene extends Phaser.Scene {
     emitter.explode(24, ball.x, ball.y);
     this.time.delayedCall(800, () => emitter.destroy());
 
-    this.time.delayedCall(900, () => this.resetPositions());
+    if (this.extraTime) {
+      // golden goal - this goal just broke the tie, so finalize the match
+      // instead of resetting for more play
+      this.time.delayedCall(900, () => this.endMatch());
+    } else {
+      this.time.delayedCall(900, () => this.resetPositions());
+    }
   }
 
   resetPositions() {
@@ -1435,11 +1481,37 @@ class MainScene extends Phaser.Scene {
     }
   }
 
+  // facing chevron + velocity-based squash/stretch, with a directional
+  // "kick lunge" override for a short window right after a kick (see
+  // tryKick()) - the override is a manual per-frame ease, not a Phaser
+  // tween, so it can't fight this same function's velocity-driven values
+  // on frames where both would otherwise touch rotation/scale at once.
+  updateFeel(circle, chevronKey, angleKey, kickKey, defaultAngle, maxSpeed, now) {
+    const kick = this[kickKey];
+    if (kick && now < kick.until) {
+      const t = 1 - (kick.until - now) / kick.duration;
+      const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
+      applyFacingAndSquash(circle, this[chevronKey], kick.angle, 1 + ease * 0.35, 1 - ease * 0.22);
+      this[angleKey] = kick.angle;
+      return;
+    }
+    const v = circle.body.velocity;
+    const speed = Math.hypot(v.x, v.y);
+    if (speed > 8) this[angleKey] = Math.atan2(v.y, v.x);
+    else if (this[angleKey] === undefined) this[angleKey] = defaultAngle;
+    const ratio = Math.min(speed / maxSpeed, 1);
+    applyFacingAndSquash(circle, this[chevronKey], this[angleKey], 1 + ratio * 0.18, 1 - ratio * 0.10);
+  }
+
   update(time, delta) {
     if (this.matchEnded) return;
 
-    // match timer countdown (skipped entirely when duration is 0 = no limit)
-    if (this.matchDuration > 0) {
+    // match timer countdown (skipped entirely when duration is 0 = no limit,
+    // and frozen during extra time - golden goal has no clock, it just runs
+    // until the next goal)
+    if (this.extraTime) {
+      if (this.timerText) this.timerText.setText('EXTRA TIME');
+    } else if (this.matchDuration > 0) {
       this.timeRemaining -= delta / 1000;
       if (this.timeRemaining <= 0) {
         this.timeRemaining = 0;
@@ -1478,6 +1550,8 @@ class MainScene extends Phaser.Scene {
     if (this.p2Gloss) this.p2Gloss.setPosition(player2.x-8, player2.y-9);
     if (this.p1Label) this.p1Label.setPosition(player1.x, player1.y-48);
     if (this.p2Label) this.p2Label.setPosition(player2.x, player2.y-48);
+    this.updateFeel(player1, 'p1Chevron', 'p1Angle', 'p1Kick', 0, 260, time);
+    this.updateFeel(player2, 'p2Chevron', 'p2Angle', 'p2Kick', Math.PI, 260, time);
     if (this.ballShadow) this.ballShadow.setPosition(ball.x, ball.y+18);
     if (this.ballPattern) {
       this.ballPattern.clear();
@@ -1668,6 +1742,14 @@ class OnlineScene extends Phaser.Scene {
       const r = this.add.circle(p.x, p.y, 26, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
       this.tweens.add({ targets:r, scale:2.4, alpha:0, duration:320, ease:'Cubic.Out', onComplete:()=>r.destroy() });
       if (typeof socket !== 'undefined' && socket && roomCode) socket.emit('kick', { code: roomCode });
+
+      // local-only lunge for MY OWN kick - other players' kicks aren't
+      // broadcast as a distinct event, so we can't show theirs from here
+      const mine = mySlot && this.entitySprites[mySlot];
+      if (mine) {
+        const angle = Phaser.Math.Angle.Between(mine.x, mine.y, this.ball.x, this.ball.y);
+        mine.kick = { angle, until: this.time.now + 220, duration: 220 };
+      }
     });
   }
 
@@ -1697,7 +1779,14 @@ class OnlineScene extends Phaser.Scene {
       fontFamily:'Rajdhani', fontSize:'16px', fontStyle:'700',
       color: team === 'A' ? '#9ccdff' : '#ffb3ba'
     }).setOrigin(0.5);
-    const sprite = { circle, shadow, gloss, label, x, y, targetX: x, targetY: y };
+    const chevron = createFacingChevron(this, team === 'A' ? 0x9ccdff : 0xffb3ba);
+    // default facing derived from actual screen position (already mirror-
+    // corrected), not raw team letter, so it's right for flipped viewers too
+    const defaultAngle = x < this.scale.width / 2 ? 0 : Math.PI;
+    const sprite = {
+      circle, shadow, gloss, label, chevron, x, y, targetX: x, targetY: y,
+      prevX: x, prevY: y, angle: defaultAngle, kick: null,
+    };
     this.entitySprites[slot] = sprite;
     return sprite;
   }
@@ -1814,6 +1903,23 @@ class OnlineScene extends Phaser.Scene {
       s.shadow.setPosition(s.x, s.y+22);
       s.gloss.setPosition(s.x-8, s.y-9);
       s.label.setPosition(s.x, s.y-48);
+
+      if (s.kick && time < s.kick.until) {
+        const t = 1 - (s.kick.until - time) / s.kick.duration;
+        const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
+        applyFacingAndSquash(s.circle, s.chevron, s.kick.angle, 1 + ease * 0.35, 1 - ease * 0.22);
+        s.angle = s.kick.angle;
+      } else {
+        // no true velocity here (position is server-driven + locally
+        // interpolated), so approximate it from this frame's screen-space
+        // movement - good enough for a cosmetic facing/squash effect
+        const dx = s.x - s.prevX, dy = s.y - s.prevY;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.6) s.angle = Math.atan2(dy, dx);
+        const ratio = Math.min(dist / 6, 1);
+        applyFacingAndSquash(s.circle, s.chevron, s.angle, 1 + ratio * 0.18, 1 - ratio * 0.10);
+      }
+      s.prevX = s.x; s.prevY = s.y;
     });
     this.ball.x += (this.ball.targetX - this.ball.x) * lerp;
     this.ball.y += (this.ball.targetY - this.ball.y) * lerp;
