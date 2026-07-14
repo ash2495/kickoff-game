@@ -182,10 +182,14 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
 
+  #private-select, #lobby-screen, #settings-panel, #match-end {
+    background: rgba(6,10,18,0.6);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
   #settings-panel {
     position: fixed; inset: 0; z-index: 950; display: none;
     justify-content: center;
-    background: rgba(6,10,18,0.92);
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
     overflow-y: auto;
   }
@@ -210,14 +214,17 @@
   #match-end {
     position: fixed; inset: 0; z-index: 960; display: none;
     justify-content: center;
-    background: rgba(6,10,18,0.92);
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
     overflow-y: auto;
   }
   .overlay-card {
-    background: #0f1626; border: 1px solid rgba(255,203,61,0.35);
-    border-radius: 18px; padding: 28px 32px; width: 100%; max-width: 420px; text-align:center;
+    background: rgba(15, 22, 40, 0.55);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(255,203,61,0.25);
+    border-radius: 20px; padding: 28px 32px; width: 100%; max-width: 420px; text-align:center;
     margin: auto 0; /* centers vertically when it fits, scrolls from the top instead of clipping when it doesn't */
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
   }
   .overlay-card h2 {
     font-family: 'Orbitron', sans-serif; font-size: 22px; margin: 0 0 18px 0;
@@ -237,24 +244,49 @@
   .done-btn {
     display: block; width: 100%; margin-top: 6px;
     background: linear-gradient(135deg, #ffcb3d, #d9a316);
-    color: #1a1a1a; border: none; border-radius: 12px;
+    color: #1a1a1a; border: none; border-radius: 14px;
     font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 700;
     padding: 14px; cursor: pointer;
+    position: relative; overflow: hidden;
+    box-shadow: 0 5px 0 #a8790f, 0 8px 18px rgba(255,203,61,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .done-btn::after {
+    content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    animation: btnShine 3.6s ease-in-out infinite;
+  }
+  .done-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #a8790f, 0 3px 8px rgba(255,203,61,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
   }
   .done-btn.blue {
     background: linear-gradient(135deg, #2e86f5, #1a5bb8); color: white;
+    box-shadow: 0 5px 0 #123f82, 0 8px 18px rgba(46,134,245,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .done-btn.blue:active {
+    box-shadow: 0 1px 0 #123f82, 0 3px 8px rgba(46,134,245,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   }
   .done-btn.red {
     background: linear-gradient(135deg, #ff4757, #c22232); color: white;
+    box-shadow: 0 5px 0 #8a1a26, 0 8px 18px rgba(255,71,87,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .done-btn.red:active {
+    box-shadow: 0 1px 0 #8a1a26, 0 3px 8px rgba(255,71,87,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   }
   .done-btn.neutral {
     background: rgba(255,255,255,0.1); color: white;
+    box-shadow: 0 5px 0 rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .done-btn.neutral:active {
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
   }
   #exit-confirm {
     position: fixed; inset: 0; z-index: 970; display: none;
     justify-content: center; overflow-y: auto; padding: 20px;
-    background: rgba(6,10,18,0.78);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    background: rgba(6,10,18,0.6);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
 
   /* fixed system-font styling only (no webfont/image dependency) so this
@@ -332,7 +364,6 @@
         <button class="duration-chip" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
         <button class="duration-chip selected" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
         <button class="duration-chip" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
-        <button class="duration-chip" onclick="SFX.click(); setDuration(0,this)">NO LIMIT</button>
       </div>
     </div>
 
@@ -371,7 +402,7 @@
     <input id="joinCodeInput" maxlength="5" placeholder="ENTER CODE" style="width:100%; box-sizing:border-box; text-align:center; letter-spacing:6px; font-family:'Orbitron',sans-serif; font-size:20px; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; margin-bottom:14px; text-transform:uppercase;">
     <button class="done-btn blue" onclick="SFX.click(); joinPrivateRoom()">JOIN ROOM</button>
     <div id="privateError" style="color:#ff6b6b; font-size:14px; margin-top:14px; min-height:18px;"></div>
-    <button class="done-btn" style="background:rgba(255,255,255,0.1); color:white; margin-top:16px;" onclick="SFX.click(); closePrivateMenu()">⬅ BACK</button>
+    <button class="done-btn neutral" style="margin-top:16px;" onclick="SFX.click(); closePrivateMenu()">⬅ BACK</button>
   </div>
 </div>
 
@@ -388,7 +419,7 @@
     <div id="lobbyError" style="color:#ff6b6b; font-size:14px; margin-bottom:10px; min-height:18px;"></div>
     <button id="lobbyStartBtn" class="done-btn" style="display:none;" onclick="SFX.click(); startPrivateMatch()">▶ START MATCH</button>
     <div id="lobbyWaitMsg" style="font-size:14px; opacity:0.7; margin-bottom:10px;">Waiting for the host to start…</div>
-    <button class="done-btn" style="background:rgba(255,255,255,0.1); color:white;" onclick="SFX.click(); leavePrivateRoom()">⬅ LEAVE ROOM</button>
+    <button class="done-btn neutral" onclick="SFX.click(); leavePrivateRoom()">⬅ LEAVE ROOM</button>
   </div>
 </div>
 
@@ -997,6 +1028,10 @@ function applyFacingAndSquash(circle, chevron, angle, stretchAmt, squashAmt) {
 class MainScene extends Phaser.Scene {
   constructor() { super('main'); }
 
+  preload() {
+    this.load.image('ballTexture', 'assets/ball.png');
+  }
+
   create() {
     const { width: W, height: H } = this.scale;
     this.mode = (typeof GAME_MODE !== 'undefined') ? GAME_MODE : 'bot';
@@ -1107,14 +1142,14 @@ class MainScene extends Phaser.Scene {
     addWall(W - 20 + wallT/2, topSegH/2, wallT, topSegH);
     addWall(W - 20 + wallT/2, botSegY + botSegH/2, wallT, botSegH);
 
-    // backstops just behind each net, so the ball settles instead of flying off-screen
-    addWall(-8, H/2, 12, GOAL_WIDTH + 20);
-    addWall(W + 8, H/2, 12, GOAL_WIDTH + 20);
-
-    // outer safety bounds - just past the backstops/walls (not a big empty
-    // margin), so even a rare tunneling glitch stops right at the edge
-    // instead of the ball visibly drifting off into the background
-    this.physics.world.setBounds(-30, -6, W + 60, H + 12);
+    // world bounds are the backstop: set exactly to the visible canvas
+    // (not a margin beyond it) so collideWorldBounds physically cannot push
+    // the ball past what the camera actually shows. A previous version used
+    // a wider margin here (plus separate net "backstop" walls a few pixels
+    // further out) intended to catch rare tunnelling glitches, but that
+    // margin sat outside the visible 0..W/0..H canvas - so a tunnelled ball
+    // came to rest fully off-screen, invisible, with no way back into play.
+    this.physics.world.setBounds(0, 0, W, H);
 
     // ---- Players ----
     player1 = this.add.circle(W*0.25, H/2, 26, 0x2e86f5);
@@ -1153,8 +1188,7 @@ class MainScene extends Phaser.Scene {
     this.p2Label = this.add.text(player2.x, player2.y-48, p2LabelText, {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
 
     // ---- Ball ----
-    ball = this.add.circle(W/2, H/2, 16, 0xf5f7fa);
-    ball.setStrokeStyle(2, 0x1a1a1a, 0.5);
+    ball = this.add.image(W/2, H/2, 'ballTexture');
     this.physics.add.existing(ball);
     ball.body.setCircle(16);
     ball.body.setCollideWorldBounds(true);
@@ -1162,8 +1196,11 @@ class MainScene extends Phaser.Scene {
     ball.body.setDamping(true).setDrag(0.65);
     ball.body.setMaxSpeed(600);
     this.ballShadow = this.add.ellipse(ball.x, ball.y+18, 22, 8, 0x000000, 0.3);
-    // simple pentagon-seam pattern, redrawn each frame at the ball's position
-    this.ballPattern = this.add.graphics();
+    // spin the ball sprite itself, rotated by ballSpinAngle (accumulated from
+    // distance travelled / radius) so it visibly rolls instead of sliding
+    this.ballSpinAngle = 0;
+    this.prevBallX = ball.x;
+    this.prevBallY = ball.y;
 
     // ---- Collisions ----
     this.physics.add.collider(ball, this.walls, (ballObj) => {
@@ -1481,12 +1518,10 @@ class MainScene extends Phaser.Scene {
     }
   }
 
-  // facing chevron + velocity-based squash/stretch, with a directional
-  // "kick lunge" override for a short window right after a kick (see
-  // tryKick()) - the override is a manual per-frame ease, not a Phaser
-  // tween, so it can't fight this same function's velocity-driven values
-  // on frames where both would otherwise touch rotation/scale at once.
-  updateFeel(circle, chevronKey, angleKey, kickKey, defaultAngle, maxSpeed, now) {
+  // facing chevron, with a directional "kick lunge" squash/stretch override
+  // for a short window right after a kick (see tryKick()) - running no
+  // longer squashes/stretches the circle, just updates its facing direction.
+  updateFeel(circle, chevronKey, angleKey, kickKey, defaultAngle, now) {
     const kick = this[kickKey];
     if (kick && now < kick.until) {
       const t = 1 - (kick.until - now) / kick.duration;
@@ -1499,8 +1534,7 @@ class MainScene extends Phaser.Scene {
     const speed = Math.hypot(v.x, v.y);
     if (speed > 8) this[angleKey] = Math.atan2(v.y, v.x);
     else if (this[angleKey] === undefined) this[angleKey] = defaultAngle;
-    const ratio = Math.min(speed / maxSpeed, 1);
-    applyFacingAndSquash(circle, this[chevronKey], this[angleKey], 1 + ratio * 0.18, 1 - ratio * 0.10);
+    applyFacingAndSquash(circle, this[chevronKey], this[angleKey], 1, 1);
   }
 
   update(time, delta) {
@@ -1550,16 +1584,17 @@ class MainScene extends Phaser.Scene {
     if (this.p2Gloss) this.p2Gloss.setPosition(player2.x-8, player2.y-9);
     if (this.p1Label) this.p1Label.setPosition(player1.x, player1.y-48);
     if (this.p2Label) this.p2Label.setPosition(player2.x, player2.y-48);
-    this.updateFeel(player1, 'p1Chevron', 'p1Angle', 'p1Kick', 0, 260, time);
-    this.updateFeel(player2, 'p2Chevron', 'p2Angle', 'p2Kick', Math.PI, 260, time);
+    this.updateFeel(player1, 'p1Chevron', 'p1Angle', 'p1Kick', 0, time);
+    this.updateFeel(player2, 'p2Chevron', 'p2Angle', 'p2Kick', Math.PI, time);
     if (this.ballShadow) this.ballShadow.setPosition(ball.x, ball.y+18);
-    if (this.ballPattern) {
-      this.ballPattern.clear();
-      this.ballPattern.lineStyle(1.5, 0x1a1a1a, 0.5);
-      this.ballPattern.strokeCircle(ball.x, ball.y, 6);
-      this.ballPattern.lineBetween(ball.x-6, ball.y, ball.x+6, ball.y);
-      this.ballPattern.lineBetween(ball.x, ball.y-6, ball.x, ball.y+6);
-    }
+    // spin proportional to distance actually travelled this frame (arc
+    // length / radius) - reads as real rolling motion, speeding up and
+    // slowing down exactly in step with the ball itself
+    const rolled = Phaser.Math.Distance.Between(ball.x, ball.y, this.prevBallX, this.prevBallY);
+    this.ballSpinAngle += rolled / 16;
+    this.prevBallX = ball.x;
+    this.prevBallY = ball.y;
+    ball.setRotation(this.ballSpinAngle);
   }
 }
 
@@ -1598,6 +1633,10 @@ const TEAM_COLORS = {
 
 class OnlineScene extends Phaser.Scene {
   constructor() { super('online'); }
+
+  preload() {
+    this.load.image('ballTexture', 'assets/ball.png');
+  }
 
   create() {
     const { width: W, height: H } = this.scale;
@@ -1652,6 +1691,16 @@ class OnlineScene extends Phaser.Scene {
     g.lineStyle(3, 0xf5f7fa, 0.9);
     g.strokeRect(20, goalY, 100, GOAL_WIDTH);
     g.strokeRect(W-120, goalY, 100, GOAL_WIDTH);
+
+    // net crosshatch texture inside each goal box (matches MainScene - this
+    // was previously missing here, leaving Private Match goals as empty
+    // outlined boxes instead of a proper net)
+    g.lineStyle(1, 0xf5f7fa, 0.35);
+    for (let nx = 20; nx <= 120; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
+    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(20, ny, 120, ny); }
+    for (let nx = W-120; nx <= W-20; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
+    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(W-120, ny, W-20, ny); }
+
     g.fillStyle(0xffcb3d, 0.9);
     g.fillRect(0, goalY, 6, GOAL_WIDTH);
     g.fillRect(W-6, goalY, 6, GOAL_WIDTH);
@@ -1663,10 +1712,9 @@ class OnlineScene extends Phaser.Scene {
     this.entitySprites = {};
 
     // ---- Ball ----
-    const ballCircle = this.add.circle(W/2, H/2, 16, 0xf5f7fa).setStrokeStyle(2, 0x1a1a1a, 0.5);
+    const ballCircle = this.add.image(W/2, H/2, 'ballTexture');
     const ballShadow = this.add.ellipse(W/2, H/2+18, 22, 8, 0x000000, 0.3);
-    const ballPattern = this.add.graphics();
-    this.ball = { circle: ballCircle, shadow: ballShadow, pattern: ballPattern, x: W/2, y: H/2, targetX: W/2, targetY: H/2 };
+    this.ball = { circle: ballCircle, shadow: ballShadow, x: W/2, y: H/2, targetX: W/2, targetY: H/2, spinAngle: 0, prevX: W/2, prevY: H/2 };
 
     // ---- Scoreboard ----
     const panelW = 240, panelH = 62;
@@ -1925,11 +1973,10 @@ class OnlineScene extends Phaser.Scene {
     this.ball.y += (this.ball.targetY - this.ball.y) * lerp;
     this.ball.circle.setPosition(this.ball.x, this.ball.y);
     this.ball.shadow.setPosition(this.ball.x, this.ball.y+18);
-    this.ball.pattern.clear();
-    this.ball.pattern.lineStyle(1.5, 0x1a1a1a, 0.5);
-    this.ball.pattern.strokeCircle(this.ball.x, this.ball.y, 6);
-    this.ball.pattern.lineBetween(this.ball.x-6, this.ball.y, this.ball.x+6, this.ball.y);
-    this.ball.pattern.lineBetween(this.ball.x, this.ball.y-6, this.ball.x, this.ball.y+6);
+    const rolled = Phaser.Math.Distance.Between(this.ball.x, this.ball.y, this.ball.prevX, this.ball.prevY);
+    this.ball.spinAngle += rolled / 16;
+    this.ball.prevX = this.ball.x; this.ball.prevY = this.ball.y;
+    this.ball.circle.setRotation(this.ball.spinAngle);
   }
 }
 
