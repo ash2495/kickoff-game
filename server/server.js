@@ -31,6 +31,10 @@ const KICK_POWER = 520;
 const TICK_MS = 50; // 20Hz simulation + broadcast rate
 const GOAL_RESET_DELAY_MS = 900;
 
+// Quick Match: how long a public room waits for real players before
+// auto-starting with bots filling whatever's still empty
+const QUICKMATCH_COUNTDOWN_MS = 15000;
+
 // anti-stalling: if the ball sits pinned near a pitch corner (not moving more
 // than a small jitter radius) for this long, reset it and every player back
 // to their starting spots instead of letting play stall out indefinitely
@@ -153,6 +157,10 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, botDif
     botState: {},
     stallTracker: null,
     stallResetCount: 0,
+    // Quick Match matchmaking fields - unused/false for Private Match rooms
+    isPublic: false,
+    matchmakeTimer: null,
+    matchmakeCountdownEndsAt: null,
   };
   entities.A1.isBot = false;
   entities.A1.socketId = hostSocketId;
@@ -165,12 +173,22 @@ function findOpenSlot(room) {
   return room.joinOrder.find((slot) => room.entities[slot].isBot);
 }
 
+// Quick Match: find an already-waiting public room with the right team size
+// and at least one open slot, so a new quickmatch player joins real people
+// instead of always spinning up their own room
+function findOpenPublicRoom(teamSize) {
+  for (const room of rooms.values()) {
+    if (room.isPublic && !room.started && room.teamSize === teamSize && findOpenSlot(room)) return room;
+  }
+  return undefined;
+}
+
 function emitLobby(room) {
   const players = {};
   room.slots.forEach((slot) => {
     players[slot] = { connected: !room.entities[slot].isBot, name: room.entities[slot].name || 'Player' };
   });
-  io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot, teamSize: room.teamSize });
+  io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot, teamSize: room.teamSize, countdownEndsAt: room.matchmakeCountdownEndsAt || null });
 }
 
 function resetMatchState(room) {
@@ -433,6 +451,22 @@ function startTick(room) {
   room.tickHandle = setInterval(() => tick(room), TICK_MS);
 }
 
+// shared by the host-triggered startMatch/restartMatch handlers AND the
+// Quick Match countdown timer / full-room auto-start - the latter two have
+// no host socket to gate on, so this needs to be callable directly.
+// Note: restartMatch legitimately calls this on an already-started room
+// (that's what a rematch is), so there's no `room.started` guard here -
+// clearing matchmakeTimer below is what actually prevents a stray countdown
+// firing a second time after an early manual start, since the pending
+// setTimeout is cancelled the first time this runs.
+function beginMatch(room) {
+  if (room.matchmakeTimer) { clearTimeout(room.matchmakeTimer); room.matchmakeTimer = null; }
+  room.matchmakeCountdownEndsAt = null;
+  resetMatchState(room);
+  io.to(room.code).emit('matchStarted');
+  startTick(room);
+}
+
 function handleLeave(socket) {
   const code = socket.data.code, slot = socket.data.slot;
   socket.data.code = null;
@@ -448,6 +482,7 @@ function handleLeave(socket) {
   const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
   if (connectedSlots.length === 0) {
     if (room.tickHandle) clearInterval(room.tickHandle);
+    if (room.matchmakeTimer) clearTimeout(room.matchmakeTimer);
     rooms.delete(code);
     return;
   }
@@ -483,6 +518,47 @@ io.on('connection', (socket) => {
     socket.data.code = code;
     socket.data.slot = slot;
     cb({ ok: true, code, slot, isHost: slot === room.hostSlot });
+    emitLobby(room);
+  });
+
+  // auto-matchmaking: join an already-waiting public room for this team
+  // size if one exists, otherwise create one and start a countdown that
+  // auto-starts the match (bots fill whatever's still empty) if no one
+  // else joins in time
+  socket.on('quickMatch', (data, cb) => {
+    if (typeof cb !== 'function') return;
+    const teamSize = sanitizeTeamSize(data && data.teamSize);
+    const existing = findOpenPublicRoom(teamSize);
+
+    if (existing) {
+      const slot = findOpenSlot(existing);
+      existing.entities[slot].isBot = false;
+      existing.entities[slot].socketId = socket.id;
+      existing.entities[slot].name = sanitizeName(data && data.name);
+      socket.join(existing.code);
+      socket.data.code = existing.code;
+      socket.data.slot = slot;
+      cb({ ok: true, code: existing.code, slot, isHost: slot === existing.hostSlot });
+      if (!findOpenSlot(existing)) {
+        beginMatch(existing); // room just filled up - no reason to keep waiting
+      } else {
+        emitLobby(existing);
+      }
+      return;
+    }
+
+    const matchDuration = Number(data && data.matchDuration) || 0;
+    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, data && data.botDifficulty);
+    room.isPublic = true;
+    room.matchmakeCountdownEndsAt = Date.now() + QUICKMATCH_COUNTDOWN_MS;
+    room.matchmakeTimer = setTimeout(() => {
+      if (rooms.get(room.code) !== room) return; // room was torn down (e.g. everyone left)
+      beginMatch(room);
+    }, QUICKMATCH_COUNTDOWN_MS);
+    socket.join(room.code);
+    socket.data.code = room.code;
+    socket.data.slot = 'A1';
+    cb({ ok: true, code: room.code, slot: 'A1', isHost: true });
     emitLobby(room);
   });
 
@@ -534,18 +610,14 @@ io.on('connection', (socket) => {
     const code = data && data.code;
     const room = rooms.get(code);
     if (!room || socket.data.code !== code || socket.data.slot !== room.hostSlot) return;
-    resetMatchState(room);
-    io.to(code).emit('matchStarted');
-    startTick(room);
+    beginMatch(room);
   });
 
   socket.on('restartMatch', (data) => {
     const code = data && data.code;
     const room = rooms.get(code);
     if (!room || socket.data.code !== code || socket.data.slot !== room.hostSlot) return;
-    resetMatchState(room);
-    io.to(code).emit('matchStarted');
-    startTick(room);
+    beginMatch(room);
   });
 
   socket.on('input', (data) => {

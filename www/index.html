@@ -111,18 +111,20 @@
   }
   @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
   #mode-select .settings-row {
-    display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px;
   }
   #mode-select .setting-group { flex: 0 1 auto; }
   #mode-select .duration-label {
     display: inline-block; background: rgba(10,14,22,0.7);
-    border-radius: 999px; padding: 5px 14px; margin-bottom: 8px;
+    border-radius: 999px; padding: 4px 12px; margin-bottom: 6px;
+    font-size: 11px; letter-spacing: 2px;
   }
   #mode-select .duration-chips {
-    background: rgba(15,20,30,0.55); border-radius: 999px; padding: 5px; gap: 3px;
+    background: rgba(15,20,30,0.55); border-radius: 999px; padding: 4px; gap: 3px;
   }
   #mode-select .duration-chip {
     border: none; border-radius: 999px; background: transparent;
+    padding: 6px 11px; font-size: 12px;
   }
   #mode-select .duration-chip.selected {
     background: linear-gradient(135deg, #2ecc71, #17a589); color: #05261c;
@@ -150,10 +152,6 @@
     animation: btnShine 3.6s ease-in-out infinite;
   }
   @keyframes btnShine { 0% { left: -60%; } 40%, 100% { left: 130%; } }
-  #mode-select .mode-btn.alt {
-    background: linear-gradient(160deg, #6fdc4a, #2ecc71);
-    box-shadow: 0 5px 0 #1c8f4a, 0 8px 18px rgba(111,220,74,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
-  }
   #mode-select .mode-btn.purple {
     background: linear-gradient(160deg, #2c3e5c, #1b2740);
     box-shadow: 0 5px 0 #10182a, 0 8px 18px rgba(20,30,50,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
@@ -161,9 +159,6 @@
   #mode-select .mode-btn:active {
     transform: translateY(3px);
     box-shadow: 0 2px 0 #0d5a41, 0 4px 10px rgba(46,204,113,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
-  }
-  #mode-select .mode-btn.alt:active {
-    box-shadow: 0 2px 0 #1c8f4a, 0 4px 10px rgba(111,220,74,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   }
   #mode-select .mode-btn.purple:active {
     box-shadow: 0 2px 0 #10182a, 0 4px 10px rgba(20,30,50,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
@@ -513,12 +508,19 @@
           <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('hard',this)">HARD</button>
         </div>
       </div>
+
+      <div class="setting-group">
+        <div class="duration-label">TEAM SIZE</div>
+        <div class="duration-chips">
+          <button class="duration-chip selected" onclick="SFX.click(); setPrivateTeamSize(2,this)">2 v 2</button>
+          <button class="duration-chip" onclick="SFX.click(); setPrivateTeamSize(3,this)">3 v 3</button>
+        </div>
+      </div>
     </div>
 
     <div class="mode-buttons">
-      <button class="mode-btn" onclick="SFX.click(); startGame('bot')"><span class="icon">🤖</span><span class="label">VS BOT</span></button>
+      <button class="mode-btn" onclick="SFX.click(); quickMatch()"><span class="icon">⚡</span><span class="label">QUICK MATCH</span></button>
       <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()"><span class="icon">🔒</span><span class="label">PRIVATE MATCH</span></button>
-      <button class="mode-btn alt" onclick="SFX.click(); startGame('local')"><span class="icon">👥</span><span class="label">LOCAL 2P</span></button>
     </div>
   </div>
 </div>
@@ -533,10 +535,7 @@
         <label class="pm-field-label">Your Name</label>
         <input id="playerNameInput" maxlength="16" placeholder="Player" oninput="setPlayerName(this.value)" class="pm-input">
       </div>
-      <div class="duration-chips" id="teamSizeChips">
-        <button class="duration-chip selected" onclick="SFX.click(); setPrivateTeamSize(2,this)">2 v 2</button>
-        <button class="duration-chip" onclick="SFX.click(); setPrivateTeamSize(3,this)">3 v 3</button>
-      </div>
+      <div style="flex:1;"></div>
       <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE</button>
     </div>
     <div class="pm-divider">OR</div>
@@ -582,8 +581,8 @@
   <div id="matchEndWinner"></div>
   <div id="matchEndScore"></div>
   <div class="me-actions">
-    <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); rematch()">🔁 REMATCH</button>
-    <button id="matchEndMenuBtn" class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); mainMenu()">🏠 MAIN MENU</button>
+    <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); restartOnlineMatch()">🔁 REMATCH</button>
+    <button id="matchEndMenuBtn" class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); exitOnlineMatch()">🏠 MAIN MENU</button>
   </div>
 </div>
 
@@ -663,9 +662,8 @@
   }
 </script>
 <script>
-let GAME_MODE = 'bot';
 let MATCH_DURATION = 180; // seconds; 0 = no limit
-let BOT_DIFFICULTY_LEVEL = 'easy'; // 'easy' | 'medium' | 'hard' - VS Bot mode only
+let BOT_DIFFICULTY_LEVEL = 'easy'; // 'easy' | 'medium' | 'hard' - sent to the server to configure any bot-filled slots in Quick Match / Private Match
 let SFX_ENABLED = true;
 let gameInstance = null;
 
@@ -708,6 +706,7 @@ let socket = null;
 let roomCode = null;
 let mySlot = null;
 let isHost = false;
+let quickMatchCountdownInterval = null; // ticks the "Auto-starting in Xs..." lobby text
 // cached from the most recent lobbyUpdate, so the in-match scene knows real
 // names/bot status by the time it's created (matchStarted always fires after
 // at least one lobbyUpdate)
@@ -836,23 +835,6 @@ function lockOrientation() {
   } catch (e) {}
 }
 
-function startGame(mode) {
-  if (typeof Phaser === 'undefined') {
-    document.getElementById('engine-error').style.display = 'flex';
-    return;
-  }
-  lockOrientation();
-  GAME_MODE = mode;
-  score = { p1: 0, p2: 0 };
-  resetting = false;
-  document.getElementById('mode-select').style.display = 'none';
-  document.getElementById('stadium-bg').style.display = 'none';
-  document.getElementById('decor-layer').style.display = 'none';
-  document.querySelector('.settings-gear').style.display = 'none';
-  document.getElementById('game-container').style.display = 'flex';
-  gameInstance = new Phaser.Game(config);
-}
-
 function setDuration(seconds, el) {
   MATCH_DURATION = seconds;
   // scoped to this row only - there's a separate .duration-chip row for bot
@@ -882,18 +864,6 @@ function spawnMatchEndConfetti() {
   }
 }
 
-function onMatchEnd(winnerLabel, p1, p2) {
-  document.getElementById('matchEndWinner').textContent = winnerLabel;
-  document.getElementById('matchEndScore').textContent = p1 + '   -   ' + p2;
-  const rematchBtn = document.getElementById('matchEndRematchBtn');
-  const menuBtn = document.getElementById('matchEndMenuBtn');
-  rematchBtn.style.display = 'block';
-  rematchBtn.onclick = () => { SFX.click(); rematch(); };
-  menuBtn.onclick = () => { SFX.click(); mainMenu(); };
-  spawnMatchEndConfetti();
-  document.getElementById('match-end').style.display = 'flex';
-}
-
 function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   document.getElementById('matchEndWinner').textContent = winnerLabel;
   document.getElementById('matchEndScore').textContent = scoreA + '   -   ' + scoreB;
@@ -909,15 +879,6 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
 function restartOnlineMatch() {
   document.getElementById('match-end').style.display = 'none';
   if (socket && roomCode) socket.emit('restartMatch', { code: roomCode });
-}
-
-function rematch() {
-  document.getElementById('match-end').style.display = 'none';
-  if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
-  score = { p1: 0, p2: 0 };
-  resetting = false;
-  document.getElementById('game-container').style.display = 'flex';
-  gameInstance = new Phaser.Game(config);
 }
 
 // ---- Exit confirmation (shared by every mode via createExitButton) ----
@@ -944,16 +905,6 @@ function confirmExitNo() {
   if (pausedSceneForExit) pausedSceneForExit.scene.resume();
   pendingExitCallback = null;
   pausedSceneForExit = null;
-}
-
-function mainMenu() {
-  document.getElementById('match-end').style.display = 'none';
-  if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
-  document.getElementById('game-container').style.display = 'none';
-  document.getElementById('stadium-bg').style.display = 'block';
-  document.getElementById('decor-layer').style.display = 'block';
-  document.querySelector('.settings-gear').style.display = 'flex';
-  document.getElementById('mode-select').style.display = 'flex';
 }
 
 function openSettings() {
@@ -1034,6 +985,22 @@ function joinPrivateRoom() {
   });
 }
 
+// auto-matchmaking: join an already-waiting public room if one exists for
+// this team size, otherwise create one - lands in the exact same lobby
+// screen as Private Match, just with a live countdown (see renderLobby)
+function quickMatch() {
+  ensureSocket(() => {
+    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, botDifficulty: BOT_DIFFICULTY_LEVEL }, (res) => {
+      if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not find a match.'); return; }
+      roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
+      hideAllMenus();
+      document.getElementById('lobbyCode').textContent = roomCode;
+      document.getElementById('lobbyNameInput').value = PLAYER_NAME;
+      document.getElementById('lobby-screen').style.display = 'flex';
+    });
+  });
+}
+
 function renderLobby(data) {
   if (!data || data.code !== roomCode) return;
   if (data.hostSlot) isHost = (mySlot === data.hostSlot);
@@ -1083,7 +1050,28 @@ function renderLobby(data) {
   slotsEl.appendChild(teamCols.A);
   slotsEl.appendChild(teamCols.B);
   document.getElementById('lobbyStartBtn').style.display = isHost ? 'block' : 'none';
-  document.getElementById('lobbyWaitMsg').style.display = isHost ? 'none' : 'block';
+
+  const waitMsg = document.getElementById('lobbyWaitMsg');
+  if (quickMatchCountdownInterval) { clearInterval(quickMatchCountdownInterval); quickMatchCountdownInterval = null; }
+  if (data.countdownEndsAt) {
+    // Quick Match: show a live "Auto-starting in Xs..." countdown to
+    // everyone (host included) - the host can still hit Start Match to
+    // skip the wait, this is just a visible indicator that a wait is happening
+    waitMsg.style.display = 'block';
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((data.countdownEndsAt - Date.now()) / 1000));
+      waitMsg.textContent = 'Auto-starting in ' + secs + 's…';
+    };
+    tick();
+    quickMatchCountdownInterval = setInterval(tick, 1000);
+  } else {
+    waitMsg.textContent = 'Waiting for the host to start…';
+    waitMsg.style.display = isHost ? 'none' : 'block';
+  }
+}
+
+function stopQuickMatchCountdown() {
+  if (quickMatchCountdownInterval) { clearInterval(quickMatchCountdownInterval); quickMatchCountdownInterval = null; }
 }
 
 function copyRoomCode() {
@@ -1097,6 +1085,7 @@ function startPrivateMatch() {
 }
 
 function startOnlineMatch() {
+  stopQuickMatchCountdown();
   lockOrientation();
   if (gameInstance) {
     // already running - this is a rematch via restartMatch, not a fresh start
@@ -1117,6 +1106,7 @@ function startOnlineMatch() {
 }
 
 function leavePrivateRoom() {
+  stopQuickMatchCountdown();
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false;
   hideAllMenus();
@@ -1137,55 +1127,22 @@ function exitOnlineMatch() {
 </script>
 <script>
 // ============================================================
-// KICKOFF DUEL — local test build (Phase 1)
-// Controls: Player 1 = on-screen joystick (bottom-left) + kick
-// button (bottom-right). Player 2 = keyboard (arrows + space)
-// for local testing only — on real phones each device will
-// show the SAME joystick+button layout and control ONE player,
-// synced over the network in Phase 2.
+// KICKOFF DUEL — shared constants/helpers used by OnlineScene
+// (Quick Match and Private Match both run through it).
 // ============================================================
 
 const FIELD = { w: 1600, h: 800 };
 const GOAL_WIDTH = 180; // vertical opening size
 const GOAL_DEPTH = 40;
-const KICK_RANGE = 90; // max player-to-ball center distance for a kick to register
 
 // pixel-art character sprite sheet: 2 frames (legs together / legs apart),
 // baked at a fixed native pixel size (not scaled at runtime) so the physics
 // circle's radius/offset stay simple, exact numbers instead of depending on
 // a Phaser gameObject scale factor
 const CHAR_W = 54, CHAR_H = 66;
-const CHAR_RADIUS = 26; // matches the physics body radius, unrelated to sprite size
-const CHAR_OFFSET_X = CHAR_W / 2 - CHAR_RADIUS;
-const CHAR_OFFSET_Y = CHAR_H / 2 - CHAR_RADIUS;
 const CHAR_STRIDE = 18; // px travelled per leg-swap when walking
 
-// VS Bot difficulty tuning - speed/reactionMs/hesitateChance control how well
-// the bot tracks the ball, kickCooldownMs/wobble control how often and how
-// accurately it shoots (wobble is the total random-angle spread in radians)
-const BOT_DIFFICULTY = {
-  easy:   { speed: 90,  reactionMs: 800, hesitateChance: 0.30, kickCooldownMs: 2200, wobble: 1.1 },
-  medium: { speed: 150, reactionMs: 450, hesitateChance: 0.15, kickCooldownMs: 1500, wobble: 0.6 },
-  hard:   { speed: 210, reactionMs: 150, hesitateChance: 0.03, kickCooldownMs: 900,  wobble: 0.22 },
-};
-
-// flavor names for VS Bot mode (Private Match bots get their names from the
-// server, which keeps the same pool so it feels consistent either way)
-const BOT_NAMES = [
-  'RoboStriker', 'IronKicker', 'ByteRunner', 'CircuitAce', 'TurboBoot',
-  'SteelToe', 'QuickBot', 'GhostKicker', 'ChromeDribbler', 'ClockworkAce',
-  'PixelStriker', 'VoltRunner', 'ScrapKicker', 'NitroBot', 'ShadowStriker',
-  'BoltRunner', 'CyberKicker', 'RustyBoot', 'SparkStriker', 'GearGoalie',
-];
-
-let player1, player2, ball;
-let scoreText;
-let score = { p1: 0, p2: 0 };
-let joystick, kickBtn;
-let cursors, spaceKey;
-let resetting = false;
-
-// Shared, standard-sized exit button used by every mode (bot, local, online) -
+// Shared, standard-sized exit button used by every mode -
 // a real tappable button (not just text) so it's easy to see and hit mid-match.
 function createExitButton(scene, onExit) {
   const W = scene.scale.width;
@@ -1222,7 +1179,7 @@ function createExitButton(scene, onExit) {
 }
 
 // small pill-backed name tag - a rounded, semi-transparent background behind
-// the label text, sized once to fit the given text (used by MainScene + OnlineScene)
+// the label text, sized once to fit the given text (used by OnlineScene)
 function createPillLabel(scene, x, y, text, accentHex) {
   const cssColor = '#' + accentHex.toString(16).padStart(6, '0');
   const label = scene.add.text(0, 0, text, {fontFamily:'Rajdhani', fontSize:'14px', fontStyle:'700', color: cssColor}).setOrigin(0.5);
@@ -1236,624 +1193,6 @@ function createPillLabel(scene, x, y, text, accentHex) {
   return scene.add.container(x, y, [pill, label]);
 }
 
-class MainScene extends Phaser.Scene {
-  constructor() { super('main'); }
-
-  preload() {
-    this.load.image('ballTexture', 'assets/ball.png');
-    this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
-    this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
-  }
-
-  create() {
-    const { width: W, height: H } = this.scale;
-    this.mode = (typeof GAME_MODE !== 'undefined') ? GAME_MODE : 'bot';
-    const difficultyLevel = (typeof BOT_DIFFICULTY_LEVEL !== 'undefined') ? BOT_DIFFICULTY_LEVEL : 'easy';
-    this.botConfig = BOT_DIFFICULTY[difficultyLevel] || BOT_DIFFICULTY.easy;
-    this.botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-    this.matchDuration = (typeof MATCH_DURATION !== 'undefined') ? MATCH_DURATION : 180;
-    this.timeRemaining = this.matchDuration;
-    this.matchEnded = false;
-    this.stallTracker = null;
-    this.extraTime = false;
-
-    // small reusable texture for confetti particles
-    if (!this.textures.exists('particleDot')) {
-      const pg = this.add.graphics();
-      pg.fillStyle(0xffffff, 1);
-      pg.fillCircle(4, 4, 4);
-      pg.generateTexture('particleDot', 8, 8);
-      pg.destroy();
-    }
-
-    // ---- Stadium background ----
-    this.add.rectangle(W/2, H/2, W, H, 0x0b1220);
-    // floodlight glows in the far corners (layered fading circles)
-    const glow = (cx, cy, color) => {
-      this.add.circle(cx, cy, 420, color, 0.05);
-      this.add.circle(cx, cy, 280, color, 0.06);
-      this.add.circle(cx, cy, 150, color, 0.08);
-    };
-    glow(0, 0, 0x2e86f5);
-    glow(W, 0, 0xff4757);
-
-    // ---- Pitch (mowed stripes) ----
-    const pitchX = 20, pitchY = 20, pitchW = W - 40, pitchH = H - 40;
-    const stripeCount = 10;
-    const stripeW = pitchW / stripeCount;
-    for (let i = 0; i < stripeCount; i++) {
-      const c = i % 2 === 0 ? 0x1b6b3a : 0x1f7a41;
-      this.add.rectangle(pitchX + stripeW*i + stripeW/2, H/2, stripeW, pitchH, c);
-    }
-
-    // pitch lines: soft gold glow underlay + crisp white on top
-    const g = this.add.graphics();
-    const drawLines = (color, alpha, width) => {
-      g.lineStyle(width, color, alpha);
-      g.strokeRect(pitchX, pitchY, pitchW, pitchH);
-      g.lineBetween(W/2, pitchY, W/2, H-pitchY);
-      g.strokeCircle(W/2, H/2, 90);
-      // corner arcs
-      g.beginPath(); g.arc(pitchX, pitchY, 26, 0, Math.PI/2, false); g.strokePath();
-      g.beginPath(); g.arc(W-pitchX, pitchY, 26, Math.PI/2, Math.PI, false); g.strokePath();
-      g.beginPath(); g.arc(pitchX, H-pitchY, 26, -Math.PI/2, 0, false); g.strokePath();
-      g.beginPath(); g.arc(W-pitchX, H-pitchY, 26, Math.PI, Math.PI*1.5, false); g.strokePath();
-    };
-    drawLines(0xffcb3d, 0.25, 8); // glow
-    drawLines(0xf5f7fa, 0.9, 3);  // crisp line
-
-    // goal areas (left and right), vertically centered
-    const goalY = H/2 - GOAL_WIDTH/2;
-    g.lineStyle(3, 0xf5f7fa, 0.9);
-    g.strokeRect(20, goalY, 100, GOAL_WIDTH);
-    g.strokeRect(W-120, goalY, 100, GOAL_WIDTH);
-
-    // net crosshatch texture inside each goal box
-    g.lineStyle(1, 0xf5f7fa, 0.35);
-    for (let nx = 20; nx <= 120; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
-    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(20, ny, 120, ny); }
-    for (let nx = W-120; nx <= W-20; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
-    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(W-120, ny, W-20, ny); }
-
-    // goal areas (left and right), vertically centered
-    this.leftGoalZone = this.add.zone(4, H/2, 20, GOAL_WIDTH);
-    this.rightGoalZone = this.add.zone(W-4, H/2, 20, GOAL_WIDTH);
-    this.physics.world.enable([this.leftGoalZone, this.rightGoalZone]);
-    this.leftGoalZone.body.setAllowGravity(false);
-    this.rightGoalZone.body.setAllowGravity(false);
-
-    g.fillStyle(0xffcb3d, 0.9);
-    g.fillRect(0, goalY, 6, GOAL_WIDTH);
-    g.fillRect(W-6, goalY, 6, GOAL_WIDTH);
-
-    // ---- Solid walls with a real gap at each goal mouth ----
-    // (previously we used physics.world.setBounds around the whole pitch,
-    // which blocked the ball everywhere on the end lines - including at the
-    // goal mouth - so a goal could basically never happen. Fixed by building
-    // the side walls out of two segments each, with nothing in between.)
-    const wallT = 30; // thicker than the max per-frame ball travel, so it can't tunnel through
-    this.walls = this.physics.add.staticGroup();
-
-    const addWall = (x, y, w, h) => {
-      const r = this.add.rectangle(x, y, w, h, 0x000000, 0);
-      this.walls.add(r);
-    };
-
-    // top & bottom touchlines (full width, including corners)
-    addWall(W/2, 20 - wallT/2, W, wallT);
-    addWall(W/2, H - 20 + wallT/2, W, wallT);
-
-    // left end line: two segments, gap = goal mouth (segments run full height
-    // above/below the mouth, so they overlap the top/bottom walls at the corners)
-    const topSegH = goalY;
-    const botSegY = goalY + GOAL_WIDTH;
-    const botSegH = H - botSegY;
-    addWall(20 - wallT/2, topSegH/2, wallT, topSegH);
-    addWall(20 - wallT/2, botSegY + botSegH/2, wallT, botSegH);
-
-    // right end line: two segments, gap = goal mouth
-    addWall(W - 20 + wallT/2, topSegH/2, wallT, topSegH);
-    addWall(W - 20 + wallT/2, botSegY + botSegH/2, wallT, botSegH);
-
-    // world bounds are the backstop: set exactly to the visible canvas
-    // (not a margin beyond it) so collideWorldBounds physically cannot push
-    // the ball past what the camera actually shows. A previous version used
-    // a wider margin here (plus separate net "backstop" walls a few pixels
-    // further out) intended to catch rare tunnelling glitches, but that
-    // margin sat outside the visible 0..W/0..H canvas - so a tunnelled ball
-    // came to rest fully off-screen, invisible, with no way back into play.
-    this.physics.world.setBounds(0, 0, W, H);
-
-    // ---- Players ----
-    player1 = this.add.sprite(W*0.25, H/2, 'charBlue', 0);
-    player2 = this.add.sprite(W*0.75, H/2, 'charRed', 0);
-    this.physics.add.existing(player1);
-    this.physics.add.existing(player2);
-    player1.body.setCollideWorldBounds(true);
-    player2.body.setCollideWorldBounds(true);
-    player1.body.setCircle(CHAR_RADIUS, CHAR_OFFSET_X, CHAR_OFFSET_Y);
-    player2.body.setCircle(CHAR_RADIUS, CHAR_OFFSET_X, CHAR_OFFSET_Y);
-    player1.body.setDamping(true).setDrag(0.85);
-    player2.body.setDamping(true).setDrag(0.85);
-    player1.body.setMaxSpeed(320);
-    player2.body.setMaxSpeed(320);
-    this.physics.add.collider(player1, this.walls);
-    this.physics.add.collider(player2, this.walls);
-    this.p1WalkDist = 0;
-    this.p2WalkDist = 0;
-    this.p1Flip = false;
-    this.p2Flip = false;
-
-    // soft shadow + a static team-colored ground ring at the character's
-    // feet (kept in sync with player position each frame)
-    this.p1Shadow = this.add.ellipse(player1.x, player1.y+28, 34, 12, 0x000000, 0.3);
-    this.p2Shadow = this.add.ellipse(player2.x, player2.y+28, 34, 12, 0x000000, 0.3);
-    this.p1Ring = this.add.ellipse(player1.x, player1.y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, 0x6bacf9, 0.55);
-    this.p2Ring = this.add.ellipse(player2.x, player2.y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, 0xff8b96, 0.55);
-
-
-    // small pill-backed labels (kept in sync with player position each frame)
-    this.p1Label = createPillLabel(this, player1.x, player1.y-48, 'P1', 0x9ccdff);
-    const p2LabelText = this.mode === 'bot' ? (this.botName + ' (' + difficultyLevel.toUpperCase() + ')') : 'P2';
-    this.p2Label = createPillLabel(this, player2.x, player2.y-48, p2LabelText, 0xffb3ba);
-
-    // ---- Ball ----
-    ball = this.add.image(W/2, H/2, 'ballTexture');
-    this.physics.add.existing(ball);
-    ball.body.setCircle(16);
-    ball.body.setCollideWorldBounds(true);
-    ball.body.setBounce(0.6);
-    ball.body.setDamping(true).setDrag(0.65);
-    ball.body.setMaxSpeed(600);
-    this.ballShadow = this.add.ellipse(ball.x, ball.y+18, 22, 8, 0x000000, 0.3);
-    // spin the ball sprite itself, rotated by ballSpinAngle (accumulated from
-    // distance travelled / radius) so it visibly rolls instead of sliding
-    this.ballSpinAngle = 0;
-    this.prevBallX = ball.x;
-    this.prevBallY = ball.y;
-
-    // ---- Collisions ----
-    this.physics.add.collider(ball, this.walls, (ballObj) => {
-      const spd = Math.sqrt(ballObj.body.velocity.x**2 + ballObj.body.velocity.y**2);
-      if (spd > 140 && typeof SFX !== 'undefined') SFX.bounce();
-    }, null, this);
-    this.physics.add.collider(ball, player1, this.onPlayerBallHit, null, this);
-    this.physics.add.collider(ball, player2, this.onPlayerBallHit, null, this);
-    this.physics.add.collider(player1, player2);
-
-    // ---- Goal detection ----
-    this.physics.add.overlap(ball, this.leftGoalZone, () => this.scoreGoal('p2'), null, this);
-    this.physics.add.overlap(ball, this.rightGoalZone, () => this.scoreGoal('p1'), null, this);
-
-    // ---- Score UI (scoreboard panel) ----
-    const panelW = 220, panelH = 62;
-    const panel = this.add.graphics();
-    panel.fillStyle(0x0b1220, 0.75);
-    panel.lineStyle(2, 0xffcb3d, 0.6);
-    panel.fillRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
-    panel.strokeRoundedRect(W/2 - panelW/2, 14, panelW, panelH, 14);
-    this.add.rectangle(W/2 - panelW/2 + 14, 14 + panelH/2, 8, 34, 0x2e86f5).setOrigin(0.5);
-    this.add.rectangle(W/2 + panelW/2 - 14, 14 + panelH/2, 8, 34, 0xff4757).setOrigin(0.5);
-    scoreText = this.add.text(W/2, 14 + panelH/2, '0   -   0', {
-      fontFamily: 'Orbitron', fontSize: '30px', color: '#f5f7fa', fontStyle: '800'
-    }).setOrigin(0.5);
-
-    if (this.matchDuration > 0) {
-      this.timerText = this.add.text(W/2, 14 + panelH + 20, this.formatTime(this.timeRemaining), {
-        fontFamily: 'Orbitron', fontSize: '18px', color: '#ffcb3d', fontStyle: '700'
-      }).setOrigin(0.5);
-    }
-
-    // ---- Exit button (mid-match) ----
-    createExitButton(this, () => mainMenu());
-
-    // ---- Keyboard (Player 2 local test) ----
-    cursors = this.input.keyboard.createCursorKeys();
-    spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-    // ---- Touch controls (Player 1) ----
-    this.createJoystick();
-    this.createKickButton();
-
-    this.lastKickMsg = this.add.text(W/2, 100, '', {
-      fontFamily: 'Rajdhani', fontSize: '24px', color: '#ffffff', fontStyle: '700',
-      backgroundColor: '#000000aa', padding: {x:10,y:5}
-    }).setOrigin(0.5).setAlpha(0);
-
-    if (typeof SFX !== 'undefined') SFX.whistle(false);
-  }
-
-  createJoystick() {
-    const baseR = 120, knobR = 58;
-    const W = this.scale.width, H = this.scale.height;
-
-    // hidden until the player actually touches down - it appears right under their thumb
-    const base = this.add.circle(0, 0, baseR, 0x0b1220, 0.35).setStrokeStyle(3, 0xffcb3d, 0.55).setVisible(false);
-    const inner = this.add.circle(0, 0, baseR - 10, 0xffffff, 0.04).setVisible(false);
-    const knob = this.add.circle(0, 0, knobR, 0x2e86f5, 0.85).setStrokeStyle(3, 0x9ccdff, 0.9).setVisible(false);
-
-    joystick = { baseX: 0, baseY: 0, baseR, active: false, vec: {x:0, y:0}, pointerId: null };
-
-    // subtle low-opacity reminder, doesn't block touches (not interactive)
-    this.add.text(28, H-28, '🕹️ MOVE ANYWHERE', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(0,1).setAlpha(0.22);
-
-    // the ENTIRE left half of the screen drives the joystick
-    const zone = this.add.zone(0, 0, W/2, H).setOrigin(0, 0).setInteractive();
-
-    const showAt = (x, y) => {
-      joystick.baseX = x; joystick.baseY = y;
-      base.setPosition(x, y).setVisible(true);
-      inner.setPosition(x, y).setVisible(true);
-      knob.setPosition(x, y).setVisible(true);
-    };
-    const hide = () => { base.setVisible(false); inner.setVisible(false); knob.setVisible(false); };
-    const updateKnob = (px, py) => {
-      let dx = px - joystick.baseX, dy = py - joystick.baseY;
-      const dist = Math.min(Math.sqrt(dx*dx+dy*dy), baseR);
-      const angle = Math.atan2(dy, dx);
-      const kx = joystick.baseX + Math.cos(angle) * dist;
-      const ky = joystick.baseY + Math.sin(angle) * dist;
-      knob.setPosition(kx, ky);
-      joystick.vec = { x: (kx-joystick.baseX)/baseR, y: (ky-joystick.baseY)/baseR };
-    };
-
-    zone.on('pointerdown', (p) => {
-      if (joystick.active) return; // one finger drives the joystick at a time
-      joystick.active = true;
-      joystick.pointerId = p.id;
-      showAt(p.x, p.y);
-    });
-    this.input.on('pointermove', (p) => {
-      if (joystick.active && p.id === joystick.pointerId) updateKnob(p.x, p.y);
-    });
-    this.input.on('pointerup', (p) => {
-      if (p.id === joystick.pointerId) {
-        joystick.active = false;
-        joystick.vec = {x:0, y:0};
-        hide();
-      }
-    });
-  }
-
-  createKickButton() {
-    const W = this.scale.width, H = this.scale.height;
-
-    // subtle low-opacity reminder, doesn't block touches (not interactive)
-    this.add.text(W-28, H-28, 'TAP ANYWHERE TO KICK ⚽', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(1,1).setAlpha(0.22);
-
-    // the ENTIRE right half of the screen kicks, wherever you tap
-    const zone = this.add.zone(W/2, 0, W/2, H).setOrigin(0, 0).setInteractive();
-    zone.on('pointerdown', (p) => {
-      this.kickRipple(p.x, p.y);
-      this.tryKick(player1);
-    });
-  }
-
-  kickRipple(x, y) {
-    const r = this.add.circle(x, y, 26, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
-    this.tweens.add({
-      targets: r, scale: 2.4, alpha: 0, duration: 320, ease: 'Cubic.Out',
-      onComplete: () => r.destroy()
-    });
-  }
-
-  tryKick(player, targetPoint) {
-    const dist = Phaser.Math.Distance.Between(player.x, player.y, ball.x, ball.y);
-    const kickKey = player === player1 ? 'p1Kick' : 'p2Kick';
-    if (dist < KICK_RANGE) {
-      const angle = targetPoint
-        ? Phaser.Math.Angle.Between(player.x, player.y, targetPoint.x, targetPoint.y)
-        : Phaser.Math.Angle.Between(player.x, player.y, ball.x, ball.y);
-      const power = 520;
-      ball.body.setVelocity(Math.cos(angle)*power, Math.sin(angle)*power);
-      // directional lunge toward the kick angle, read by updateFeel() instead
-      // of a plain uniform scale pop
-      this[kickKey] = { angle, until: this.time.now + 220, duration: 220 };
-      if (typeof SFX !== 'undefined') SFX.kick();
-    } else {
-      // ball out of range - quick visual so it's clear the button registered but missed
-      const angle = Phaser.Math.Angle.Between(player.x, player.y, ball.x, ball.y);
-      this[kickKey] = { angle, until: this.time.now + 160, duration: 160 };
-    }
-  }
-
-  flashKickMsg(msg, color) {
-    if (!this.lastKickMsg) return;
-    this.lastKickMsg.setText(msg).setColor(color).setAlpha(1);
-    this.tweens.killTweensOf(this.lastKickMsg);
-    this.tweens.add({ targets: this.lastKickMsg, alpha: 0, delay: 500, duration: 400 });
-  }
-
-  onPlayerBallHit(ballObj, playerObj) {
-    const angle = Phaser.Math.Angle.Between(playerObj.x, playerObj.y, ballObj.x, ballObj.y);
-    const push = 180;
-    ballObj.body.velocity.x += Math.cos(angle) * push * 0.15;
-    ballObj.body.velocity.y += Math.sin(angle) * push * 0.15;
-  }
-
-  updateBotAI() {
-    const now = this.time.now;
-    const cfg = this.botConfig;
-
-    // simulate reaction time: bot only "sees" a fresh ball position every
-    // reactionMs, and sometimes just hesitates instead of moving at all -
-    // both get tighter as difficulty increases
-    if (!this.botTargetRefresh || now - this.botTargetRefresh > cfg.reactionMs) {
-      this.botTargetRefresh = now;
-      this.botTarget = { x: ball.x, y: ball.y };
-      this.botHesitate = Math.random() < cfg.hesitateChance;
-    }
-    const target = this.botTarget || ball;
-    const dx = target.x - player2.x;
-    const dy = target.y - player2.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-
-    // shooting: cooldown and aim wobble both shrink with difficulty
-    const realDist = Phaser.Math.Distance.Between(player2.x, player2.y, ball.x, ball.y);
-    if (realDist < KICK_RANGE && (!this.lastBotKick || now - this.lastBotKick > cfg.kickCooldownMs)) {
-      this.lastBotKick = now;
-      const goalPoint = { x: 20, y: this.scale.height / 2 };
-      const baseAngle = Phaser.Math.Angle.Between(player2.x, player2.y, goalPoint.x, goalPoint.y);
-      const wobble = (Math.random() - 0.5) * cfg.wobble;
-      const aimAngle = baseAngle + wobble;
-      const aimPoint = {
-        x: player2.x + Math.cos(aimAngle) * 300,
-        y: player2.y + Math.sin(aimAngle) * 300
-      };
-      this.tryKick(player2, aimPoint);
-    }
-
-    if (this.botHesitate) {
-      player2.body.setVelocity(0, 0);
-    } else if (dist > 4) {
-      const nx = dx / dist, ny = dy / dist;
-      player2.body.setVelocity(nx * cfg.speed, ny * cfg.speed);
-    } else {
-      player2.body.setVelocity(0, 0);
-    }
-  }
-
-  formatTime(sec) {
-    sec = Math.max(0, Math.ceil(sec));
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-  }
-
-  endMatch() {
-    if (this.matchEnded) return;
-    if (score.p1 === score.p2 && !this.extraTime) { this.startExtraTime(); return; }
-    this.matchEnded = true;
-    joystick.active = false;
-    player1.body.setVelocity(0, 0);
-    player2.body.setVelocity(0, 0);
-    ball.body.setVelocity(0, 0);
-    if (typeof SFX !== 'undefined') SFX.whistle(true);
-
-    const winnerLabel = score.p1 > score.p2
-      ? (this.mode === 'bot' ? '🏆 YOU WIN!' : '🏆 PLAYER 1 WINS!')
-      : (this.mode === 'bot' ? '🤖 BOT WINS!' : '🏆 PLAYER 2 WINS!');
-
-    if (typeof onMatchEnd === 'function') onMatchEnd(winnerLabel, score.p1, score.p2);
-  }
-
-  // Scores level at full time - golden-goal extra time: play just continues
-  // (kickoff restart, timer swapped for an "EXTRA TIME" label) and the very
-  // next goal ends the match immediately via scoreGoal() below. No time cap,
-  // so it always produces a winner without needing a separate tie-breaker.
-  startExtraTime() {
-    this.extraTime = true;
-    if (typeof SFX !== 'undefined') SFX.whistle(false);
-    this.flashKickMsg('LEVEL! EXTRA TIME - NEXT GOAL WINS!', '#ffcb3d');
-    this.resetPositions();
-  }
-
-  scoreGoal(scorer) {
-    if (resetting || this.matchEnded) return;
-    resetting = true;
-    score[scorer]++;
-    scoreText.setText(`${score.p1}   -   ${score.p2}`);
-    this.cameras.main.flash(350, 255, 255, 255);
-    this.cameras.main.shake(300, 0.01);
-    if (typeof SFX !== 'undefined') SFX.goal();
-
-    // full-screen flash + radiating burst celebration - gold rays punch
-    // outward from center while a big white/gold-outlined GOAL! scales in
-    const { width: W, height: H } = this.scale;
-
-    // drawn in local (0,0)-centered space, then positioned at screen center -
-    // so setScale() below expands the burst evenly outward from that center
-    // instead of scaling around a mismatched anchor and drifting sideways
-    const rayGfx = this.add.graphics().setDepth(400).setAlpha(0);
-    rayGfx.lineStyle(3, 0xffcb3d, 0.6);
-    const rayCount = 12, rayLen = 420;
-    for (let i = 0; i < rayCount; i++) {
-      const angle = (Math.PI * 2 / rayCount) * i;
-      rayGfx.lineBetween(0, 0, Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
-    }
-    rayGfx.setPosition(W/2, H/2).setScale(0.3);
-
-    const goalTxt = this.add.text(W/2, H/2, 'GOAL!', {
-      fontFamily: 'Orbitron', fontSize: '70px', fontStyle: '900',
-      color: '#ffffff', stroke: '#ffcb3d', strokeThickness: 10
-    }).setOrigin(0.5).setScale(0.2).setAlpha(0).setDepth(401);
-
-    this.tweens.add({ targets: rayGfx, alpha: 1, scale: 1, duration: 260, ease: 'Cubic.easeOut' });
-    this.tweens.add({ targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
-
-    this.time.delayedCall(650, () => {
-      this.tweens.add({
-        targets: [rayGfx, goalTxt], alpha: 0, duration: 300,
-        onComplete: () => { rayGfx.destroy(); goalTxt.destroy(); }
-      });
-    });
-
-    if (this.extraTime) {
-      // golden goal - this goal just broke the tie, so finalize the match
-      // instead of resetting for more play
-      this.time.delayedCall(1000, () => this.endMatch());
-    } else {
-      this.time.delayedCall(1000, () => this.resetPositions());
-    }
-  }
-
-  resetPositions() {
-    const { width: W, height: H } = this.scale;
-    player1.setPosition(W*0.25, H/2);
-    player2.setPosition(W*0.75, H/2);
-    ball.setPosition(W/2, H/2);
-    ball.body.setVelocity(0,0);
-    player1.body.setVelocity(0,0);
-    player2.body.setVelocity(0,0);
-    resetting = false;
-  }
-
-  // anti-stalling: if the ball sits pinned near a pitch corner (not moving
-  // more than a small jitter radius) for 5s, reset it and both players back
-  // to their starting spots instead of letting play stall out indefinitely
-  checkBallStall(now) {
-    if (resetting || this.matchEnded) { this.stallTracker = null; return; }
-    const corners = [
-      { x: 20, y: 20 }, { x: FIELD.w - 20, y: 20 },
-      { x: 20, y: FIELD.h - 20 }, { x: FIELD.w - 20, y: FIELD.h - 20 },
-    ];
-    const nearCorner = corners.some((c) => Phaser.Math.Distance.Between(ball.x, ball.y, c.x, c.y) < 150);
-    if (!nearCorner) { this.stallTracker = null; return; }
-
-    if (!this.stallTracker || Phaser.Math.Distance.Between(ball.x, ball.y, this.stallTracker.x, this.stallTracker.y) > 60) {
-      this.stallTracker = { x: ball.x, y: ball.y, since: now };
-      return;
-    }
-
-    if (now - this.stallTracker.since >= 5000) {
-      this.stallTracker = null;
-      resetting = true;
-      this.flashKickMsg('⚠ BALL RESET - STUCK IN CORNER', '#ffcb3d');
-      if (typeof SFX !== 'undefined') SFX.whistle(false);
-      this.time.delayedCall(500, () => this.resetPositions());
-    }
-  }
-
-  // mirror the character body left/right to face its movement/kick direction
-  // (the art is a front-facing pose, so a full rotation would flip it upside
-  // down when moving up - a horizontal flip reads correctly at any angle),
-  // plus a directional "kick lunge" squash/stretch for a short window right
-  // after a kick (see tryKick()) - keeps the last facing side while
-  // stationary or moving straight up/down instead of snapping back
-  updateFeel(circle, flipKey, kickKey, now) {
-    const kick = this[kickKey];
-    if (kick && now < kick.until) {
-      const t = 1 - (kick.until - now) / kick.duration;
-      const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
-      if (Math.abs(Math.cos(kick.angle)) > 0.15) this[flipKey] = Math.cos(kick.angle) < 0;
-      circle.setFlipX(!!this[flipKey]);
-      circle.setScale(1 + ease * 0.35, 1 - ease * 0.22);
-      return;
-    }
-    const v = circle.body.velocity;
-    const speed = Math.hypot(v.x, v.y);
-    if (speed > 8 && Math.abs(v.x) > 4) this[flipKey] = v.x < 0;
-    circle.setFlipX(!!this[flipKey]);
-    circle.setScale(1, 1);
-  }
-
-  update(time, delta) {
-    if (this.matchEnded) return;
-
-    // match timer countdown (skipped entirely when duration is 0 = no limit,
-    // and frozen during extra time - golden goal has no clock, it just runs
-    // until the next goal)
-    if (this.extraTime) {
-      if (this.timerText) this.timerText.setText('EXTRA TIME');
-    } else if (this.matchDuration > 0) {
-      this.timeRemaining -= delta / 1000;
-      if (this.timeRemaining <= 0) {
-        this.timeRemaining = 0;
-        if (this.timerText) this.timerText.setText(this.formatTime(0));
-        this.endMatch();
-        return;
-      }
-      if (this.timerText) this.timerText.setText(this.formatTime(this.timeRemaining));
-    }
-
-    this.checkBallStall(time);
-
-    // Player 1 - joystick movement
-    const speed = 260;
-    if (joystick.active) {
-      player1.body.setVelocity(joystick.vec.x * speed, joystick.vec.y * speed);
-    }
-
-    // Player 2 - bot AI or keyboard (local test stand-in), depending on mode
-    if (this.mode === 'bot') {
-      this.updateBotAI();
-    } else {
-      let vx = 0, vy = 0;
-      if (cursors.left.isDown) vx = -speed;
-      if (cursors.right.isDown) vx = speed;
-      if (cursors.up.isDown) vy = -speed;
-      if (cursors.down.isDown) vy = speed;
-      player2.body.setVelocity(vx, vy);
-      if (Phaser.Input.Keyboard.JustDown(spaceKey)) this.tryKick(player2);
-    }
-
-    // keep visual flair (shadows, ground rings, labels) glued to their objects
-    if (this.p1Shadow) this.p1Shadow.setPosition(player1.x, player1.y+28);
-    if (this.p2Shadow) this.p2Shadow.setPosition(player2.x, player2.y+28);
-    if (this.p1Ring) this.p1Ring.setPosition(player1.x, player1.y+30);
-    if (this.p2Ring) this.p2Ring.setPosition(player2.x, player2.y+30);
-    if (this.p1Label) this.p1Label.setPosition(player1.x, player1.y-54);
-    if (this.p2Label) this.p2Label.setPosition(player2.x, player2.y-54);
-    this.updateFeel(player1, 'p1Flip', 'p1Kick', time);
-    this.updateFeel(player2, 'p2Flip', 'p2Kick', time);
-
-    // walk-cycle: swap legs every CHAR_STRIDE px travelled, frozen on the
-    // neutral frame (0) when standing still or mid-kick
-    const p1Speed = Math.hypot(player1.body.velocity.x, player1.body.velocity.y);
-    const p2Speed = Math.hypot(player2.body.velocity.x, player2.body.velocity.y);
-    if (p1Speed > 8 && !(this.p1Kick && time < this.p1Kick.until)) {
-      this.p1WalkDist += p1Speed * (delta / 1000);
-      player1.setFrame(Math.floor(this.p1WalkDist / CHAR_STRIDE) % 2);
-    } else {
-      player1.setFrame(0);
-    }
-    if (p2Speed > 8 && !(this.p2Kick && time < this.p2Kick.until)) {
-      this.p2WalkDist += p2Speed * (delta / 1000);
-      player2.setFrame(Math.floor(this.p2WalkDist / CHAR_STRIDE) % 2);
-    } else {
-      player2.setFrame(0);
-    }
-    if (this.ballShadow) this.ballShadow.setPosition(ball.x, ball.y+18);
-    // spin proportional to distance actually travelled this frame (arc
-    // length / radius) - reads as real rolling motion, speeding up and
-    // slowing down exactly in step with the ball itself
-    const rolled = Phaser.Math.Distance.Between(ball.x, ball.y, this.prevBallX, this.prevBallY);
-    this.ballSpinAngle += rolled / 16;
-    this.prevBallX = ball.x;
-    this.prevBallY = ball.y;
-    ball.setRotation(this.ballSpinAngle);
-  }
-}
-
-const config = {
-  type: Phaser.AUTO,
-  parent: 'game-container',
-  width: FIELD.w,
-  height: FIELD.h,
-  backgroundColor: '#0b1220',
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
-  physics: {
-    default: 'arcade',
-    arcade: { debug: false }
-  },
-  input: {
-    activePointers: 3 // allow joystick finger + kick finger at the same time
-  },
-  scene: [MainScene]
-};
 </script>
 <script>
 // ============================================================
@@ -1931,9 +1270,7 @@ class OnlineScene extends Phaser.Scene {
     g.strokeRect(20, goalY, 100, GOAL_WIDTH);
     g.strokeRect(W-120, goalY, 100, GOAL_WIDTH);
 
-    // net crosshatch texture inside each goal box (matches MainScene - this
-    // was previously missing here, leaving Private Match goals as empty
-    // outlined boxes instead of a proper net)
+    // net crosshatch texture inside each goal box
     g.lineStyle(1, 0xf5f7fa, 0.35);
     for (let nx = 20; nx <= 120; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
     for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(20, ny, 120, ny); }
@@ -2128,9 +1465,8 @@ class OnlineScene extends Phaser.Scene {
     this.cameras.main.shake(300, 0.01);
     if (typeof SFX !== 'undefined') SFX.goal();
 
-    // same full-screen flash + radiating burst celebration used in
-    // VS Bot / Local 2P (MainScene.scoreGoal), kept in sync so every
-    // mode shares one goal-celebration look
+    // full-screen flash + radiating burst celebration - gold rays punch
+    // outward from center while a big white/gold-outlined GOAL! scales in
     const { width: W, height: H } = this.scale;
 
     const rayGfx = this.add.graphics().setDepth(900).setAlpha(0);
