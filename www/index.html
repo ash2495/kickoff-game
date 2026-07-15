@@ -268,6 +268,50 @@
   .lobby-slot-row.empty { opacity: 0.55; border-style: dashed; cursor: pointer; }
   .lobby-slot-row.you { border-color: #ffcb3d; }
   #lobbyError { color: #ff6b6b; font-size: 12px; margin-top: 8px; min-height: 14px; text-align: center; }
+
+  /* ---- Quick Match: matchmaking screen (no room code / raw countdown -
+     just a Team 1 vs Team 2 reveal animation) ---- */
+  #matchmaking-screen {
+    position: fixed; inset: 0; z-index: 900; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif; color: white; padding: 20px; box-sizing: border-box;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
+  }
+  .mm-title {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 3px;
+    color: #ffcb3d; margin-bottom: 30px; text-transform: uppercase;
+  }
+  .mm-teams { display: flex; align-items: center; gap: 26px; margin-bottom: 26px; }
+  .mm-team-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .mm-team-label { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 2px; }
+  .mm-slots { display: flex; flex-direction: row; gap: 14px; }
+  .mm-vs {
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 30px; color: #fff;
+    text-shadow: 0 0 18px rgba(255,203,61,0.6);
+  }
+  .mm-player { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .mm-slot {
+    width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    border: 2px dashed rgba(255,255,255,0.25); background: rgba(255,255,255,0.04);
+    font-size: 24px; opacity: 0; transform: scale(0.3);
+  }
+  .mm-slot.filled {
+    border-style: solid; opacity: 1; transform: scale(1);
+    animation: mmPopIn 0.5s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .mm-slot.filled.blue { border-color: #6bacf9; background: radial-gradient(circle at 34% 28%, #6bacf9 0%, #2e86f5 55%, #14509c 100%); }
+  .mm-slot.filled.red { border-color: #ff8b96; background: radial-gradient(circle at 66% 28%, #ff8b96 0%, #ff4757 55%, #a31f28 100%); }
+  @keyframes mmPopIn {
+    0% { opacity: 0; transform: scale(0.2) rotate(var(--mm-rot, 0deg)); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+  .mm-slot-name { font-size: 11px; font-weight: 700; color: #cfd8e6; white-space: nowrap; max-width: 76px; overflow: hidden; text-overflow: ellipsis; }
+  .mm-status { font-size: 14px; color: #9fb3c8; letter-spacing: 1px; }
+  .mm-dots span { animation: mmDotBlink 1.4s infinite; opacity: 0; }
+  .mm-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .mm-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes mmDotBlink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
   #settings-panel {
     position: fixed; inset: 0; z-index: 950; display: none;
     justify-content: center;
@@ -575,6 +619,23 @@
   </div>
 </div>
 
+<div id="matchmaking-screen">
+  <button class="back-circle-btn" onclick="SFX.click(); leavePrivateRoom()"><span class="chevron-left"></span></button>
+  <div class="mm-title">FINDING MATCH</div>
+  <div class="mm-teams">
+    <div class="mm-team-col">
+      <div class="mm-team-label" style="color:#9ccdff;">TEAM 1</div>
+      <div class="mm-slots" id="mmTeamA"></div>
+    </div>
+    <div class="mm-vs">VS</div>
+    <div class="mm-team-col">
+      <div class="mm-team-label" style="color:#ffb3ba;">TEAM 2</div>
+      <div class="mm-slots" id="mmTeamB"></div>
+    </div>
+  </div>
+  <div class="mm-status">Searching for players<span class="mm-dots"><span>.</span><span>.</span><span>.</span></span></div>
+</div>
+
 <div id="match-end">
   <div id="matchEndConfetti"></div>
   <div class="me-ribbon" id="matchEndTitle">FULL TIME</div>
@@ -706,7 +767,9 @@ let socket = null;
 let roomCode = null;
 let mySlot = null;
 let isHost = false;
-let quickMatchCountdownInterval = null; // ticks the "Auto-starting in Xs..." lobby text
+let isQuickMatchFlow = false; // true while on the Quick Match matchmaking screen, not the Private Match lobby
+let mmShownSlots = new Set(); // matchmaking-screen slots already animated in, so re-renders don't re-pop them
+let mmConnectedState = {}; // previous connected/bot state per slot, to detect a real player replacing a bot mid-wait
 // cached from the most recent lobbyUpdate, so the in-match scene knows real
 // names/bot status by the time it's created (matchStarted always fires after
 // at least one lobbyUpdate)
@@ -920,6 +983,7 @@ function hideAllMenus() {
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('private-select').style.display = 'none';
   document.getElementById('lobby-screen').style.display = 'none';
+  document.getElementById('matchmaking-screen').style.display = 'none';
 }
 
 function openPrivateMenu() {
@@ -986,24 +1050,92 @@ function joinPrivateRoom() {
 }
 
 // auto-matchmaking: join an already-waiting public room if one exists for
-// this team size, otherwise create one - lands in the exact same lobby
-// screen as Private Match, just with a live countdown (see renderLobby)
+// this team size, otherwise create one - lands on a dedicated matchmaking
+// screen (no room code / raw countdown, just a Team 1 vs Team 2 animation)
+// instead of Private Match's share-a-code lobby
 function quickMatch() {
   ensureSocket(() => {
     socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, botDifficulty: BOT_DIFFICULTY_LEVEL }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not find a match.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
+      isQuickMatchFlow = true;
+      mmShownSlots = new Set();
+      mmConnectedState = {};
+      document.getElementById('mmTeamA').innerHTML = '';
+      document.getElementById('mmTeamB').innerHTML = '';
       hideAllMenus();
-      document.getElementById('lobbyCode').textContent = roomCode;
-      document.getElementById('lobbyNameInput').value = PLAYER_NAME;
-      document.getElementById('lobby-screen').style.display = 'flex';
+      document.getElementById('matchmaking-screen').style.display = 'flex';
     });
+  });
+}
+
+// Fisher-Yates shuffle, used to randomize the order team slots pop in so
+// the "grouping into two teams" reveal doesn't feel like a mechanical
+// top-to-bottom checklist
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function renderMatchmakingScreen(data) {
+  const slots = Object.keys(data.players).sort();
+  slots.forEach((slot) => {
+    const p = data.players[slot];
+    lastLobbyPlayers[slot] = { connected: !!p.connected, name: p.name || 'Player' };
+  });
+
+  const teamAEl = document.getElementById('mmTeamA');
+  const teamBEl = document.getElementById('mmTeamB');
+  if (teamAEl.children.length !== data.teamSize) {
+    teamAEl.innerHTML = '';
+    teamBEl.innerHTML = '';
+    slots.forEach((slot) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'mm-player';
+      wrap.id = 'mmSlot-' + slot;
+      wrap.innerHTML = '<div class="mm-slot"></div><div class="mm-slot-name"></div>';
+      (slot[0] === 'A' ? teamAEl : teamBEl).appendChild(wrap);
+    });
+  }
+
+  // randomize which order newly-appeared slots animate in, so a fresh
+  // matchmaking screen assembles both teams in a shuffled, not sequential, order
+  const newlyShown = shuffleArray(slots.filter((s) => !mmShownSlots.has(s)));
+
+  slots.forEach((slot) => {
+    const p = data.players[slot];
+    const wrap = document.getElementById('mmSlot-' + slot);
+    if (!wrap) return;
+    const circle = wrap.querySelector('.mm-slot');
+    const nameEl = wrap.querySelector('.mm-slot-name');
+    circle.classList.remove('blue', 'red');
+    circle.classList.add(slot[0] === 'A' ? 'blue' : 'red');
+    circle.textContent = p.connected ? '🙂' : '🤖';
+    nameEl.textContent = (p.name || 'Player') + (slot === mySlot ? ' (you)' : '');
+
+    const justAppeared = !mmShownSlots.has(slot);
+    // a bot slot getting replaced by a real player joining mid-wait also
+    // gets a little pop, so the screen visibly reacts to real matchmaking
+    const justJoinedReal = !justAppeared && p.connected && !mmConnectedState[slot];
+    if (justAppeared || justJoinedReal) {
+      circle.style.setProperty('--mm-rot', (Math.random() * 30 - 15) + 'deg');
+      circle.style.animationDelay = (justAppeared ? newlyShown.indexOf(slot) * 90 + Math.random() * 120 : 0) + 'ms';
+      circle.classList.remove('filled');
+      void circle.offsetWidth; // force reflow so re-adding 'filled' restarts the animation
+      circle.classList.add('filled');
+    }
+    mmShownSlots.add(slot);
+    mmConnectedState[slot] = !!p.connected;
   });
 }
 
 function renderLobby(data) {
   if (!data || data.code !== roomCode) return;
   if (data.hostSlot) isHost = (mySlot === data.hostSlot);
+  if (isQuickMatchFlow) { renderMatchmakingScreen(data); return; }
   // slot list is derived from the payload (not hardcoded) so this works for
   // both 2v2 (4 slots) and 3v3 (6 slots) - sorting alphabetically gives the
   // right order since 'A1' < 'A2' < 'A3' < 'B1' < 'B2' < 'B3'
@@ -1050,28 +1182,7 @@ function renderLobby(data) {
   slotsEl.appendChild(teamCols.A);
   slotsEl.appendChild(teamCols.B);
   document.getElementById('lobbyStartBtn').style.display = isHost ? 'block' : 'none';
-
-  const waitMsg = document.getElementById('lobbyWaitMsg');
-  if (quickMatchCountdownInterval) { clearInterval(quickMatchCountdownInterval); quickMatchCountdownInterval = null; }
-  if (data.countdownEndsAt) {
-    // Quick Match: show a live "Auto-starting in Xs..." countdown to
-    // everyone (host included) - the host can still hit Start Match to
-    // skip the wait, this is just a visible indicator that a wait is happening
-    waitMsg.style.display = 'block';
-    const tick = () => {
-      const secs = Math.max(0, Math.ceil((data.countdownEndsAt - Date.now()) / 1000));
-      waitMsg.textContent = 'Auto-starting in ' + secs + 's…';
-    };
-    tick();
-    quickMatchCountdownInterval = setInterval(tick, 1000);
-  } else {
-    waitMsg.textContent = 'Waiting for the host to start…';
-    waitMsg.style.display = isHost ? 'none' : 'block';
-  }
-}
-
-function stopQuickMatchCountdown() {
-  if (quickMatchCountdownInterval) { clearInterval(quickMatchCountdownInterval); quickMatchCountdownInterval = null; }
+  document.getElementById('lobbyWaitMsg').style.display = isHost ? 'none' : 'block';
 }
 
 function copyRoomCode() {
@@ -1085,7 +1196,7 @@ function startPrivateMatch() {
 }
 
 function startOnlineMatch() {
-  stopQuickMatchCountdown();
+  isQuickMatchFlow = false;
   lockOrientation();
   if (gameInstance) {
     // already running - this is a rematch via restartMatch, not a fresh start
@@ -1106,7 +1217,7 @@ function startOnlineMatch() {
 }
 
 function leavePrivateRoom() {
-  stopQuickMatchCountdown();
+  isQuickMatchFlow = false;
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false;
   hideAllMenus();
