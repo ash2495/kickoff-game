@@ -200,8 +200,18 @@
     top: max(16px, env(safe-area-inset-top));
     left: max(16px, env(safe-area-inset-left));
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
-    color: white; font-size: 18px; width: 40px; height: 40px; border-radius: 50%;
+    color: white; width: 40px; height: 40px; border-radius: 50%;
     cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2;
+    padding: 0;
+  }
+  /* CSS-drawn chevron instead of an arrow glyph - emoji/text arrow characters
+     (e.g. "⬅") render with inconsistent, off-center glyph boxes across
+     fonts/platforms, so a drawn shape is the only way to guarantee it's
+     actually centered in the circle on every device */
+  .back-circle-btn .chevron-left {
+    display: block; width: 10px; height: 10px;
+    border-left: 2.5px solid white; border-bottom: 2.5px solid white;
+    transform: rotate(45deg); margin-left: 4px;
   }
   .pm-eyebrow {
     font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 2px;
@@ -219,7 +229,8 @@
   }
   .pm-divider {
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Orbitron', sans-serif; font-size: 12px; color: #6b7688; letter-spacing: 2px;
+    font-family: 'Orbitron', sans-serif; font-size: 12px; color: #cfd8e6; letter-spacing: 2px;
+    text-shadow: 0 1px 5px rgba(0,0,0,0.9);
   }
   .pm-field-label {
     font-size: 11px; letter-spacing: 1.5px; color: #9fb3c8; display: block; margin-bottom: 5px;
@@ -230,6 +241,7 @@
     border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: white;
     font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600;
   }
+  .pm-input::placeholder { color: rgba(255,255,255,0.45); }
   .pm-code-input {
     text-align: center; letter-spacing: 5px; font-family: 'Orbitron', sans-serif;
     font-size: 16px; text-transform: uppercase;
@@ -512,7 +524,7 @@
 </div>
 
 <div id="private-select">
-  <button class="back-circle-btn" onclick="SFX.click(); closePrivateMenu()">⬅</button>
+  <button class="back-circle-btn" onclick="SFX.click(); closePrivateMenu()"><span class="chevron-left"></span></button>
   <div class="pm-eyebrow">PRIVATE MATCH</div>
   <div class="pm-cols">
     <div class="pm-panel">
@@ -530,7 +542,10 @@
     <div class="pm-divider">OR</div>
     <div class="pm-panel">
       <div class="pm-panel-title">JOIN ROOM</div>
-      <input id="joinCodeInput" maxlength="5" placeholder="CODE" class="pm-input pm-code-input">
+      <div>
+        <label class="pm-field-label">Room Code</label>
+        <input id="joinCodeInput" maxlength="5" placeholder="CODE" class="pm-input pm-code-input">
+      </div>
       <div style="flex:1;"></div>
       <button class="done-btn blue" onclick="SFX.click(); joinPrivateRoom()">JOIN ROOM</button>
     </div>
@@ -539,7 +554,7 @@
 </div>
 
 <div id="lobby-screen">
-  <button class="back-circle-btn" onclick="SFX.click(); leavePrivateRoom()">⬅</button>
+  <button class="back-circle-btn" onclick="SFX.click(); leavePrivateRoom()"><span class="chevron-left"></span></button>
   <div class="pm-cols">
     <div class="pm-panel" style="flex:0.85; align-items:center; text-align:center;">
       <div class="pm-eyebrow" style="margin-bottom:0;">ROOM CODE</div>
