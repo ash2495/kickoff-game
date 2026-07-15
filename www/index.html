@@ -42,7 +42,8 @@
   /* ---- Layer 1: fixed illustrated stadium-night background (never scrolls) ---- */
   #stadium-bg {
     position: fixed; inset: 0; z-index: 0; overflow: hidden;
-    background: linear-gradient(180deg, #060a16 0%, #0d1730 55%, #122544 100%);
+    background: url('assets/stadium_bg.jpg') center center / cover no-repeat,
+      linear-gradient(180deg, #060a16 0%, #0d1730 55%, #122544 100%);
   }
   #stadium-bg::before {
     content: ''; position: absolute; inset: -15%;
@@ -73,25 +74,6 @@
     100% { transform: translate(2%, -3%) scale(1.04); }
   }
   @keyframes twinkle { 0% { opacity: 0.7; } 100% { opacity: 1; } }
-  #stadium-bg .floodlight {
-    position: absolute; top: 0; width: 6px; height: 64px; background: #24314a;
-  }
-  #stadium-bg .floodlight::after {
-    content: ''; position: absolute; top: -12px; left: -11px; width: 28px; height: 13px;
-    background: #3a4b6b; border-radius: 3px;
-    box-shadow: 0 0 46px 20px rgba(255,255,255,0.16);
-  }
-  #stadium-bg .crowd-band {
-    position: absolute; left: 0; right: 0; bottom: 16%; height: 16%;
-    background:
-      repeating-radial-gradient(circle at 0 50%, rgba(255,255,255,0.07) 0 2px, transparent 2px 7px),
-      linear-gradient(180deg, rgba(10,17,40,0), rgba(8,14,32,0.9));
-  }
-  #stadium-bg .pitch-glimpse {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 16%;
-    background: repeating-linear-gradient(90deg, #1b6b3a 0 46px, #1f7a41 46px 92px);
-    filter: brightness(0.55);
-  }
 
   /* ---- Layer 2: fixed decorative floating balls (never scrolls) ---- */
   #decor-layer { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
@@ -333,14 +315,7 @@
   })();
 </script>
 
-<div id="stadium-bg">
-  <div class="floodlight" style="left:6%;"></div>
-  <div class="floodlight" style="left:22%;"></div>
-  <div class="floodlight" style="right:6%;"></div>
-  <div class="floodlight" style="right:22%;"></div>
-  <div class="crowd-band"></div>
-  <div class="pitch-glimpse"></div>
-</div>
+<div id="stadium-bg"></div>
 
 <div id="decor-layer">
   <div class="floating-ball" style="top:8%; left:9%; font-size:34px; animation-delay:0s;">⚽</div>
@@ -947,6 +922,16 @@ const GOAL_WIDTH = 180; // vertical opening size
 const GOAL_DEPTH = 40;
 const KICK_RANGE = 90; // max player-to-ball center distance for a kick to register
 
+// pixel-art character sprite sheet: 2 frames (legs together / legs apart),
+// baked at a fixed native pixel size (not scaled at runtime) so the physics
+// circle's radius/offset stay simple, exact numbers instead of depending on
+// a Phaser gameObject scale factor
+const CHAR_W = 54, CHAR_H = 66;
+const CHAR_RADIUS = 26; // matches the physics body radius, unrelated to sprite size
+const CHAR_OFFSET_X = CHAR_W / 2 - CHAR_RADIUS;
+const CHAR_OFFSET_Y = CHAR_H / 2 - CHAR_RADIUS;
+const CHAR_STRIDE = 18; // px travelled per leg-swap when walking
+
 // VS Bot difficulty tuning - speed/reactionMs/hesitateChance control how well
 // the bot tracks the ball, kickCooldownMs/wobble control how often and how
 // accurately it shoots (wobble is the total random-angle spread in radians)
@@ -1008,21 +993,19 @@ function createExitButton(scene, onExit) {
   return container;
 }
 
-// ---- shared "game feel" for player circles (used by MainScene + OnlineScene) ----
-// a small facing chevron plus velocity-based squash/stretch, so players read
-// as more alive without needing an actual character rig.
-function createFacingChevron(scene, color) {
-  return scene.add.triangle(0, 0, -6, -6, -6, 6, 9, 0, color, 0.9).setDepth(1);
-}
-
-function applyFacingAndSquash(circle, chevron, angle, stretchAmt, squashAmt) {
-  circle.setRotation(angle);
-  circle.setScale(stretchAmt, squashAmt);
-  if (chevron) {
-    const r = 30;
-    chevron.setPosition(circle.x + Math.cos(angle) * r, circle.y + Math.sin(angle) * r);
-    chevron.setRotation(angle);
-  }
+// small pill-backed name tag - a rounded, semi-transparent background behind
+// the label text, sized once to fit the given text (used by MainScene + OnlineScene)
+function createPillLabel(scene, x, y, text, accentHex) {
+  const cssColor = '#' + accentHex.toString(16).padStart(6, '0');
+  const label = scene.add.text(0, 0, text, {fontFamily:'Rajdhani', fontSize:'14px', fontStyle:'700', color: cssColor}).setOrigin(0.5);
+  const padX = 10, padY = 4;
+  const w = label.width + padX * 2, h = label.height + padY * 2;
+  const pill = scene.add.graphics();
+  pill.fillStyle(0x0b1220, 0.6);
+  pill.fillRoundedRect(-w/2, -h/2, w, h, h/2);
+  pill.lineStyle(1, accentHex, 0.7);
+  pill.strokeRoundedRect(-w/2, -h/2, w, h, h/2);
+  return scene.add.container(x, y, [pill, label]);
 }
 
 class MainScene extends Phaser.Scene {
@@ -1030,6 +1013,8 @@ class MainScene extends Phaser.Scene {
 
   preload() {
     this.load.image('ballTexture', 'assets/ball.png');
+    this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
   }
 
   create() {
@@ -1152,40 +1137,37 @@ class MainScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, W, H);
 
     // ---- Players ----
-    player1 = this.add.circle(W*0.25, H/2, 26, 0x2e86f5);
-    player2 = this.add.circle(W*0.75, H/2, 26, 0xff4757);
-    player1.setStrokeStyle(4, 0x9ccdff, 0.9);
-    player2.setStrokeStyle(4, 0xffb3ba, 0.9);
+    player1 = this.add.sprite(W*0.25, H/2, 'charBlue', 0);
+    player2 = this.add.sprite(W*0.75, H/2, 'charRed', 0);
     this.physics.add.existing(player1);
     this.physics.add.existing(player2);
     player1.body.setCollideWorldBounds(true);
     player2.body.setCollideWorldBounds(true);
-    player1.body.setCircle(26);
-    player2.body.setCircle(26);
+    player1.body.setCircle(CHAR_RADIUS, CHAR_OFFSET_X, CHAR_OFFSET_Y);
+    player2.body.setCircle(CHAR_RADIUS, CHAR_OFFSET_X, CHAR_OFFSET_Y);
     player1.body.setDamping(true).setDrag(0.85);
     player2.body.setDamping(true).setDrag(0.85);
     player1.body.setMaxSpeed(320);
     player2.body.setMaxSpeed(320);
     this.physics.add.collider(player1, this.walls);
     this.physics.add.collider(player2, this.walls);
+    this.p1WalkDist = 0;
+    this.p2WalkDist = 0;
+    this.p1Flip = false;
+    this.p2Flip = false;
 
-    // soft shadows + gloss highlights (kept in sync with player position each frame)
-    this.p1Shadow = this.add.ellipse(player1.x, player1.y+22, 34, 12, 0x000000, 0.3);
-    this.p2Shadow = this.add.ellipse(player2.x, player2.y+22, 34, 12, 0x000000, 0.3);
-    this.p1Gloss = this.add.circle(player1.x-8, player1.y-9, 8, 0xffffff, 0.45);
-    this.p2Gloss = this.add.circle(player2.x-8, player2.y-9, 8, 0xffffff, 0.45);
+    // soft shadow + a static team-colored ground ring at the character's
+    // feet (kept in sync with player position each frame)
+    this.p1Shadow = this.add.ellipse(player1.x, player1.y+28, 34, 12, 0x000000, 0.3);
+    this.p2Shadow = this.add.ellipse(player2.x, player2.y+28, 34, 12, 0x000000, 0.3);
+    this.p1Ring = this.add.ellipse(player1.x, player1.y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, 0x6bacf9, 0.55);
+    this.p2Ring = this.add.ellipse(player2.x, player2.y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, 0xff8b96, 0.55);
 
-    // facing chevron + kick-lunge state (see updateFeel()) - p1 starts facing
-    // right (toward the opponent), p2 starts facing left
-    this.p1Chevron = createFacingChevron(this, 0x9ccdff);
-    this.p2Chevron = createFacingChevron(this, 0xffb3ba);
-    this.p1Angle = 0;
-    this.p2Angle = Math.PI;
 
-    // small labels (kept in sync with player position each frame, like the shadows/gloss above)
-    this.p1Label = this.add.text(player1.x, player1.y-48, 'P1', {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#9ccdff'}).setOrigin(0.5);
+    // small pill-backed labels (kept in sync with player position each frame)
+    this.p1Label = createPillLabel(this, player1.x, player1.y-48, 'P1', 0x9ccdff);
     const p2LabelText = this.mode === 'bot' ? (this.botName + ' (' + difficultyLevel.toUpperCase() + ')') : 'P2';
-    this.p2Label = this.add.text(player2.x, player2.y-48, p2LabelText, {fontFamily:'Rajdhani', fontSize:'18px', fontStyle:'700', color:'#ffb3ba'}).setOrigin(0.5);
+    this.p2Label = createPillLabel(this, player2.x, player2.y-48, p2LabelText, 0xffb3ba);
 
     // ---- Ball ----
     ball = this.add.image(W/2, H/2, 'ballTexture');
@@ -1518,23 +1500,27 @@ class MainScene extends Phaser.Scene {
     }
   }
 
-  // facing chevron, with a directional "kick lunge" squash/stretch override
-  // for a short window right after a kick (see tryKick()) - running no
-  // longer squashes/stretches the circle, just updates its facing direction.
-  updateFeel(circle, chevronKey, angleKey, kickKey, defaultAngle, now) {
+  // mirror the character body left/right to face its movement/kick direction
+  // (the art is a front-facing pose, so a full rotation would flip it upside
+  // down when moving up - a horizontal flip reads correctly at any angle),
+  // plus a directional "kick lunge" squash/stretch for a short window right
+  // after a kick (see tryKick()) - keeps the last facing side while
+  // stationary or moving straight up/down instead of snapping back
+  updateFeel(circle, flipKey, kickKey, now) {
     const kick = this[kickKey];
     if (kick && now < kick.until) {
       const t = 1 - (kick.until - now) / kick.duration;
       const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
-      applyFacingAndSquash(circle, this[chevronKey], kick.angle, 1 + ease * 0.35, 1 - ease * 0.22);
-      this[angleKey] = kick.angle;
+      if (Math.abs(Math.cos(kick.angle)) > 0.15) this[flipKey] = Math.cos(kick.angle) < 0;
+      circle.setFlipX(!!this[flipKey]);
+      circle.setScale(1 + ease * 0.35, 1 - ease * 0.22);
       return;
     }
     const v = circle.body.velocity;
     const speed = Math.hypot(v.x, v.y);
-    if (speed > 8) this[angleKey] = Math.atan2(v.y, v.x);
-    else if (this[angleKey] === undefined) this[angleKey] = defaultAngle;
-    applyFacingAndSquash(circle, this[chevronKey], this[angleKey], 1, 1);
+    if (speed > 8 && Math.abs(v.x) > 4) this[flipKey] = v.x < 0;
+    circle.setFlipX(!!this[flipKey]);
+    circle.setScale(1, 1);
   }
 
   update(time, delta) {
@@ -1577,15 +1563,32 @@ class MainScene extends Phaser.Scene {
       if (Phaser.Input.Keyboard.JustDown(spaceKey)) this.tryKick(player2);
     }
 
-    // keep visual flair (shadows, gloss, ball pattern) glued to their objects
-    if (this.p1Shadow) this.p1Shadow.setPosition(player1.x, player1.y+22);
-    if (this.p2Shadow) this.p2Shadow.setPosition(player2.x, player2.y+22);
-    if (this.p1Gloss) this.p1Gloss.setPosition(player1.x-8, player1.y-9);
-    if (this.p2Gloss) this.p2Gloss.setPosition(player2.x-8, player2.y-9);
-    if (this.p1Label) this.p1Label.setPosition(player1.x, player1.y-48);
-    if (this.p2Label) this.p2Label.setPosition(player2.x, player2.y-48);
-    this.updateFeel(player1, 'p1Chevron', 'p1Angle', 'p1Kick', 0, time);
-    this.updateFeel(player2, 'p2Chevron', 'p2Angle', 'p2Kick', Math.PI, time);
+    // keep visual flair (shadows, ground rings, labels) glued to their objects
+    if (this.p1Shadow) this.p1Shadow.setPosition(player1.x, player1.y+28);
+    if (this.p2Shadow) this.p2Shadow.setPosition(player2.x, player2.y+28);
+    if (this.p1Ring) this.p1Ring.setPosition(player1.x, player1.y+30);
+    if (this.p2Ring) this.p2Ring.setPosition(player2.x, player2.y+30);
+    if (this.p1Label) this.p1Label.setPosition(player1.x, player1.y-54);
+    if (this.p2Label) this.p2Label.setPosition(player2.x, player2.y-54);
+    this.updateFeel(player1, 'p1Flip', 'p1Kick', time);
+    this.updateFeel(player2, 'p2Flip', 'p2Kick', time);
+
+    // walk-cycle: swap legs every CHAR_STRIDE px travelled, frozen on the
+    // neutral frame (0) when standing still or mid-kick
+    const p1Speed = Math.hypot(player1.body.velocity.x, player1.body.velocity.y);
+    const p2Speed = Math.hypot(player2.body.velocity.x, player2.body.velocity.y);
+    if (p1Speed > 8 && !(this.p1Kick && time < this.p1Kick.until)) {
+      this.p1WalkDist += p1Speed * (delta / 1000);
+      player1.setFrame(Math.floor(this.p1WalkDist / CHAR_STRIDE) % 2);
+    } else {
+      player1.setFrame(0);
+    }
+    if (p2Speed > 8 && !(this.p2Kick && time < this.p2Kick.until)) {
+      this.p2WalkDist += p2Speed * (delta / 1000);
+      player2.setFrame(Math.floor(this.p2WalkDist / CHAR_STRIDE) % 2);
+    } else {
+      player2.setFrame(0);
+    }
     if (this.ballShadow) this.ballShadow.setPosition(ball.x, ball.y+18);
     // spin proportional to distance actually travelled this frame (arc
     // length / radius) - reads as real rolling motion, speeding up and
@@ -1636,6 +1639,8 @@ class OnlineScene extends Phaser.Scene {
 
   preload() {
     this.load.image('ballTexture', 'assets/ball.png');
+    this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
   }
 
   create() {
@@ -1816,24 +1821,17 @@ class OnlineScene extends Phaser.Scene {
     if (this.entitySprites[slot]) return this.entitySprites[slot];
     const team = slot[0];
     const colors = TEAM_COLORS[team];
-    const circle = this.add.circle(x, y, 26, colors.fill).setStrokeStyle(4, colors.stroke, 0.9);
-    const shadow = this.add.ellipse(x, y+22, 34, 12, 0x000000, 0.3);
-    const gloss = this.add.circle(x-8, y-9, 8, 0xffffff, 0.45);
+    const circle = this.add.sprite(x, y, team === 'A' ? 'charBlue' : 'charRed', 0);
+    const shadow = this.add.ellipse(x, y+28, 34, 12, 0x000000, 0.3);
+    const ring = this.add.ellipse(x, y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, colors.stroke, 0.55);
     const info = lastLobbyPlayers[slot] || { connected: false, name: 'Bot' };
     // server always assigns a real name to bot slots too (random flavor name),
     // so we never need to hardcode "BOT" here anymore
     const labelText = info.name;
-    const label = this.add.text(x, y-48, labelText, {
-      fontFamily:'Rajdhani', fontSize:'16px', fontStyle:'700',
-      color: team === 'A' ? '#9ccdff' : '#ffb3ba'
-    }).setOrigin(0.5);
-    const chevron = createFacingChevron(this, team === 'A' ? 0x9ccdff : 0xffb3ba);
-    // default facing derived from actual screen position (already mirror-
-    // corrected), not raw team letter, so it's right for flipped viewers too
-    const defaultAngle = x < this.scale.width / 2 ? 0 : Math.PI;
+    const label = createPillLabel(this, x, y-54, labelText, team === 'A' ? 0x9ccdff : 0xffb3ba);
     const sprite = {
-      circle, shadow, gloss, label, chevron, x, y, targetX: x, targetY: y,
-      prevX: x, prevY: y, angle: defaultAngle, kick: null,
+      circle, shadow, ring, label, x, y, targetX: x, targetY: y,
+      prevX: x, prevY: y, kick: null, walkDist: 0, flip: false,
     };
     this.entitySprites[slot] = sprite;
     return sprite;
@@ -1948,24 +1946,36 @@ class OnlineScene extends Phaser.Scene {
       s.x += (s.targetX - s.x) * lerp;
       s.y += (s.targetY - s.y) * lerp;
       s.circle.setPosition(s.x, s.y);
-      s.shadow.setPosition(s.x, s.y+22);
-      s.gloss.setPosition(s.x-8, s.y-9);
-      s.label.setPosition(s.x, s.y-48);
+      s.shadow.setPosition(s.x, s.y+28);
+      s.ring.setPosition(s.x, s.y+30);
+      s.label.setPosition(s.x, s.y-54);
 
       if (s.kick && time < s.kick.until) {
         const t = 1 - (s.kick.until - time) / s.kick.duration;
         const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
-        applyFacingAndSquash(s.circle, s.chevron, s.kick.angle, 1 + ease * 0.35, 1 - ease * 0.22);
-        s.angle = s.kick.angle;
+        if (Math.abs(Math.cos(s.kick.angle)) > 0.15) s.flip = Math.cos(s.kick.angle) < 0;
+        s.circle.setFlipX(!!s.flip);
+        s.circle.setScale(1 + ease * 0.35, 1 - ease * 0.22);
+        s.circle.setFrame(0);
       } else {
+        s.circle.setScale(1, 1);
         // no true velocity here (position is server-driven + locally
-        // interpolated), so approximate it from this frame's screen-space
-        // movement - good enough for a cosmetic facing/squash effect
+        // interpolated), so approximate this frame's screen-space movement
+        // to drive facing (left/right flip, not rotation - the art is a
+        // front-facing pose) + the walk-cycle
         const dx = s.x - s.prevX, dy = s.y - s.prevY;
         const dist = Math.hypot(dx, dy);
-        if (dist > 0.6) s.angle = Math.atan2(dy, dx);
-        const ratio = Math.min(dist / 6, 1);
-        applyFacingAndSquash(s.circle, s.chevron, s.angle, 1 + ratio * 0.18, 1 - ratio * 0.10);
+        // walk-cycle: swap legs every CHAR_STRIDE px travelled, frozen on
+        // the neutral frame (0) when standing still - flip keeps the last
+        // facing side instead of snapping back to a default
+        if (dist > 0.6) {
+          if (Math.abs(dx) > 0.4) s.flip = dx < 0;
+          s.walkDist += dist;
+          s.circle.setFrame(Math.floor(s.walkDist / CHAR_STRIDE) % 2);
+        } else {
+          s.circle.setFrame(0);
+        }
+        s.circle.setFlipX(!!s.flip);
       }
       s.prevX = s.x; s.prevY = s.y;
     });
