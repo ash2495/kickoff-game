@@ -45,35 +45,13 @@
     background: url('assets/stadium_bg.jpg') center center / cover no-repeat,
       linear-gradient(180deg, #060a16 0%, #0d1730 55%, #122544 100%);
   }
-  #stadium-bg::before {
-    content: ''; position: absolute; inset: -15%;
-    background:
-      radial-gradient(circle at 18% 22%, rgba(46,134,245,0.38), transparent 42%),
-      radial-gradient(circle at 82% 18%, rgba(255,71,87,0.32), transparent 42%),
-      radial-gradient(circle at 30% 85%, rgba(142,84,233,0.26), transparent 46%),
-      radial-gradient(circle at 78% 78%, rgba(255,203,61,0.20), transparent 46%);
-    filter: blur(70px);
-    animation: auroraDrift 24s ease-in-out infinite alternate;
-  }
   #stadium-bg::after {
+    /* subtle darkening vignette so white UI text stays legible over the
+       brightest parts of the photo (sky/floodlights) without needing the
+       old procedural color-blob overlay, which would muddy a real photo */
     content: ''; position: absolute; inset: 0;
-    background:
-      radial-gradient(2px 2px at 10% 15%, rgba(255,255,255,0.6), transparent),
-      radial-gradient(2px 2px at 25% 9%, rgba(255,255,255,0.45), transparent),
-      radial-gradient(1.5px 1.5px at 40% 22%, rgba(255,255,255,0.45), transparent),
-      radial-gradient(2px 2px at 58% 6%, rgba(255,255,255,0.4), transparent),
-      radial-gradient(1.5px 1.5px at 74% 16%, rgba(255,255,255,0.45), transparent),
-      radial-gradient(2px 2px at 90% 11%, rgba(255,255,255,0.35), transparent),
-      radial-gradient(1.5px 1.5px at 15% 45%, rgba(255,255,255,0.3), transparent),
-      radial-gradient(1.5px 1.5px at 65% 38%, rgba(255,255,255,0.3), transparent);
-    animation: twinkle 4s ease-in-out infinite alternate;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(4,7,14,0.55) 100%);
   }
-  @keyframes auroraDrift {
-    0% { transform: translate(0,0) scale(1); }
-    50% { transform: translate(-3%, 2%) scale(1.08); }
-    100% { transform: translate(2%, -3%) scale(1.04); }
-  }
-  @keyframes twinkle { 0% { opacity: 0.7; } 100% { opacity: 1; } }
 
   /* ---- Layer 2: fixed decorative floating balls (never scrolls) ---- */
   #decor-layer { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
@@ -95,39 +73,76 @@
   }
   #mode-select .content {
     display: flex; flex-direction: column; align-items: center;
-    text-align: center; margin: auto 0; width: 100%; max-width: 380px;
-    background: rgba(15, 22, 40, 0.42);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 26px;
-    padding: 30px 26px 26px;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
+    text-align: center; margin: auto 0; width: 100%; max-width: 640px;
+    padding: 20px 26px;
+  }
+  #mode-select .title-block {
+    position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+    width: 100%; text-align: center; pointer-events: none;
   }
   #mode-select h1 {
-    margin: 10px 0 4px 0; font-size: 40px; letter-spacing: 3px;
+    margin: 0 0 8px 0; font-size: 28px; letter-spacing: 3px;
     font-family: 'Orbitron', sans-serif; font-weight: 900;
-    background: linear-gradient(120deg, #ffffff 0%, #ffcb3d 45%, #ffffff 70%, #ffcb3d 100%);
+    background: linear-gradient(120deg, #ffe9a8 0%, #ffcb3d 45%, #ffe9a8 70%, #ffcb3d 100%);
     background-size: 220% auto;
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 22px rgba(255,203,61,0.45);
+    text-shadow: 0 0 20px rgba(255,203,61,0.5), 0 2px 6px rgba(0,0,0,0.45);
     animation: titleShine 6s linear infinite;
   }
   @keyframes titleShine { to { background-position: 220% center; } }
-  #mode-select .subtitle {
-    font-family: 'Rajdhani', sans-serif; font-size: 14px; letter-spacing: 4px;
-    color: #ffcb3d; text-transform: uppercase; margin-bottom: 22px; opacity: 0.9;
+  #mode-select .title-underline {
+    width: 110px; height: 4px; border-radius: 2px; margin: 0 auto 16px;
+    background: linear-gradient(90deg, transparent, #ffcb3d, transparent);
+  }
+  .live-badge {
+    position: absolute; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left));
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(15,20,30,0.55);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px; padding: 8px 16px;
+    font-family: 'Rajdhani', sans-serif; font-size: 12px; letter-spacing: 2px;
+    color: #cfe8dd; text-transform: uppercase;
+  }
+  .live-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #2e86f5;
+    box-shadow: 0 0 8px 2px rgba(46,134,245,0.6);
+    animation: livePulse 1.6s ease-in-out infinite;
+  }
+  @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+  #mode-select .settings-row {
+    display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  #mode-select .setting-group { flex: 0 1 auto; }
+  #mode-select .duration-label {
+    display: inline-block; background: rgba(10,14,22,0.7);
+    border-radius: 999px; padding: 5px 14px; margin-bottom: 8px;
+  }
+  #mode-select .duration-chips {
+    background: rgba(15,20,30,0.55); border-radius: 999px; padding: 5px; gap: 3px;
+  }
+  #mode-select .duration-chip {
+    border: none; border-radius: 999px; background: transparent;
+  }
+  #mode-select .duration-chip.selected {
+    background: linear-gradient(135deg, #2ecc71, #17a589); color: #05261c;
+    box-shadow: 0 3px 10px rgba(46,204,113,0.4);
+  }
+  #mode-select .mode-buttons {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
   }
   #mode-select .mode-btn {
     font-family: 'Rajdhani', sans-serif;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
     color: white; border: none; border-radius: 16px;
-    font-size: 20px; font-weight: 700; letter-spacing: 1px;
-    padding: 15px 36px; margin: 7px;
-    min-width: 260px; cursor: pointer;
-    background: linear-gradient(135deg, #2e86f5, #1a5bb8);
-    box-shadow: 0 6px 0 #123f82, 0 10px 24px rgba(46,134,245,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 12px 22px; white-space: nowrap; min-width: 130px;
+    cursor: pointer;
+    background: linear-gradient(160deg, #2ecc71, #14795a);
+    box-shadow: 0 5px 0 #0d5a41, 0 8px 18px rgba(46,204,113,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
     position: relative; overflow: hidden;
   }
+  #mode-select .mode-btn .icon { font-size: 22px; line-height: 1; }
   #mode-select .mode-btn::after {
     content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
     background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
@@ -136,22 +151,22 @@
   }
   @keyframes btnShine { 0% { left: -60%; } 40%, 100% { left: 130%; } }
   #mode-select .mode-btn.alt {
-    background: linear-gradient(135deg, #ff4757, #c22232);
-    box-shadow: 0 6px 0 #8a1a26, 0 10px 24px rgba(255,71,87,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    background: linear-gradient(160deg, #6fdc4a, #2ecc71);
+    box-shadow: 0 5px 0 #1c8f4a, 0 8px 18px rgba(111,220,74,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
   }
   #mode-select .mode-btn.purple {
-    background: linear-gradient(135deg, #8e54e9, #4776e6);
-    box-shadow: 0 6px 0 #3a2c86, 0 10px 24px rgba(142,84,233,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    background: linear-gradient(160deg, #2c3e5c, #1b2740);
+    box-shadow: 0 5px 0 #10182a, 0 8px 18px rgba(20,30,50,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
   }
   #mode-select .mode-btn:active {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 #123f82, 0 4px 10px rgba(46,134,245,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #0d5a41, 0 4px 10px rgba(46,204,113,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   }
   #mode-select .mode-btn.alt:active {
-    box-shadow: 0 2px 0 #8a1a26, 0 4px 10px rgba(255,71,87,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    box-shadow: 0 2px 0 #1c8f4a, 0 4px 10px rgba(111,220,74,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   }
   #mode-select .mode-btn.purple:active {
-    box-shadow: 0 2px 0 #3a2c86, 0 4px 10px rgba(142,84,233,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    box-shadow: 0 2px 0 #10182a, 0 4px 10px rgba(20,30,50,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
   }
 
   .settings-gear {
@@ -164,21 +179,125 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
 
-  #private-select, #lobby-screen, #settings-panel, #match-end {
+  #settings-panel, #match-end {
     background: rgba(6,10,18,0.6);
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
+
+  /* ---- Private Match: Create/Join + Lobby screens (single layer, no
+     frosted card, split into side-by-side panels so everything fits the
+     landscape viewport without scrolling) ---- */
+  #private-select, #lobby-screen {
+    position: fixed; inset: 0; z-index: 900; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif; color: white; padding: 20px; box-sizing: border-box;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
+  }
+  .back-circle-btn {
+    position: absolute;
+    top: max(16px, env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
+    color: white; font-size: 18px; width: 40px; height: 40px; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2;
+  }
+  .pm-eyebrow {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 2px;
+    color: #ffcb3d; text-align: center; margin-bottom: 14px;
+  }
+  .pm-cols { display: flex; gap: 16px; width: 100%; max-width: 560px; }
+  .pm-panel {
+    flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
+    box-sizing: border-box; min-height: 0;
+  }
+  .pm-panel-title {
+    font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    color: #f5f7fa; text-align: center;
+  }
+  .pm-divider {
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-size: 12px; color: #6b7688; letter-spacing: 2px;
+  }
+  .pm-field-label {
+    font-size: 11px; letter-spacing: 1.5px; color: #9fb3c8; display: block; margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+  .pm-input {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: white;
+    font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600;
+  }
+  .pm-code-input {
+    text-align: center; letter-spacing: 5px; font-family: 'Orbitron', sans-serif;
+    font-size: 16px; text-transform: uppercase;
+  }
+  #privateError { color: #ff6b6b; font-size: 13px; margin-top: 12px; min-height: 16px; text-align: center; }
+
+  .lobby-code {
+    font-family: 'Orbitron', sans-serif; font-weight: 900; letter-spacing: 8px; color: #ffcb3d;
+    font-size: 30px; text-align: center;
+  }
+  .lobby-copy-btn {
+    font-family: 'Rajdhani', sans-serif; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 999px;
+    padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; align-self: center;
+  }
+  .lobby-wait-msg { font-size: 13px; opacity: 0.7; text-align: center; }
+  .lobby-slots-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+  .lobby-team-col { display: flex; flex-direction: column; gap: 6px; }
+  .lobby-team-label {
+    font-size: 11px; text-align: center; letter-spacing: 1px; font-weight: 700; text-transform: uppercase;
+  }
+  .lobby-slot-row {
+    display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.12);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lobby-slot-row.blue { background: rgba(46,134,245,0.14); }
+  .lobby-slot-row.red { background: rgba(255,71,87,0.14); }
+  .lobby-slot-row.empty { opacity: 0.55; border-style: dashed; cursor: pointer; }
+  .lobby-slot-row.you { border-color: #ffcb3d; }
+  #lobbyError { color: #ff6b6b; font-size: 12px; margin-top: 8px; min-height: 14px; text-align: center; }
   #settings-panel {
     position: fixed; inset: 0; z-index: 950; display: none;
     justify-content: center;
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
     overflow-y: auto;
   }
-  .duration-row { margin-bottom: 24px; }
+  #settings-panel .overlay-card { padding: 12px 26px; max-width: 440px; }
+  #settings-panel h2 { margin: 0 0 8px 0; font-size: 18px; }
+  #settings-panel .setting-row { margin-bottom: 10px; }
+  #settings-panel .setting-row .label-row { margin-bottom: 6px; font-size: 14px; }
+  #settings-panel .toggle-btn {
+    font-family: 'Rajdhani', sans-serif; border: none; border-radius: 999px;
+    padding: 7px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+    color: #05261c; background: linear-gradient(135deg, #2ecc71, #17a589);
+    box-shadow: 0 3px 10px rgba(46,204,113,0.35);
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  }
+  #settings-panel .toggle-btn.off {
+    background: rgba(255,255,255,0.1); color: white; box-shadow: none;
+  }
+  #settings-panel .controls-highlight {
+    display: flex; gap: 12px; margin: 6px 0 16px;
+  }
+  #settings-panel .control-card {
+    flex: 1; background: rgba(255,203,61,0.1); border: 1px solid rgba(255,203,61,0.35);
+    border-radius: 14px; padding: 10px 10px; text-align: center;
+  }
+  #settings-panel .control-icon { font-size: 28px; margin-bottom: 6px; line-height: 1; }
+  #settings-panel .control-label {
+    font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 800;
+    letter-spacing: 1px; color: #ffcb3d; margin-bottom: 5px;
+  }
+  #settings-panel .control-desc { font-size: 12px; opacity: 0.85; line-height: 1.35; }
   .duration-label {
     font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: 3px;
     color: #9fb3c8; margin-bottom: 10px; text-align: center;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
   }
   .duration-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 340px; }
   .duration-chip {
@@ -195,10 +314,39 @@
 
   #match-end {
     position: fixed; inset: 0; z-index: 960; display: none;
-    justify-content: center;
+    flex-direction: column; align-items: center; justify-content: center;
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
-    overflow-y: auto;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
   }
+  #matchEndConfetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  #matchEndConfetti .piece {
+    position: absolute; top: -20px; width: 8px; height: 14px; opacity: 0.9;
+    animation: matchEndConfettiFall linear infinite;
+  }
+  @keyframes matchEndConfettiFall {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(540deg); opacity: 0.2; }
+  }
+  #match-end .me-ribbon {
+    position: relative; z-index: 1;
+    display: inline-block; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 800;
+    letter-spacing: 2px; color: #1a1a1a; background: linear-gradient(135deg, #ffcb3d, #e8a825);
+    padding: 6px 18px; border-radius: 999px; margin-bottom: 14px;
+    box-shadow: 0 6px 16px rgba(255,203,61,0.4);
+  }
+  #matchEndWinner {
+    position: relative; z-index: 1;
+    font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 900; color: #fff;
+    margin-bottom: 8px; text-shadow: 0 2px 14px rgba(0,0,0,0.6);
+  }
+  #matchEndScore {
+    position: relative; z-index: 1;
+    font-family: 'Orbitron', sans-serif; font-size: 46px; font-weight: 900; margin-bottom: 22px;
+    background: linear-gradient(120deg, #ffffff 0%, #ffcb3d 50%, #ffffff 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #match-end .me-actions { position: relative; z-index: 1; width: 100%; max-width: 280px; }
   .overlay-card {
     background: rgba(15, 22, 40, 0.55);
     backdrop-filter: blur(20px) saturate(150%);
@@ -328,83 +476,99 @@
 <button class="settings-gear" onclick="SFX.click(); openSettings()">⚙️</button>
 
 <div id="mode-select">
-  <div class="content">
+  <div class="live-badge"><span class="dot"></span>Live Stadium Feed</div>
+  <div class="title-block">
     <h1>KICKOFF DUEL</h1>
-    <div class="subtitle">1 v 1 &nbsp;•&nbsp; PICK YOUR MATCH</div>
+    <div class="title-underline"></div>
+  </div>
+  <div class="content">
+    <div class="settings-row">
+      <div class="setting-group">
+        <div class="duration-label">MATCH LENGTH</div>
+        <div class="duration-chips">
+          <button class="duration-chip" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
+          <button class="duration-chip" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
+          <button class="duration-chip selected" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
+          <button class="duration-chip" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
+        </div>
+      </div>
 
-    <div class="duration-row">
-      <div class="duration-label">MATCH LENGTH</div>
-      <div class="duration-chips">
-        <button class="duration-chip" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
-        <button class="duration-chip" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
-        <button class="duration-chip selected" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
-        <button class="duration-chip" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
+      <div class="setting-group">
+        <div class="duration-label">BOT DIFFICULTY</div>
+        <div class="duration-chips">
+          <button class="duration-chip selected" onclick="SFX.click(); setBotDifficulty('easy',this)">EASY</button>
+          <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('medium',this)">MEDIUM</button>
+          <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('hard',this)">HARD</button>
+        </div>
       </div>
     </div>
 
-    <div class="duration-row">
-      <div class="duration-label">BOT DIFFICULTY</div>
-      <div class="duration-chips">
-        <button class="duration-chip selected" onclick="SFX.click(); setBotDifficulty('easy',this)">EASY</button>
-        <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('medium',this)">MEDIUM</button>
-        <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('hard',this)">HARD</button>
-      </div>
+    <div class="mode-buttons">
+      <button class="mode-btn" onclick="SFX.click(); startGame('bot')"><span class="icon">🤖</span><span class="label">VS BOT</span></button>
+      <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()"><span class="icon">🔒</span><span class="label">PRIVATE MATCH</span></button>
+      <button class="mode-btn alt" onclick="SFX.click(); startGame('local')"><span class="icon">👥</span><span class="label">LOCAL 2P</span></button>
     </div>
-
-    <button class="mode-btn" onclick="SFX.click(); startGame('bot')">🤖 VS BOT</button>
-    <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()">🔒 PRIVATE MATCH (1-6P)</button>
-    <button class="mode-btn alt" onclick="SFX.click(); startGame('local')">👥 LOCAL 2 PLAYER</button>
   </div>
 </div>
 
-<div id="private-select" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px; color:white;">
-  <div class="overlay-card">
-    <h2>PRIVATE MATCH</h2>
-    <div style="font-size:14px; opacity:0.75; margin-bottom:20px;">Up to 6 players &nbsp;•&nbsp; empty slots filled by bots</div>
-    <div style="margin-bottom:16px; text-align:left;">
-      <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:6px;">YOUR NAME</label>
-      <input id="playerNameInput" maxlength="16" placeholder="Player" oninput="setPlayerName(this.value)" style="width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:16px;">
-    </div>
-    <div style="margin-bottom:18px;">
-      <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:8px;">TEAM SIZE (for creating a room)</label>
+<div id="private-select">
+  <button class="back-circle-btn" onclick="SFX.click(); closePrivateMenu()">⬅</button>
+  <div class="pm-eyebrow">PRIVATE MATCH</div>
+  <div class="pm-cols">
+    <div class="pm-panel">
+      <div class="pm-panel-title">CREATE ROOM</div>
+      <div>
+        <label class="pm-field-label">Your Name</label>
+        <input id="playerNameInput" maxlength="16" placeholder="Player" oninput="setPlayerName(this.value)" class="pm-input">
+      </div>
       <div class="duration-chips" id="teamSizeChips">
         <button class="duration-chip selected" onclick="SFX.click(); setPrivateTeamSize(2,this)">2 v 2</button>
         <button class="duration-chip" onclick="SFX.click(); setPrivateTeamSize(3,this)">3 v 3</button>
       </div>
+      <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE</button>
     </div>
-    <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE ROOM</button>
-    <div style="margin:18px 0 8px; font-size:14px; opacity:0.7;">— or join with a code —</div>
-    <input id="joinCodeInput" maxlength="5" placeholder="ENTER CODE" style="width:100%; box-sizing:border-box; text-align:center; letter-spacing:6px; font-family:'Orbitron',sans-serif; font-size:20px; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; margin-bottom:14px; text-transform:uppercase;">
-    <button class="done-btn blue" onclick="SFX.click(); joinPrivateRoom()">JOIN ROOM</button>
-    <div id="privateError" style="color:#ff6b6b; font-size:14px; margin-top:14px; min-height:18px;"></div>
-    <button class="done-btn neutral" style="margin-top:16px;" onclick="SFX.click(); closePrivateMenu()">⬅ BACK</button>
+    <div class="pm-divider">OR</div>
+    <div class="pm-panel">
+      <div class="pm-panel-title">JOIN ROOM</div>
+      <input id="joinCodeInput" maxlength="5" placeholder="CODE" class="pm-input pm-code-input">
+      <div style="flex:1;"></div>
+      <button class="done-btn blue" onclick="SFX.click(); joinPrivateRoom()">JOIN ROOM</button>
+    </div>
   </div>
+  <div id="privateError"></div>
 </div>
 
-<div id="lobby-screen" style="position:fixed; inset:0; z-index:900; display:none; justify-content:center; overflow-y:auto; padding:20px; color:white;">
-  <div class="overlay-card">
-    <h2>ROOM CODE</h2>
-    <div id="lobbyCode" style="font-family:'Orbitron',sans-serif; font-size:44px; font-weight:900; letter-spacing:10px; color:#ffcb3d; margin-bottom:6px;">-----</div>
-    <button onclick="SFX.click(); copyRoomCode()" style="font-family:'Rajdhani',sans-serif; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white; border-radius:20px; padding:6px 16px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:20px;">📋 COPY CODE</button>
-    <div style="margin-bottom:16px; text-align:left;">
-      <label style="font-size:12px; letter-spacing:2px; color:#9fb3c8; display:block; margin-bottom:6px;">YOUR NAME</label>
-      <input id="lobbyNameInput" maxlength="16" placeholder="Player" oninput="renameInLobby(this.value)" style="width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:16px;">
+<div id="lobby-screen">
+  <button class="back-circle-btn" onclick="SFX.click(); leavePrivateRoom()">⬅</button>
+  <div class="pm-cols">
+    <div class="pm-panel" style="flex:0.85; align-items:center; text-align:center;">
+      <div class="pm-eyebrow" style="margin-bottom:0;">ROOM CODE</div>
+      <div id="lobbyCode" class="lobby-code">-----</div>
+      <button class="lobby-copy-btn" onclick="SFX.click(); copyRoomCode()">📋 COPY</button>
+      <div style="width:100%; text-align:left;">
+        <label class="pm-field-label">Your Name</label>
+        <input id="lobbyNameInput" maxlength="16" placeholder="Player" oninput="renameInLobby(this.value)" class="pm-input">
+      </div>
+      <div style="flex:1;"></div>
+      <button id="lobbyStartBtn" class="done-btn" style="display:none; width:100%;" onclick="SFX.click(); startPrivateMatch()">▶ START MATCH</button>
+      <div id="lobbyWaitMsg" class="lobby-wait-msg">Waiting for the host to start…</div>
     </div>
-    <div id="lobbySlots" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
-    <div id="lobbyError" style="color:#ff6b6b; font-size:14px; margin-bottom:10px; min-height:18px;"></div>
-    <button id="lobbyStartBtn" class="done-btn" style="display:none;" onclick="SFX.click(); startPrivateMatch()">▶ START MATCH</button>
-    <div id="lobbyWaitMsg" style="font-size:14px; opacity:0.7; margin-bottom:10px;">Waiting for the host to start…</div>
-    <button class="done-btn neutral" onclick="SFX.click(); leavePrivateRoom()">⬅ LEAVE ROOM</button>
+    <div class="pm-panel" style="flex:1.15;">
+      <div class="pm-panel-title">TEAMS</div>
+      <div id="lobbySlots" class="lobby-slots-grid"></div>
+      <div id="lobbyError"></div>
+    </div>
   </div>
 </div>
 
 <div id="match-end">
-  <div class="overlay-card">
-    <h2 id="matchEndTitle">FULL TIME</h2>
-    <div id="matchEndWinner"></div>
-    <div id="matchEndScore"></div>
+  <div id="matchEndConfetti"></div>
+  <div class="me-ribbon" id="matchEndTitle">FULL TIME</div>
+  <div id="matchEndWinner"></div>
+  <div id="matchEndScore"></div>
+  <div class="me-actions">
     <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); rematch()">🔁 REMATCH</button>
-    <button id="matchEndMenuBtn" class="done-btn blue" style="margin-top:10px;" onclick="SFX.click(); mainMenu()">🏠 MAIN MENU</button>
+    <button id="matchEndMenuBtn" class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); mainMenu()">🏠 MAIN MENU</button>
   </div>
 </div>
 
@@ -421,16 +585,20 @@
   <div class="overlay-card">
     <h2>SETTINGS</h2>
     <div class="setting-row" style="display:flex; align-items:center; justify-content:space-between;">
-      <span style="font-size:17px; font-weight:700;">Sound Effects</span>
-      <button id="sfxToggleBtn" onclick="toggleSFX()" style="font-family:'Rajdhani',sans-serif; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white; border-radius:20px; padding:8px 18px; font-size:15px; font-weight:700; cursor:pointer;">🔊 ON</button>
+      <span style="font-size:14px; font-weight:700;">Sound Effects</span>
+      <button id="sfxToggleBtn" class="toggle-btn" onclick="toggleSFX()">🔊 ON</button>
     </div>
-    <div class="setting-row" style="text-align:left;">
-      <div class="label-row"><span>Multiplayer Server URL</span></div>
-      <input id="serverUrlInput" placeholder="https://your-server.up.railway.app" oninput="setServerUrl(this.value)" style="width:100%; box-sizing:border-box; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); color:white; font-family:'Rajdhani',sans-serif; font-size:14px;">
-      <div style="font-size:12px; opacity:0.6; margin-top:6px;">Already set to the default Kickoff Duel server - only change this if you're running your own.</div>
-    </div>
-    <div style="text-align:center; font-size:14px; opacity:0.7; margin: 18px 0 20px;">
-      Left half of the screen = move (tap &amp; drag anywhere)<br/>Right half = kick (tap anywhere)
+    <div class="controls-highlight">
+      <div class="control-card">
+        <div class="control-icon">🕹️</div>
+        <div class="control-label">MOVE</div>
+        <div class="control-desc">Left half of screen<br>tap &amp; drag anywhere</div>
+      </div>
+      <div class="control-card">
+        <div class="control-icon">⚽</div>
+        <div class="control-label">KICK</div>
+        <div class="control-desc">Right half of screen<br>tap anywhere</div>
+      </div>
     </div>
     <button class="done-btn" onclick="SFX.click(); closeSettings()">DONE</button>
   </div>
@@ -487,14 +655,11 @@ let SFX_ENABLED = true;
 let gameInstance = null;
 
 // ---- Online / private match state ----
-// Ships with a default so players never have to find/paste a URL themselves;
-// the settings field is only there for anyone running their own server instead.
+// Ships with a default so players never have to find/paste a URL themselves.
+// No UI exposes changing this - it only reads a prior override (if one was
+// ever set back when a settings field for it existed) from localStorage.
 const DEFAULT_SERVER_URL = 'https://kickoff-game-production.up.railway.app';
 let SERVER_URL = localStorage.getItem('kickoffDuelServerUrl') || DEFAULT_SERVER_URL;
-function setServerUrl(value) {
-  SERVER_URL = value.trim();
-  localStorage.setItem('kickoffDuelServerUrl', SERVER_URL);
-}
 let PLAYER_NAME = localStorage.getItem('kickoffDuelPlayerName') || 'Player';
 function setPlayerName(value) {
   PLAYER_NAME = (value || '').trim().slice(0, 16) || 'Player';
@@ -580,6 +745,16 @@ const SFX = (function() {
   }
   function on() { return typeof SFX_ENABLED === 'undefined' || SFX_ENABLED; }
 
+  // real recorded goal SFX (assets/sfx_goal.wav) - decoded once up front;
+  // falls back to the synthesized siren below if it hasn't finished
+  // loading yet (or fails to load) so a goal never plays silently
+  let goalBuffer = null;
+  fetch('assets/sfx_goal.wav')
+    .then(r => r.arrayBuffer())
+    .then(data => ensureCtx().decodeAudioData(data))
+    .then(decoded => { goalBuffer = decoded; })
+    .catch(() => {});
+
   return {
     click() {
       if (!on()) return;
@@ -602,7 +777,19 @@ const SFX = (function() {
       if (!on()) return;
       const c = ensureCtx();
       const t = c.currentTime;
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, t + i * 0.09, 0.25, 'triangle', 0.22));
+      if (goalBuffer) {
+        const src = c.createBufferSource();
+        src.buffer = goalBuffer;
+        const g = c.createGain();
+        g.gain.value = 0.5;
+        src.connect(g).connect(c.destination);
+        src.start(t);
+        return;
+      }
+      // retro arcade siren fallback - square-wave rising pitch sweep, played
+      // twice - used only if the recorded goal SFX hasn't loaded yet
+      tone(300, t, 0.5, 'square', 0.18, 1400);
+      tone(300, t + 0.08, 0.42, 'square', 0.12, 1400);
     },
     whistle(long) {
       if (!on()) return;
@@ -616,7 +803,9 @@ const SFX = (function() {
 
 function toggleSFX() {
   SFX_ENABLED = !SFX_ENABLED;
-  document.getElementById('sfxToggleBtn').textContent = SFX_ENABLED ? '🔊 ON' : '🔇 OFF';
+  const btn = document.getElementById('sfxToggleBtn');
+  btn.textContent = SFX_ENABLED ? '🔊 ON' : '🔇 OFF';
+  btn.classList.toggle('off', !SFX_ENABLED);
   if (SFX_ENABLED) SFX.click();
 }
 
@@ -662,6 +851,22 @@ function setBotDifficulty(level, el) {
   el.classList.add('selected');
 }
 
+function spawnMatchEndConfetti() {
+  const el = document.getElementById('matchEndConfetti');
+  el.innerHTML = '';
+  const colors = ['#ffcb3d', '#ffffff', '#2e86f5', '#ff4757'];
+  for (let i = 0; i < 40; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+    piece.style.animationDelay = (Math.random() * 1.2) + 's';
+    piece.style.width = (5 + Math.random() * 5) + 'px';
+    el.appendChild(piece);
+  }
+}
+
 function onMatchEnd(winnerLabel, p1, p2) {
   document.getElementById('matchEndWinner').textContent = winnerLabel;
   document.getElementById('matchEndScore').textContent = p1 + '   -   ' + p2;
@@ -670,6 +875,7 @@ function onMatchEnd(winnerLabel, p1, p2) {
   rematchBtn.style.display = 'block';
   rematchBtn.onclick = () => { SFX.click(); rematch(); };
   menuBtn.onclick = () => { SFX.click(); mainMenu(); };
+  spawnMatchEndConfetti();
   document.getElementById('match-end').style.display = 'flex';
 }
 
@@ -681,6 +887,7 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   rematchBtn.style.display = isHost ? 'block' : 'none';
   rematchBtn.onclick = () => { SFX.click(); restartOnlineMatch(); };
   menuBtn.onclick = () => { SFX.click(); exitOnlineMatch(); };
+  spawnMatchEndConfetti();
   document.getElementById('match-end').style.display = 'flex';
 }
 
@@ -735,7 +942,6 @@ function mainMenu() {
 }
 
 function openSettings() {
-  document.getElementById('serverUrlInput').value = SERVER_URL;
   document.getElementById('settings-panel').style.display = 'flex';
 }
 function closeSettings() {
@@ -826,34 +1032,41 @@ function renderLobby(data) {
   });
   const slotsEl = document.getElementById('lobbySlots');
   slotsEl.innerHTML = '';
+  // two-column split (Team A / Team B) instead of one flat list - works for
+  // both 2v2 (2 rows/col) and 3v3 (3 rows/col) since columns are grouped by
+  // slot[0] rather than a hardcoded row count
+  const teamCols = { A: document.createElement('div'), B: document.createElement('div') };
+  Object.keys(teamCols).forEach((team) => {
+    teamCols[team].className = 'lobby-team-col';
+    const label = document.createElement('div');
+    label.className = 'lobby-team-label';
+    label.style.color = team === 'A' ? '#9ccdff' : '#ffb3ba';
+    label.textContent = 'TEAM ' + team;
+    teamCols[team].appendChild(label);
+  });
+
   slots.forEach((slot) => {
     const p = data.players[slot];
     // any open (bot) slot is tappable to move yourself there - manual team
     // selection instead of being stuck wherever auto-join put you
     const canSwitchHere = !p.connected && mySlot && slot !== mySlot;
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:10px; background:rgba(255,255,255,0.06); color:white; cursor:' + (canSwitchHere ? 'pointer' : 'default') + '; border:1px solid ' + (slot === mySlot ? '#ffcb3d' : (canSwitchHere ? 'rgba(46,134,245,0.5)' : 'rgba(255,255,255,0.15)')) + ';';
+    row.className = 'lobby-slot-row ' + (slot[0] === 'A' ? 'blue' : 'red')
+      + (canSwitchHere ? ' empty' : '') + (slot === mySlot ? ' you' : '');
     if (canSwitchHere) row.onclick = () => { SFX.click(); switchSlot(slot); };
 
-    const labelSpan = document.createElement('span');
-    labelSpan.style.cssText = 'font-size:14px; opacity:0.85;';
-    labelSpan.textContent = 'Team ' + slot[0] + ' — Slot ' + slot.slice(1);
-
-    const statusSpan = document.createElement('span');
-    statusSpan.style.cssText = 'font-size:14px; font-weight:700;';
     // .textContent, not innerHTML - player names come from other sockets and
     // must never be interpreted as HTML/script
     if (p.connected) {
-      statusSpan.textContent = '🟢 ' + (p.name || 'Player') + (slot === mySlot ? ' (you)' : '');
+      row.textContent = (p.name || 'Player') + (slot === mySlot ? ' (you)' : '');
     } else {
       const botName = p.name || 'Bot';
-      statusSpan.textContent = canSwitchHere ? ('🤖 ' + botName + ' · tap to switch') : ('🤖 ' + botName);
+      row.textContent = canSwitchHere ? ('+ ' + botName) : ('🤖 ' + botName);
     }
-
-    row.appendChild(labelSpan);
-    row.appendChild(statusSpan);
-    slotsEl.appendChild(row);
+    teamCols[slot[0]].appendChild(row);
   });
+  slotsEl.appendChild(teamCols.A);
+  slotsEl.appendChild(teamCols.B);
   document.getElementById('lobbyStartBtn').style.display = isHost ? 'block' : 'none';
   document.getElementById('lobbyWaitMsg').style.display = isHost ? 'none' : 'block';
 }
@@ -1425,41 +1638,47 @@ class MainScene extends Phaser.Scene {
     resetting = true;
     score[scorer]++;
     scoreText.setText(`${score.p1}   -   ${score.p2}`);
-    this.cameras.main.flash(300, 255, 255, 255);
-    this.cameras.main.shake(250, 0.007);
+    this.cameras.main.flash(350, 255, 255, 255);
+    this.cameras.main.shake(300, 0.01);
     if (typeof SFX !== 'undefined') SFX.goal();
 
-    // big celebratory GOAL text
+    // full-screen flash + radiating burst celebration - gold rays punch
+    // outward from center while a big white/gold-outlined GOAL! scales in
     const { width: W, height: H } = this.scale;
-    const goalTxt = this.add.text(W/2, H/2 - 40, 'GOAL!', {
-      fontFamily: 'Orbitron', fontSize: '64px', fontStyle: '900',
-      color: '#ffcb3d', stroke: '#0b1220', strokeThickness: 8
-    }).setOrigin(0.5).setScale(0.2).setAlpha(0);
-    this.tweens.add({
-      targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out',
-      onComplete: () => {
-        this.tweens.add({ targets: goalTxt, alpha: 0, delay: 500, duration: 350, onComplete: () => goalTxt.destroy() });
-      }
-    });
 
-    // small confetti burst using simple emitter
-    const emitter = this.add.particles(ball.x, ball.y, 'particleDot', {
-      lifespan: 700,
-      speed: { min: 150, max: 350 },
-      scale: { start: 1.6, end: 0 },
-      tint: [0x2e86f5, 0xff4757, 0xffcb3d, 0xf5f7fa],
-      quantity: 24,
-      emitting: false
+    // drawn in local (0,0)-centered space, then positioned at screen center -
+    // so setScale() below expands the burst evenly outward from that center
+    // instead of scaling around a mismatched anchor and drifting sideways
+    const rayGfx = this.add.graphics().setDepth(400).setAlpha(0);
+    rayGfx.lineStyle(3, 0xffcb3d, 0.6);
+    const rayCount = 12, rayLen = 420;
+    for (let i = 0; i < rayCount; i++) {
+      const angle = (Math.PI * 2 / rayCount) * i;
+      rayGfx.lineBetween(0, 0, Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
+    }
+    rayGfx.setPosition(W/2, H/2).setScale(0.3);
+
+    const goalTxt = this.add.text(W/2, H/2, 'GOAL!', {
+      fontFamily: 'Orbitron', fontSize: '70px', fontStyle: '900',
+      color: '#ffffff', stroke: '#ffcb3d', strokeThickness: 10
+    }).setOrigin(0.5).setScale(0.2).setAlpha(0).setDepth(401);
+
+    this.tweens.add({ targets: rayGfx, alpha: 1, scale: 1, duration: 260, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
+
+    this.time.delayedCall(650, () => {
+      this.tweens.add({
+        targets: [rayGfx, goalTxt], alpha: 0, duration: 300,
+        onComplete: () => { rayGfx.destroy(); goalTxt.destroy(); }
+      });
     });
-    emitter.explode(24, ball.x, ball.y);
-    this.time.delayedCall(800, () => emitter.destroy());
 
     if (this.extraTime) {
       // golden goal - this goal just broke the tie, so finalize the match
       // instead of resetting for more play
-      this.time.delayedCall(900, () => this.endMatch());
+      this.time.delayedCall(1000, () => this.endMatch());
     } else {
-      this.time.delayedCall(900, () => this.resetPositions());
+      this.time.delayedCall(1000, () => this.resetPositions());
     }
   }
 
@@ -1890,20 +2109,37 @@ class OnlineScene extends Phaser.Scene {
   }
 
   celebrateGoal() {
-    this.cameras.main.flash(300, 255, 255, 255);
-    this.cameras.main.shake(250, 0.007);
+    this.cameras.main.flash(350, 255, 255, 255);
+    this.cameras.main.shake(300, 0.01);
     if (typeof SFX !== 'undefined') SFX.goal();
 
+    // same full-screen flash + radiating burst celebration used in
+    // VS Bot / Local 2P (MainScene.scoreGoal), kept in sync so every
+    // mode shares one goal-celebration look
     const { width: W, height: H } = this.scale;
-    const goalTxt = this.add.text(W/2, H/2 - 40, 'GOAL!', {
-      fontFamily: 'Orbitron', fontSize: '64px', fontStyle: '900',
-      color: '#ffcb3d', stroke: '#0b1220', strokeThickness: 8
-    }).setOrigin(0.5).setScale(0.2).setAlpha(0).setDepth(900);
-    this.tweens.add({
-      targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out',
-      onComplete: () => {
-        this.tweens.add({ targets: goalTxt, alpha: 0, delay: 500, duration: 350, onComplete: () => goalTxt.destroy() });
-      }
+
+    const rayGfx = this.add.graphics().setDepth(900).setAlpha(0);
+    rayGfx.lineStyle(3, 0xffcb3d, 0.6);
+    const rayCount = 12, rayLen = 420;
+    for (let i = 0; i < rayCount; i++) {
+      const angle = (Math.PI * 2 / rayCount) * i;
+      rayGfx.lineBetween(0, 0, Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
+    }
+    rayGfx.setPosition(W/2, H/2).setScale(0.3);
+
+    const goalTxt = this.add.text(W/2, H/2, 'GOAL!', {
+      fontFamily: 'Orbitron', fontSize: '70px', fontStyle: '900',
+      color: '#ffffff', stroke: '#ffcb3d', strokeThickness: 10
+    }).setOrigin(0.5).setScale(0.2).setAlpha(0).setDepth(901);
+
+    this.tweens.add({ targets: rayGfx, alpha: 1, scale: 1, duration: 260, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
+
+    this.time.delayedCall(650, () => {
+      this.tweens.add({
+        targets: [rayGfx, goalTxt], alpha: 0, duration: 300,
+        onComplete: () => { rayGfx.destroy(); goalTxt.destroy(); }
+      });
     });
 
     const emitter = this.add.particles(this.ball.x, this.ball.y, 'particleDot', {
