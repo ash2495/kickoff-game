@@ -1051,7 +1051,17 @@ function ensureSocket(onReady) {
   socket.on('lobbyUpdate', renderLobby);
   socket.on('matchStarted', () => {
     if (isQuickMatchFlow) {
-      revealBotsAndCountdown(() => startOnlineMatch());
+      // the server already started simulating the instant matchmaking
+      // resolved (bots move, goals can happen) - mount the real, synced
+      // game right away instead of waiting on the reveal/countdown first,
+      // otherwise the match plays on unseen for several seconds and can
+      // already show a goal by the time the curtain lifts. The reveal +
+      // countdown then plays as a curtain ON TOP of the now-live game.
+      startOnlineMatch();
+      const mm = document.getElementById('matchmaking-screen');
+      mm.style.display = 'flex';
+      document.querySelector('#matchmaking-screen .back-circle-btn').style.display = 'none';
+      revealBotsAndCountdown(() => { mm.style.display = 'none'; });
     } else {
       startOnlineMatch();
     }
@@ -1103,6 +1113,7 @@ function quickMatch() {
       document.getElementById('mmTeamB').innerHTML = '';
       document.getElementById('mmCountdownOverlay').style.display = 'none';
       document.querySelector('#matchmaking-screen .mm-status').style.display = 'block';
+      document.querySelector('#matchmaking-screen .back-circle-btn').style.display = '';
       hideAllMenus();
       document.getElementById('matchmaking-screen').style.display = 'flex';
     });
