@@ -866,10 +866,60 @@ const SFX = (function() {
     .then(decoded => { goalBuffer = decoded; })
     .catch(() => {});
 
+  // same pattern for the button-tap SFX (assets/sfx_click.mp3) - falls back
+  // to the synthesized blip below if it hasn't finished loading yet
+  let clickBuffer = null;
+  fetch('assets/sfx_click.mp3')
+    .then(r => r.arrayBuffer())
+    .then(data => ensureCtx().decodeAudioData(data))
+    .then(decoded => { clickBuffer = decoded; })
+    .catch(() => {});
+
+  // real stadium crowd recording (assets/sfx_crowd.mp3) - looped quietly for
+  // the whole live match as ambience; goals ramp its own gain up briefly
+  // ("the crowd reacts") instead of layering a second copy of the same
+  // recording on top, which would just phase against itself
+  let crowdBuffer = null;
+  let crowdWantsToPlay = false; // set if start() is called before the file finishes loading
+  fetch('assets/sfx_crowd.mp3')
+    .then(r => r.arrayBuffer())
+    .then(data => ensureCtx().decodeAudioData(data))
+    .then(decoded => {
+      crowdBuffer = decoded;
+      if (crowdWantsToPlay) startCrowdLoop();
+    })
+    .catch(() => {});
+
+  let crowdSession = null; // { src, gain } while the ambience loop is live
+  const CROWD_BASE_GAIN = 0.14;
+  function startCrowdLoop() {
+    if (crowdSession || !crowdBuffer) return;
+    const c = ensureCtx();
+    const src = c.createBufferSource();
+    src.buffer = crowdBuffer;
+    src.loop = true;
+    const gain = c.createGain();
+    gain.gain.value = CROWD_BASE_GAIN;
+    src.connect(gain).connect(c.destination);
+    src.start(c.currentTime);
+    crowdSession = { src, gain };
+  }
+
   return {
     click() {
       if (!on()) return;
       const c = ensureCtx();
+      if (clickBuffer) {
+        const src = c.createBufferSource();
+        src.buffer = clickBuffer;
+        const g = c.createGain();
+        g.gain.value = 0.5;
+        src.connect(g).connect(c.destination);
+        src.start(c.currentTime);
+        return;
+      }
+      // synthesized blip fallback - used only if the recorded tap SFX
+      // hasn't loaded yet
       tone(880, c.currentTime, 0.05, 'square', 0.10);
     },
     kick() {
@@ -908,6 +958,35 @@ const SFX = (function() {
       const t = c.currentTime;
       tone(2200, t, long ? 0.45 : 0.26, 'sine', 0.2, 2600);
       if (long) tone(2200, t + 0.55, 0.45, 'sine', 0.2, 2600);
+    },
+    crowdAmbience: {
+      start() {
+        if (!on()) return;
+        if (!crowdBuffer) { crowdWantsToPlay = true; return; }
+        startCrowdLoop();
+      },
+      stop() {
+        crowdWantsToPlay = false;
+        if (!crowdSession) return;
+        const { src, gain } = crowdSession;
+        const c = ensureCtx();
+        gain.gain.cancelScheduledValues(c.currentTime);
+        gain.gain.setValueAtTime(gain.gain.value, c.currentTime);
+        gain.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.4);
+        src.stop(c.currentTime + 0.45);
+        crowdSession = null;
+      },
+      // brief louder swell riding on the same loop - "the crowd reacts" - used on goals
+      swell() {
+        if (!on() || !crowdSession) return;
+        const c = ensureCtx();
+        const t = c.currentTime;
+        const g = crowdSession.gain;
+        g.gain.cancelScheduledValues(t);
+        g.gain.setValueAtTime(g.gain.value, t);
+        g.gain.linearRampToValueAtTime(0.55, t + 0.25);
+        g.gain.linearRampToValueAtTime(CROWD_BASE_GAIN, t + 3.5);
+      }
     }
   };
 })();
@@ -917,7 +996,10 @@ function toggleSFX() {
   const btn = document.getElementById('sfxToggleBtn');
   btn.textContent = SFX_ENABLED ? '🔊 ON' : '🔇 OFF';
   btn.classList.toggle('off', !SFX_ENABLED);
-  if (SFX_ENABLED) SFX.click();
+  // the crowd ambience loop runs independently of on()'s per-call check
+  // (it's already-started audio, not a fresh trigger), so mute/unmute it explicitly
+  if (SFX_ENABLED) { SFX.click(); if (gameInstance) SFX.crowdAmbience.start(); }
+  else SFX.crowdAmbience.stop();
 }
 
 // Best-effort screen lock for browsers/PWAs that support it (native Android
@@ -1322,6 +1404,7 @@ function startOnlineMatch() {
   document.querySelector('.settings-gear').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
   gameInstance = new Phaser.Game(onlineConfig);
+  SFX.crowdAmbience.start();
 }
 
 function leavePrivateRoom() {
@@ -1333,6 +1416,7 @@ function leavePrivateRoom() {
 }
 
 function exitOnlineMatch() {
+  SFX.crowdAmbience.stop();
   if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false; isQuickMatchFlow = false;
@@ -1692,7 +1776,7 @@ class OnlineScene extends Phaser.Scene {
   celebrateGoal() {
     this.cameras.main.flash(350, 255, 255, 255);
     this.cameras.main.shake(300, 0.01);
-    if (typeof SFX !== 'undefined') SFX.goal();
+    if (typeof SFX !== 'undefined') { SFX.goal(); SFX.crowdAmbience.swell(); }
 
     // full-screen flash + radiating burst celebration - gold rays punch
     // outward from center while a big white/gold-outlined GOAL! scales in
