@@ -69,16 +69,17 @@ function sanitizeTeamSize(size) {
   return TEAM_SIZES.includes(n) ? n : 2;
 }
 
-// mirrors the client's BOT_DIFFICULTY table (www/index.html) exactly, so
-// the same difficulty picker on the main menu controls VS Bot and the
-// bots that fill empty Private Match slots
+// each bot gets one of these difficulties at random (see randomBotDifficulty)
+// instead of a single room-wide level, so a match's bots feel like a mixed
+// bag of opponents rather than uniformly easy/medium/hard
 const BOT_DIFFICULTY = {
   easy:   { speed: 90,  reactionMs: 800, hesitateChance: 0.30, kickCooldownMs: 2200, wobble: 1.1 },
   medium: { speed: 150, reactionMs: 450, hesitateChance: 0.15, kickCooldownMs: 1500, wobble: 0.6 },
   hard:   { speed: 210, reactionMs: 150, hesitateChance: 0.03, kickCooldownMs: 900,  wobble: 0.22 },
 };
-function sanitizeBotDifficulty(level) {
-  return Object.prototype.hasOwnProperty.call(BOT_DIFFICULTY, level) ? level : 'easy';
+const BOT_DIFFICULTY_LEVELS = Object.keys(BOT_DIFFICULTY);
+function randomBotDifficulty() {
+  return BOT_DIFFICULTY_LEVELS[Math.floor(Math.random() * BOT_DIFFICULTY_LEVELS.length)];
 }
 
 // e.g. teamSize=2 -> ['A1','A2','B1','B2'], teamSize=3 -> ['A1','A2','A3','B1','B2','B3']
@@ -125,7 +126,7 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName, teamSize, botDifficulty) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
   const code = makeRoomCode();
   const size = sanitizeTeamSize(teamSize);
   const slots = getSlots(size);
@@ -134,7 +135,8 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, botDif
   slots.forEach((slot) => {
     entities[slot] = {
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
-      team: slot[0], isBot: true, socketId: null, name: randomBotName(), inputVec: { x: 0, y: 0 },
+      team: slot[0], isBot: true, socketId: null, name: randomBotName(),
+      difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
@@ -143,7 +145,6 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, botDif
     slots,
     startPos,
     joinOrder: getJoinOrder(size),
-    botDifficulty: sanitizeBotDifficulty(botDifficulty),
     hostSlot: 'A1',
     matchDuration: matchDuration > 0 ? matchDuration : 0,
     started: false,
@@ -263,10 +264,10 @@ function updatePlayers(room, dt) {
 
 function updateBots(room, dt) {
   const now = Date.now();
-  const cfg = BOT_DIFFICULTY[room.botDifficulty] || BOT_DIFFICULTY.easy;
   room.slots.forEach((slot) => {
     const e = room.entities[slot];
     if (!e.isBot) return;
+    const cfg = BOT_DIFFICULTY[e.difficulty] || BOT_DIFFICULTY.easy;
     let bs = room.botState[slot];
     if (!bs) bs = room.botState[slot] = { targetRefresh: 0, target: null, hesitate: false, lastKick: 0 };
 
@@ -477,7 +478,7 @@ function handleLeave(socket) {
   const room = rooms.get(code);
   if (!room) return;
   const e = room.entities[slot];
-  if (e) { e.isBot = true; e.socketId = null; e.name = randomBotName(); }
+  if (e) { e.isBot = true; e.socketId = null; e.name = randomBotName(); e.difficulty = randomBotDifficulty(); }
 
   const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
   if (connectedSlots.length === 0) {
@@ -494,7 +495,7 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (data, cb) => {
     if (typeof cb !== 'function') return;
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, data && data.botDifficulty);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
@@ -548,7 +549,7 @@ io.on('connection', (socket) => {
     }
 
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, data && data.botDifficulty);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize);
     room.isPublic = true;
     room.matchmakeCountdownEndsAt = Date.now() + QUICKMATCH_COUNTDOWN_MS;
     room.matchmakeTimer = setTimeout(() => {
@@ -598,6 +599,7 @@ io.on('connection', (socket) => {
     fromEntity.isBot = true;
     fromEntity.socketId = null;
     fromEntity.name = randomBotName();
+    fromEntity.difficulty = randomBotDifficulty();
 
     if (room.hostSlot === fromSlot) room.hostSlot = toSlot;
     socket.data.slot = toSlot;

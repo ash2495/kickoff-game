@@ -109,6 +109,10 @@
   #mode-select .duration-chip {
     border: none; border-radius: 999px; background: transparent;
     padding: 6px 11px; font-size: 12px;
+    /* tap area must match the pill shape, not its square bounding box -
+       the small negative inset on top/sides keeps the corners tight while
+       leaving room for .selected's glow shadow below to still render */
+    clip-path: inset(-3px -3px -13px -3px round 999px);
   }
   #mode-select .duration-chip.selected {
     background: linear-gradient(135deg, #2ecc71, #17a589); color: #05261c;
@@ -127,6 +131,9 @@
     background: linear-gradient(160deg, #2ecc71, #14795a);
     box-shadow: 0 5px 0 #0d5a41, 0 8px 18px rgba(46,204,113,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
     position: relative; overflow: hidden;
+    /* tap area must match the rounded button shape, not its square bounding
+       box - generous bottom buffer preserves the 3D bevel shadow below */
+    clip-path: inset(-3px -3px -28px -3px round 16px);
   }
   #mode-select .mode-btn .icon { font-size: 22px; line-height: 1; }
   #mode-select .mode-btn::after {
@@ -156,6 +163,7 @@
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
     color: white; font-size: 22px; width: 44px; height: 44px; border-radius: 50%;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
+    clip-path: circle(50%); /* tap area must be the circle, not its square bounding box */
   }
 
   #settings-panel, #match-end {
@@ -182,6 +190,7 @@
     color: white; width: 40px; height: 40px; border-radius: 50%;
     cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2;
     padding: 0;
+    clip-path: circle(50%); /* tap area must be the circle, not its square bounding box */
   }
   /* CSS-drawn chevron instead of an arrow glyph - emoji/text arrow characters
      (e.g. "⬅") render with inconsistent, off-center glyph boxes across
@@ -219,6 +228,7 @@
     width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: white;
     font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600;
+    clip-path: inset(0 round 8px);
   }
   .pm-input::placeholder { color: rgba(255,255,255,0.45); }
   .pm-code-input {
@@ -235,6 +245,7 @@
     font-family: 'Rajdhani', sans-serif; background: rgba(255,255,255,0.1);
     border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 999px;
     padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; align-self: center;
+    clip-path: inset(0 round 999px);
   }
   .lobby-wait-msg { font-size: 13px; opacity: 0.7; text-align: center; }
   .lobby-slots-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
@@ -246,6 +257,7 @@
     display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px;
     font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.12);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    clip-path: inset(0 round 8px);
   }
   .lobby-slot-row.blue { background: rgba(46,134,245,0.14); }
   .lobby-slot-row.red { background: rgba(255,71,87,0.14); }
@@ -338,6 +350,7 @@
     color: #05261c; background: linear-gradient(135deg, #2ecc71, #17a589);
     box-shadow: 0 3px 10px rgba(46,204,113,0.35);
     transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    clip-path: inset(-3px -3px -13px -3px round 999px);
   }
   #settings-panel .toggle-btn.off {
     background: rgba(255,255,255,0.1); color: white; box-shadow: none;
@@ -366,6 +379,7 @@
     border: 1px solid rgba(255,255,255,0.22); color: white; border-radius: 20px;
     padding: 9px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
     transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    clip-path: inset(-3px -3px -18px -3px round 20px);
   }
   .duration-chip:active { transform: scale(0.94); }
   .duration-chip.selected {
@@ -441,6 +455,9 @@
     position: relative; overflow: hidden;
     box-shadow: 0 5px 0 #a8790f, 0 8px 18px rgba(255,203,61,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
     transition: transform 0.08s, box-shadow 0.08s;
+    /* tap area must match the rounded button shape, not its square bounding
+       box - generous bottom buffer preserves the 3D bevel shadow below */
+    clip-path: inset(-3px -3px -28px -3px round 14px);
   }
   .done-btn::after {
     content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
@@ -550,15 +567,6 @@
           <button class="duration-chip" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
           <button class="duration-chip selected" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
           <button class="duration-chip" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
-        </div>
-      </div>
-
-      <div class="setting-group">
-        <div class="duration-label">BOT DIFFICULTY</div>
-        <div class="duration-chips">
-          <button class="duration-chip selected" onclick="SFX.click(); setBotDifficulty('easy',this)">EASY</button>
-          <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('medium',this)">MEDIUM</button>
-          <button class="duration-chip" onclick="SFX.click(); setBotDifficulty('hard',this)">HARD</button>
         </div>
       </div>
 
@@ -705,7 +713,7 @@
     <div style="font-size:40px; margin-bottom:14px;">⚠️</div>
     <div style="font-size:20px; font-weight:700; margin-bottom:10px;">Couldn't load the game engine</div>
     <div style="font-size:15px; opacity:0.8; margin-bottom:22px;">Check your internet connection, then try again.</div>
-    <button onclick="location.reload()" style="font-family:'Rajdhani',sans-serif; background:#ffcb3d; color:#1a1a1a; border:none; border-radius:10px; font-size:16px; font-weight:700; padding:12px 26px; cursor:pointer;">RELOAD</button>
+    <button onclick="location.reload()" style="font-family:'Rajdhani',sans-serif; background:#ffcb3d; color:#1a1a1a; border:none; border-radius:10px; font-size:16px; font-weight:700; padding:12px 26px; cursor:pointer; clip-path: inset(0 round 10px);">RELOAD</button>
   </div>
 </div>
 
@@ -738,7 +746,6 @@
 </script>
 <script>
 let MATCH_DURATION = 180; // seconds; 0 = no limit
-let BOT_DIFFICULTY_LEVEL = 'easy'; // 'easy' | 'medium' | 'hard' - sent to the server to configure any bot-filled slots in Quick Match / Private Match
 let SFX_ENABLED = true;
 let gameInstance = null;
 
@@ -913,13 +920,8 @@ function lockOrientation() {
 
 function setDuration(seconds, el) {
   MATCH_DURATION = seconds;
-  // scoped to this row only - there's a separate .duration-chip row for bot
-  // difficulty now, and a global query would wipe its selection too
-  el.parentElement.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-}
-function setBotDifficulty(level, el) {
-  BOT_DIFFICULTY_LEVEL = level;
+  // scoped to this row only - Team Size is a separate .duration-chip row,
+  // and a global query would wipe its selection too
   el.parentElement.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
 }
@@ -1044,7 +1046,7 @@ function ensureSocket(onReady) {
 
 function createPrivateRoom() {
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, botDifficulty: BOT_DIFFICULTY_LEVEL }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
       isQuickMatchFlow = false;
@@ -1078,7 +1080,7 @@ function joinPrivateRoom() {
 // instead of Private Match's share-a-code lobby
 function quickMatch() {
   ensureSocket(() => {
-    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, botDifficulty: BOT_DIFFICULTY_LEVEL }, (res) => {
+    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION }, (res) => {
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not find a match.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
       isQuickMatchFlow = true;
@@ -1362,7 +1364,17 @@ function createExitButton(scene, onExit) {
   // Phaser's input hit-test picks the topmost object at equal depth.
   container.setDepth(1000);
   container.setInteractive({ useHandCursor: true });
-  container.on('pointerdown', () => {
+  container.on('pointerdown', (pointer) => {
+    // setInteractive() with no shape defaults to the full r*2 x r*2
+    // bounding square, which would let a tap in the button's corner
+    // (visually outside the circle) register here instead of passing
+    // through to the kick zone underneath - a Phaser.Geom.Circle hit area
+    // was tried first, but Container hit-area-shape coordinates don't line
+    // up with the container's own drawing origin (verified empirically),
+    // so instead just reject clicks outside the radius using
+    // getLocalPoint(), which IS guaranteed relative to that origin
+    const local = container.getLocalPoint(pointer.x, pointer.y);
+    if (Math.hypot(local.x, local.y) > r) return;
     scene.tweens.add({ targets: container, scale: 0.9, duration: 70, yoyo: true });
     if (typeof SFX !== 'undefined') SFX.click();
     requestExitConfirm(onExit, scene);
