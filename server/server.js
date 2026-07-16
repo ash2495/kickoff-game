@@ -35,6 +35,11 @@ const GOAL_RESET_DELAY_MS = 900;
 // auto-starting with bots filling whatever's still empty
 const QUICKMATCH_COUNTDOWN_MS = 15000;
 
+// Safety net for the kickoff-ready handshake below: if a client never signals
+// readyForKickoff (crashed, backgrounded, dropped message), don't freeze the
+// match forever - let it go live on its own after this long.
+const KICKOFF_SAFETY_MS = 12000;
+
 // anti-stalling: if the ball sits pinned near a pitch corner (not moving more
 // than a small jitter radius) for this long, reset it and every player back
 // to their starting spots instead of letting play stall out indefinitely
@@ -162,6 +167,11 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
     isPublic: false,
     matchmakeTimer: null,
     matchmakeCountdownEndsAt: null,
+    // kickoff-ready handshake fields - populated for real by resetMatchState()
+    // once a match actually begins
+    kickoffLive: false,
+    kickoffReadySlots: new Set(),
+    kickoffFallbackTimer: null,
   };
   entities.A1.isBot = false;
   entities.A1.socketId = hostSocketId;
@@ -207,6 +217,21 @@ function resetMatchState(room) {
   room.ball.vx = 0; room.ball.vy = 0;
   room.botState = {};
   room.stallTracker = null;
+
+  // Kickoff-ready handshake: the sim stays frozen (no bot/ball movement, no
+  // clock, no scoring) right after matchStarted fires until every connected
+  // real player has told us they're actually looking at the pitch (Quick
+  // Match's bot-reveal + countdown curtain can take several seconds, and
+  // without this gate the match plays out live behind it and can score before
+  // anyone sees kickoff). Falls back to going live on its own so a client
+  // that never signals can't freeze the match forever.
+  room.kickoffLive = false;
+  room.kickoffReadySlots = new Set();
+  if (room.kickoffFallbackTimer) clearTimeout(room.kickoffFallbackTimer);
+  room.kickoffFallbackTimer = setTimeout(() => {
+    if (rooms.get(room.code) !== room) return;
+    room.kickoffLive = true;
+  }, KICKOFF_SAFETY_MS);
 }
 
 const PITCH_CORNERS = [
@@ -424,6 +449,13 @@ function tick(room) {
   if (room.ended) return;
   const dt = TICK_MS / 1000;
 
+  if (!room.kickoffLive) {
+    // frozen at kickoff formation - still broadcast so clients render the
+    // static lineup instead of a blank/stale frame while they wait
+    broadcastState(room);
+    return;
+  }
+
   if (room.matchDuration > 0) {
     room.timeRemaining -= dt;
     if (room.timeRemaining <= 0) {
@@ -468,6 +500,17 @@ function beginMatch(room) {
   startTick(room);
 }
 
+// flips the kickoff freeze off once every currently-connected real player
+// slot has signaled readyForKickoff
+function checkKickoffReady(room) {
+  if (room.kickoffLive) return;
+  const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
+  if (connectedSlots.every((s) => room.kickoffReadySlots.has(s))) {
+    room.kickoffLive = true;
+    if (room.kickoffFallbackTimer) { clearTimeout(room.kickoffFallbackTimer); room.kickoffFallbackTimer = null; }
+  }
+}
+
 function handleLeave(socket) {
   const code = socket.data.code, slot = socket.data.slot;
   socket.data.code = null;
@@ -484,10 +527,14 @@ function handleLeave(socket) {
   if (connectedSlots.length === 0) {
     if (room.tickHandle) clearInterval(room.tickHandle);
     if (room.matchmakeTimer) clearTimeout(room.matchmakeTimer);
+    if (room.kickoffFallbackTimer) clearTimeout(room.kickoffFallbackTimer);
     rooms.delete(code);
     return;
   }
   if (slot === room.hostSlot) room.hostSlot = connectedSlots[0];
+  // the player who just left might have been the last one still-frozen
+  // kickoff was waiting on - recheck so remaining players aren't stuck
+  if (room.started && !room.kickoffLive) checkKickoffReady(room);
   emitLobby(room);
 }
 
@@ -622,6 +669,17 @@ io.on('connection', (socket) => {
     beginMatch(room);
   });
 
+  // Client tells us it's actually showing the pitch (Private Match: right
+  // after mounting; Quick Match: only once its bot-reveal/countdown curtain
+  // finishes) - see the kickoffLive gate in tick() for why this exists.
+  socket.on('readyForKickoff', (data) => {
+    const code = data && data.code;
+    const room = rooms.get(code);
+    if (!room || socket.data.code !== code || !room.started || room.kickoffLive) return;
+    room.kickoffReadySlots.add(socket.data.slot);
+    checkKickoffReady(room);
+  });
+
   socket.on('input', (data) => {
     const code = data && data.code;
     const room = rooms.get(code);
@@ -635,7 +693,7 @@ io.on('connection', (socket) => {
   socket.on('kick', (data) => {
     const code = data && data.code;
     const room = rooms.get(code);
-    if (!room || socket.data.code !== code || !room.started || room.ended || room.resetting) return;
+    if (!room || socket.data.code !== code || !room.started || room.ended || room.resetting || !room.kickoffLive) return;
     const e = room.entities[socket.data.slot];
     if (!e || e.isBot) return;
     const dx = room.ball.x - e.x, dy = room.ball.y - e.y;

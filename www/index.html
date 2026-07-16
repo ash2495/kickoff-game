@@ -1146,9 +1146,19 @@ function ensureSocket(onReady) {
       const mm = document.getElementById('matchmaking-screen');
       mm.style.display = 'flex';
       document.querySelector('#matchmaking-screen .back-circle-btn').style.display = 'none';
-      revealBotsAndCountdown(() => { mm.style.display = 'none'; });
+      // the server keeps the match frozen (no bot/ball movement, no clock,
+      // no scoring) until this fires - see the kickoffLive gate in server.js -
+      // so nothing can happen while the curtain is still up, however long
+      // the reveal/countdown ends up taking
+      revealBotsAndCountdown(() => {
+        mm.style.display = 'none';
+        socket.emit('readyForKickoff', { code: roomCode });
+      });
     } else {
       startOnlineMatch();
+      // Private Match has no reveal curtain - the pitch is visible the
+      // instant it mounts, so signal ready right away
+      socket.emit('readyForKickoff', { code: roomCode });
     }
   });
 }
