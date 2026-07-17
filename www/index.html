@@ -765,6 +765,7 @@
 let MATCH_DURATION = 180; // seconds; 0 = no limit
 let SFX_ENABLED = true;
 let gameInstance = null;
+let kickoffRevealed = false; // true once the player can actually see/hear the pitch (see matchStarted handler)
 
 // ---- Online / private match state ----
 // Ships with a default so players never have to find/paste a URL themselves.
@@ -1000,8 +1001,11 @@ function toggleSFX() {
   btn.textContent = SFX_ENABLED ? '🔊 ON' : '🔇 OFF';
   btn.classList.toggle('off', !SFX_ENABLED);
   // the crowd ambience loop runs independently of on()'s per-call check
-  // (it's already-started audio, not a fresh trigger), so mute/unmute it explicitly
-  if (SFX_ENABLED) { SFX.click(); if (gameInstance) SFX.crowdAmbience.start(); }
+  // (it's already-started audio, not a fresh trigger), so mute/unmute it
+  // explicitly - gated on kickoffRevealed (not just gameInstance) so toggling
+  // SFX during Quick Match's still-hidden reveal curtain can't start the
+  // ambience early
+  if (SFX_ENABLED) { SFX.click(); if (kickoffRevealed) SFX.crowdAmbience.start(); }
   else SFX.crowdAmbience.stop();
 }
 
@@ -1153,12 +1157,16 @@ function ensureSocket(onReady) {
       revealBotsAndCountdown(() => {
         mm.style.display = 'none';
         socket.emit('readyForKickoff', { code: roomCode });
+        kickoffRevealed = true;
+        SFX.crowdAmbience.start();
       });
     } else {
       startOnlineMatch();
       // Private Match has no reveal curtain - the pitch is visible the
-      // instant it mounts, so signal ready right away
+      // instant it mounts, so signal ready (and start ambience) right away
       socket.emit('readyForKickoff', { code: roomCode });
+      kickoffRevealed = true;
+      SFX.crowdAmbience.start();
     }
   });
 }
@@ -1417,7 +1425,9 @@ function startOnlineMatch() {
   document.querySelector('.settings-gear').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
   gameInstance = new Phaser.Game(onlineConfig);
-  SFX.crowdAmbience.start();
+  // crowd ambience starts alongside readyForKickoff (see matchStarted handler),
+  // not here - Quick Match mounts this the instant matchStarted fires, well
+  // before the player can actually see/hear the pitch through the reveal curtain
 }
 
 function leavePrivateRoom() {
@@ -1430,6 +1440,7 @@ function leavePrivateRoom() {
 
 function exitOnlineMatch() {
   SFX.crowdAmbience.stop();
+  kickoffRevealed = false;
   if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false; isQuickMatchFlow = false;
@@ -1650,7 +1661,10 @@ class OnlineScene extends Phaser.Scene {
       socket.on('state', (data) => this.applyServerState(data));
     }
 
-    if (typeof SFX !== 'undefined') SFX.whistle(false);
+    // skip this for Quick Match while its reveal curtain is still up - the
+    // scene mounts immediately behind it (see startOnlineMatch), and the
+    // reveal's own countdown already plays a whistle right before "GO!"
+    if (typeof SFX !== 'undefined' && !(isQuickMatchFlow && !kickoffRevealed)) SFX.whistle(false);
   }
 
   setupOnlineJoystick() {
