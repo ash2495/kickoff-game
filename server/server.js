@@ -546,9 +546,23 @@ function handleLeave(socket) {
   emitLobby(room);
 }
 
+// Guards createRoom/joinRoom/quickMatch against the same socket landing in
+// two slots at once (e.g. spam-tapping Quick Match before the first ack
+// returns - each tap fired its own quickMatch call, and the 2nd found the
+// room the 1st had just created and joined it into a second slot). Self-heals
+// if socket.data.code points at a room that's already been torn down, so a
+// genuinely stale value can't permanently block a real rejoin.
+function alreadyInRoom(socket) {
+  if (socket.data.code && rooms.has(socket.data.code)) return true;
+  socket.data.code = null;
+  socket.data.slot = null;
+  return false;
+}
+
 io.on('connection', (socket) => {
   socket.on('createRoom', (data, cb) => {
     if (typeof cb !== 'function') return;
+    if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
     const matchDuration = Number(data && data.matchDuration) || 0;
     const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize);
     socket.join(room.code);
@@ -560,6 +574,7 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', (data, cb) => {
     if (typeof cb !== 'function') return;
+    if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
     const code = ((data && data.code) || '').toUpperCase();
     const room = rooms.get(code);
     if (!room) return cb({ ok: false, error: "Couldn't find that room." });
@@ -583,6 +598,7 @@ io.on('connection', (socket) => {
   // else joins in time
   socket.on('quickMatch', (data, cb) => {
     if (typeof cb !== 'function') return;
+    if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
     const teamSize = sanitizeTeamSize(data && data.teamSize);
     const existing = findOpenPublicRoom(teamSize);
 
