@@ -450,6 +450,21 @@
     font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 4px 0;
     background: rgba(0,0,0,0.55);
   }
+  .preset-avatar-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #9fb3c8;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .preset-avatar-grid {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+    margin-bottom: 18px;
+  }
+  .preset-avatar-grid img {
+    width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; object-fit: cover;
+    transition: transform 0.08s, border-color 0.15s;
+  }
+  .preset-avatar-grid img:active { transform: scale(0.92); }
+  .preset-avatar-grid img.selected { border-color: #ffcb3d; }
   .profile-field { margin-bottom: 16px; text-align: left; }
   .profile-field label {
     display: block; font-size: 12px; font-weight: 700; letter-spacing: 1px;
@@ -649,6 +664,8 @@
       <div class="avatar-hint">CHANGE</div>
     </div>
     <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="onAvatarFileChosen(event)" />
+    <div class="preset-avatar-label">Or choose a preset</div>
+    <div class="preset-avatar-grid" id="presetAvatarGrid"></div>
     <div id="profileAccountHint" class="profile-account-hint"></div>
     <button id="connectGoogleBtn" class="login-btn google" style="display:none;" onclick="SFX.click(); connectGoogle()">
       <span style="font-weight:800;">G</span> Connect Google Account
@@ -1339,6 +1356,38 @@ function populateCountrySelect() {
 
 let stagedAvatar = undefined; // undefined = unchanged this session, null/dataURL = staged for save
 
+const PRESET_AVATAR_COUNT = 10;
+
+function populatePresetAvatarGrid() {
+  const grid = document.getElementById('presetAvatarGrid');
+  if (grid.children.length) return; // already populated
+  for (let i = 1; i <= PRESET_AVATAR_COUNT; i++) {
+    const src = `assets/avatar_preset_${String(i).padStart(2, '0')}.png`;
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = `Preset avatar ${i}`;
+    img.onclick = () => choosePresetAvatar(src, img);
+    grid.appendChild(img);
+  }
+}
+
+// presets are already square/pre-cropped assets - just re-encode through a
+// canvas (same as the upload path) so the staged value is a normal data URL,
+// not a same-origin file path, matching what updateProfile expects to store
+function choosePresetAvatar(src, imgEl) {
+  const loader = new Image();
+  loader.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = loader.width; canvas.height = loader.height;
+    canvas.getContext('2d').drawImage(loader, 0, 0);
+    stagedAvatar = canvas.toDataURL('image/jpeg', 0.85);
+    renderAvatarPreview(stagedAvatar);
+    document.querySelectorAll('#presetAvatarGrid img').forEach((el) => el.classList.remove('selected'));
+    imgEl.classList.add('selected');
+  };
+  loader.src = src;
+}
+
 function renderAvatarPreview(dataUrl) {
   const img = document.getElementById('avatarPreview');
   const placeholder = document.getElementById('avatarPlaceholder');
@@ -1355,6 +1404,7 @@ function refreshProfileAccountHint() {
 
 function openProfile() {
   populateCountrySelect();
+  populatePresetAvatarGrid();
   stagedAvatar = undefined;
   document.getElementById('profileError').textContent = '';
   document.getElementById('profileNameInput').value = PLAYER_NAME;
