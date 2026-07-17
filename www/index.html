@@ -180,7 +180,10 @@
     clip-path: circle(50%); /* tap area must be the circle, not its square bounding box */
   }
   .profile-pill {
-    position: fixed;
+    /* absolute (not fixed) + nested inside #mode-select (see markup) so it's
+       only ever visible on the main menu, never on other screens layered on
+       top - matches how .back-circle-btn is scoped to its own screen */
+    position: absolute;
     top: max(16px, env(safe-area-inset-top));
     left: max(16px, env(safe-area-inset-left));
     z-index: 3;
@@ -327,9 +330,10 @@
   .mm-slot {
     width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     border: 2px dashed rgba(255,255,255,0.3); background: rgba(255,255,255,0.04);
-    font-size: 24px; opacity: 1; transform: scale(1);
+    font-size: 24px; opacity: 1; transform: scale(1); overflow: hidden;
     animation: mmSearchPulse 1.6s ease-in-out infinite;
   }
+  .mm-slot img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
   @keyframes mmSearchPulse {
     0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.1); }
     50% { transform: scale(1.08); box-shadow: 0 0 0 7px rgba(255,255,255,0.05); }
@@ -660,10 +664,6 @@
 </div>
 
 <button class="settings-gear" onclick="SFX.click(); openSettings()">⚙️</button>
-<button class="profile-pill" onclick="SFX.click(); openProfile()">
-  <img id="mainMenuAvatarImg" alt="Profile" />
-  <span id="mainMenuNameLabel"></span>
-</button>
 
 <div id="login-screen">
   <div class="overlay-card">
@@ -707,6 +707,10 @@
 </div>
 
 <div id="mode-select">
+  <button class="profile-pill" onclick="SFX.click(); openProfile()">
+    <img id="mainMenuAvatarImg" alt="Profile" />
+    <span id="mainMenuNameLabel"></span>
+  </button>
   <div class="title-block">
     <h1>KICKOFF DUEL</h1>
     <div class="title-underline"></div>
@@ -1330,9 +1334,11 @@ function confirmExitNo() {
 
 function openSettings() {
   document.getElementById('settings-panel').style.display = 'flex';
+  hideProfilePill();
 }
 function closeSettings() {
   document.getElementById('settings-panel').style.display = 'none';
+  showProfilePillIfOnMainMenu();
 }
 
 // ==================== PROFILE (name / country / avatar) ====================
@@ -1462,9 +1468,11 @@ function openProfile() {
   });
   refreshProfileAccountHint();
   document.getElementById('profile-screen').style.display = 'flex';
+  hideProfilePill();
 }
 function closeProfile() {
   document.getElementById('profile-screen').style.display = 'none';
+  showProfilePillIfOnMainMenu();
 }
 
 function saveProfile() {
@@ -1492,6 +1500,20 @@ function hideAllMenus() {
   document.getElementById('private-select').style.display = 'none';
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('matchmaking-screen').style.display = 'none';
+}
+
+// Settings and Profile overlay ON TOP of mode-select (blurred behind them)
+// rather than hiding it like every other screen does, so the pill - though
+// nested inside mode-select and normally hidden along with it - needs an
+// explicit hide here too, otherwise it'd sit there faintly blurred instead
+// of being genuinely gone.
+function hideProfilePill() {
+  const pill = document.querySelector('.profile-pill');
+  if (pill) pill.style.display = 'none';
+}
+function showProfilePillIfOnMainMenu() {
+  const pill = document.querySelector('.profile-pill');
+  if (pill && document.getElementById('mode-select').style.display !== 'none') pill.style.display = 'flex';
 }
 
 function openPrivateMenu() {
@@ -1662,7 +1684,13 @@ function revealMmSlot(slot, name, delay) {
   const nameEl = wrap.querySelector('.mm-slot-name');
   circle.classList.remove('blue', 'red');
   circle.classList.add(slot[0] === 'A' ? 'blue' : 'red');
-  circle.textContent = mmAvatarFor(name);
+  // real avatar for the local player's own slot; everyone else (bots and any
+  // other opponents, whose real avatar isn't known over the wire) gets a
+  // deterministic-per-name pick from the same 5 in-game presets - never a
+  // robot glyph, so there's no visual tell distinguishing a bot from a
+  // real opponent
+  const avatarId = slot === mySlot ? currentAvatarId() : mmAvatarFor(name);
+  circle.innerHTML = `<img src="${avatarSrc(avatarId)}" alt="" />`;
   nameEl.textContent = name + (slot === mySlot ? ' (you)' : '');
   nameEl.classList.remove('searching');
   circle.style.setProperty('--mm-rot', (Math.random() * 30 - 15) + 'deg');
@@ -1671,14 +1699,13 @@ function revealMmSlot(slot, name, delay) {
   mmShownSlots.add(slot);
 }
 
-// deterministic-per-name avatar so a given player/bot name always shows the
-// same face - bots' flavor names (e.g. "TurboBoot") already read as
-// plausible handles, so the robot emoji was the only real "it's a bot" tell
-const MM_AVATARS = ['😀', '😎', '🙂', '🤠', '🧑', '👦', '👧', '🧔', '👩', '🧑‍🦱', '🥳', '🤩', '😺', '🐼', '🦊', '🐨'];
+// deterministic-per-name preset avatar so a given player/bot name always
+// shows the same face across re-renders of the matchmaking screen
 function mmAvatarFor(name) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return MM_AVATARS[hash % MM_AVATARS.length];
+  const idx = (hash % PRESET_AVATAR_COUNT) + 1;
+  return `avatar_preset_${String(idx).padStart(2, '0')}`;
 }
 
 // when the match actually starts, any slot still "searching" is about to be
