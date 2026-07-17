@@ -414,6 +414,7 @@
     background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,1) 0%, rgba(6,10,18,1) 70%);
   }
   #login-screen .overlay-card .icon { font-size: 44px; margin-bottom: 6px; }
+  #login-screen .overlay-card .icon.login-spinner { display: inline-block; animation: loadingSpin 1.1s linear infinite; }
   #login-screen .login-sub { font-size: 13px; color: #b7c2d6; margin-bottom: 22px; line-height: 1.4; }
   .login-btn {
     display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -630,14 +631,11 @@
 
 <div id="login-screen">
   <div class="overlay-card">
-    <div class="icon">⚽</div>
+    <div class="icon login-spinner" id="loginSpinner">⚽</div>
     <h2>KICKOFF DUEL</h2>
-    <div class="login-sub">Sign in to save your profile and progress</div>
-    <button class="login-btn guest" onclick="SFX.click(); guestLogin()">▶ Play as Guest</button>
-    <button class="login-btn google" onclick="SFX.click(); googleSignIn()">
-      <span style="font-weight:800;">G</span> Sign in with Google
-    </button>
+    <div class="login-sub" id="loginStatusText">Signing you in…</div>
     <div id="loginError"></div>
+    <button id="loginRetryBtn" class="login-btn guest" style="display:none;" onclick="SFX.click(); guestLogin()">↻ Retry</button>
   </div>
 </div>
 
@@ -652,6 +650,9 @@
     </div>
     <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="onAvatarFileChosen(event)" />
     <div id="profileAccountHint" class="profile-account-hint"></div>
+    <button id="connectGoogleBtn" class="login-btn google" style="display:none;" onclick="SFX.click(); connectGoogle()">
+      <span style="font-weight:800;">G</span> Connect Google Account
+    </button>
     <div class="profile-field">
       <label>Name</label>
       <input type="text" id="profileNameInput" maxlength="16" placeholder="Player" />
@@ -896,12 +897,19 @@ let PROFILE_AVATAR = localStorage.getItem('kickoffDuelProfileAvatar') || null;
 let PROFILE_HAS_GOOGLE = localStorage.getItem('kickoffDuelHasGoogle') === '1';
 
 // gate the main menu behind login only on first launch - once a profile is
-// cached, skip straight to mode-select on every later launch. Runs inline
-// (not deferred) so it resolves before the loading-screen curtain lifts,
-// with zero flash of the wrong screen either way.
+// cached, skip straight to mode-select on every later launch. The
+// display-toggle runs inline (not deferred) so it resolves before the
+// loading-screen curtain lifts, with zero flash of the wrong screen either
+// way. First launch signs the player in as a guest automatically (no choice
+// shown) - Google Sign-In is offered later, from the Profile screen, as an
+// upgrade rather than a front-door decision.
 if (!PROFILE_USER_ID) {
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  // deferred to a fresh task, not called inline here - guestLogin() (below)
+  // reaches into ensureSocket()'s `let socket` further down this same
+  // script, which is still in its temporal dead zone at this exact line
+  setTimeout(guestLogin, 0);
 }
 
 function cacheProfile(p) {
@@ -920,10 +928,16 @@ function cacheProfile(p) {
 
 function guestLogin() {
   document.getElementById('loginError').textContent = '';
+  document.getElementById('loginRetryBtn').style.display = 'none';
+  document.getElementById('loginSpinner').style.display = 'inline-block';
+  document.getElementById('loginStatusText').textContent = 'Signing you in…';
   ensureSocket(() => {
     socket.emit('guestLogin', { deviceId: DEVICE_ID }, (res) => {
       if (!res || !res.ok) {
-        document.getElementById('loginError').textContent = (res && res.error) || 'Could not sign in. Check your connection.';
+        document.getElementById('loginSpinner').style.display = 'none';
+        document.getElementById('loginStatusText').textContent = 'Could not sign in';
+        document.getElementById('loginError').textContent = (res && res.error) || 'Check your connection and try again.';
+        document.getElementById('loginRetryBtn').style.display = 'block';
         return;
       }
       cacheProfile(res);
@@ -933,8 +947,13 @@ function guestLogin() {
   });
 }
 
-function googleSignIn() {
-  const errEl = document.getElementById('loginError');
+// Google Sign-In is offered as an upgrade from the Profile screen (not a
+// front-door choice) - every player already has a guest profile by the time
+// this can be called, so the server links it to the Google account instead
+// of creating a second one (see googleLogin's lookup-by-googleId-first,
+// then-promote-matching-guest-doc logic in server/profile.js).
+function connectGoogle() {
+  const errEl = document.getElementById('profileError');
   errEl.textContent = '';
   const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FirebaseAuthentication;
   if (!plugin) {
@@ -947,12 +966,11 @@ function googleSignIn() {
     ensureSocket(() => {
       socket.emit('googleLogin', { idToken, deviceId: DEVICE_ID }, (res) => {
         if (!res || !res.ok) {
-          errEl.textContent = (res && res.error) || 'Could not sign in with Google.';
+          errEl.textContent = (res && res.error) || 'Could not connect Google account.';
           return;
         }
         cacheProfile(res);
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('mode-select').style.display = 'flex';
+        refreshProfileAccountHint();
       });
     });
   }).catch(() => { errEl.textContent = 'Google sign-in was cancelled or failed.'; });
@@ -1328,6 +1346,13 @@ function renderAvatarPreview(dataUrl) {
   else { img.style.display = 'none'; placeholder.style.display = 'block'; }
 }
 
+function refreshProfileAccountHint() {
+  document.getElementById('profileAccountHint').textContent = PROFILE_HAS_GOOGLE
+    ? '✓ Signed in with Google - your profile is backed up.'
+    : 'Guest account - connect Google to keep your profile if you reinstall.';
+  document.getElementById('connectGoogleBtn').style.display = PROFILE_HAS_GOOGLE ? 'none' : 'block';
+}
+
 function openProfile() {
   populateCountrySelect();
   stagedAvatar = undefined;
@@ -1335,9 +1360,7 @@ function openProfile() {
   document.getElementById('profileNameInput').value = PLAYER_NAME;
   document.getElementById('profileCountrySelect').value = PROFILE_COUNTRY || '';
   renderAvatarPreview(PROFILE_AVATAR);
-  document.getElementById('profileAccountHint').textContent = PROFILE_HAS_GOOGLE
-    ? '✓ Signed in with Google - your profile is backed up.'
-    : 'Guest account - sign in with Google (main menu) to keep your profile if you reinstall.';
+  refreshProfileAccountHint();
   document.getElementById('profile-screen').style.display = 'flex';
 }
 function closeProfile() {
