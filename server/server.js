@@ -5,9 +5,17 @@
 // input/kick and render whatever position this server broadcasts.
 // ============================================================
 
+require('dotenv').config();
+
+if (!process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET env var is required (see server/.env.example).');
+}
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const { connectDb } = require('./db');
+const profile = require('./profile');
 
 const app = express();
 app.get('/', (req, res) => res.send('Kickoff Duel server is running.'));
@@ -706,8 +714,38 @@ io.on('connection', (socket) => {
 
   socket.on('leaveRoom', () => handleLeave(socket));
   socket.on('disconnect', () => handleLeave(socket));
+
+  // ---- Player profiles (Guest/Google login, profile edits) ----
+  // independent of the match/room system above - these just read/write
+  // MongoDB via server/profile.js and ack the result, same convention as
+  // every handler above
+  socket.on('guestLogin', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.guestLogin(data && data.deviceId));
+  });
+
+  socket.on('googleLogin', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.googleLogin(data && data.idToken, data && data.deviceId));
+  });
+
+  socket.on('updateProfile', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.updateProfile(data && data.userId, data && data.authToken, {
+      name: data && data.name,
+      country: data && data.country,
+      avatar: data && data.avatar,
+    }));
+  });
 });
 
-server.listen(PORT, () => {
-  console.log(`Kickoff Duel server listening on port ${PORT}`);
-});
+connectDb()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Kickoff Duel server listening on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to connect to MongoDB - server not starting:', err.message);
+    process.exit(1);
+  });

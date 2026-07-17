@@ -1,5 +1,11 @@
 {
   "appId": "com.ash.kickoffduel",
   "appName": "Kickoff Duel",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com"]
+    }
+  }
 }

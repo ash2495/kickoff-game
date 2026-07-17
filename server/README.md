@@ -10,10 +10,14 @@ anti-stall corner reset) and broadcasts positions ~20 times/sec.
 
 ```
 npm install
+cp .env.example .env   # fill in MONGODB_URI, GOOGLE_WEB_CLIENT_ID, SESSION_SECRET
 npm start
 ```
 
-Listens on `PORT` env var, defaulting to `3000`.
+Listens on `PORT` env var, defaulting to `3000`. Also requires `MONGODB_URI`
+(player profiles) and `SESSION_SECRET` (signs the profile auth token) to
+boot at all; `GOOGLE_WEB_CLIENT_ID` is required only for Google Sign-In to
+work (Guest login works without it). See `.env.example`.
 
 Then in the app's Settings panel, set **Multiplayer Server URL** to
 `http://localhost:3000` (or your machine's LAN IP if testing from a phone).
@@ -49,6 +53,9 @@ Client → server:
 - `input({ code, vec: {x,y} })` — joystick vector, clamped to unit length
 - `kick({ code })`
 - `leaveRoom()`
+- `guestLogin({ deviceId })` → ack `{ ok, userId, name, country, avatar, hasGoogle, authToken }` — finds or creates a profile by device ID
+- `googleLogin({ idToken, deviceId })` → ack `{ ok, userId, name, country, avatar, hasGoogle, authToken }` — verifies the Google ID token server-side, links/creates a profile
+- `updateProfile({ userId, authToken, name, country, avatar })` → ack `{ ok, userId, name, country, avatar, hasGoogle }`
 
 Server → client (room-scoped):
 - `lobbyUpdate({ code, players, hostSlot, teamSize })`
@@ -56,3 +63,5 @@ Server → client (room-scoped):
 - `state({ entities, ball, score, timeRemaining, ended, stallResetCount })`
 
 Rooms are in-memory only — restarting the server drops all active matches.
+Player profiles (name/country/avatar, Guest/Google identity) persist in
+MongoDB independently of room state — see `db.js`/`profile.js`.
