@@ -15,10 +15,9 @@ const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID;
 const SESSION_SECRET = process.env.SESSION_SECRET;
 const googleClient = GOOGLE_WEB_CLIENT_ID ? new OAuth2Client(GOOGLE_WEB_CLIENT_ID) : null;
 
-// generous but bounded - a 256x256 JPEG at reasonable quality lands well
-// under this; this is a backstop against a modified client, not the primary
-// size control (that's the client-side canvas resize/compress)
-const MAX_AVATAR_LENGTH = 400_000;
+// avatars are a fixed set of in-game presets (www/assets/avatar_preset_NN.png)
+// selected by ID - no user-uploaded images, so no image data to validate or store
+const AVATAR_PRESET_COUNT = 5;
 
 function sanitizeName(name) {
   if (typeof name !== 'string') return 'Player';
@@ -35,7 +34,8 @@ function sanitizeCountry(country) {
 function sanitizeAvatar(avatar) {
   if (avatar === null) return null;
   if (typeof avatar !== 'string') return undefined; // undefined = "leave unchanged"
-  if (!avatar.startsWith('data:image/') || avatar.length > MAX_AVATAR_LENGTH) return undefined;
+  const m = /^avatar_preset_(\d{2})$/.exec(avatar);
+  if (!m || Number(m[1]) < 1 || Number(m[1]) > AVATAR_PRESET_COUNT) return undefined;
   return avatar;
 }
 

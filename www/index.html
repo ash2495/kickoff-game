@@ -179,9 +179,13 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     clip-path: circle(50%); /* tap area must be the circle, not its square bounding box */
   }
-  .settings-gear.profile-gear { right: calc(max(16px, env(safe-area-inset-right)) + 52px); }
+  .settings-gear.profile-gear {
+    left: max(16px, env(safe-area-inset-left)); right: auto;
+    padding: 0; overflow: hidden; font-size: 0;
+  }
+  .settings-gear.profile-gear img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
-  #settings-panel, #match-end {
+  #settings-panel, #match-end, #profile-screen {
     background: rgba(6,10,18,0.6);
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
@@ -442,14 +446,9 @@
     width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 16px;
     background: rgba(255,255,255,0.08); border: 2px solid rgba(255,203,61,0.4);
     display: flex; align-items: center; justify-content: center; font-size: 40px;
-    cursor: pointer; overflow: hidden; position: relative;
+    overflow: hidden; position: relative;
   }
   .avatar-picker img { width: 100%; height: 100%; object-fit: cover; }
-  .avatar-picker .avatar-hint {
-    position: absolute; bottom: 0; left: 0; right: 0; text-align: center;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 4px 0;
-    background: rgba(0,0,0,0.55);
-  }
   .preset-avatar-label {
     font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #9fb3c8;
     text-transform: uppercase; margin-bottom: 10px;
@@ -642,7 +641,7 @@
 </div>
 
 <button class="settings-gear" onclick="SFX.click(); openSettings()">⚙️</button>
-<button class="settings-gear profile-gear" onclick="SFX.click(); openProfile()">👤</button>
+<button class="settings-gear profile-gear" onclick="SFX.click(); openProfile()"><img id="mainMenuAvatarImg" alt="Profile" /></button>
 
 <div id="login-screen">
   <div class="overlay-card">
@@ -658,13 +657,10 @@
   <button class="back-circle-btn" onclick="SFX.click(); closeProfile()"><span class="chevron-left"></span></button>
   <div class="overlay-card">
     <h2>PROFILE</h2>
-    <div class="avatar-picker" onclick="pickAvatarFile()">
-      <span id="avatarPlaceholder">👤</span>
-      <img id="avatarPreview" style="display:none;" />
-      <div class="avatar-hint">CHANGE</div>
+    <div class="avatar-picker">
+      <img id="avatarPreview" />
     </div>
-    <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="onAvatarFileChosen(event)" />
-    <div class="preset-avatar-label">Or choose a preset</div>
+    <div class="preset-avatar-label">Choose your avatar</div>
     <div class="preset-avatar-grid" id="presetAvatarGrid"></div>
     <div id="profileAccountHint" class="profile-account-hint"></div>
     <button id="connectGoogleBtn" class="login-btn google" style="display:none;" onclick="SFX.click(); connectGoogle()">
@@ -928,6 +924,10 @@ if (!PROFILE_USER_ID) {
   // script, which is still in its temporal dead zone at this exact line
   setTimeout(guestLogin, 0);
 }
+// deferred for the same temporal-dead-zone reason as guestLogin() above -
+// refreshMainMenuAvatar() doesn't touch `socket`, but keep it consistent
+// and safely post-parse regardless
+setTimeout(refreshMainMenuAvatar, 0);
 
 function cacheProfile(p) {
   PROFILE_USER_ID = p.userId;
@@ -941,6 +941,7 @@ function cacheProfile(p) {
   if (PROFILE_COUNTRY) localStorage.setItem('kickoffDuelProfileCountry', PROFILE_COUNTRY); else localStorage.removeItem('kickoffDuelProfileCountry');
   if (PROFILE_AVATAR) localStorage.setItem('kickoffDuelProfileAvatar', PROFILE_AVATAR); else localStorage.removeItem('kickoffDuelProfileAvatar');
   localStorage.setItem('kickoffDuelHasGoogle', PROFILE_HAS_GOOGLE ? '1' : '0');
+  refreshMainMenuAvatar();
 }
 
 function guestLogin() {
@@ -1354,45 +1355,62 @@ function populateCountrySelect() {
   });
 }
 
-let stagedAvatar = undefined; // undefined = unchanged this session, null/dataURL = staged for save
+let stagedAvatar = undefined; // undefined = unchanged this session, "avatar_preset_NN" = staged for save
 
-const PRESET_AVATAR_COUNT = 10;
+const PRESET_AVATAR_COUNT = 5;
+
+function avatarSrc(id) {
+  return `assets/${id}.png`;
+}
+
+// deterministic, not actually random - same player always lands on the same
+// "random" default (derived from their userId) instead of it changing every
+// launch, without ever writing a real choice to the database until they
+// deliberately tap one in the preset grid
+function defaultAvatarId() {
+  const seed = PROFILE_USER_ID || DEVICE_ID || 'x';
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  const idx = (hash % PRESET_AVATAR_COUNT) + 1;
+  return `avatar_preset_${String(idx).padStart(2, '0')}`;
+}
+
+function currentAvatarId() {
+  // guards against a stale value that no longer resolves to a real asset -
+  // an old base64 photo upload (pre-preset era) or a preset ID from a
+  // since-shrunk preset list - falling back to the random default instead of
+  // rendering a broken image path
+  const m = PROFILE_AVATAR && /^avatar_preset_(\d{2})$/.exec(PROFILE_AVATAR);
+  const isValid = m && Number(m[1]) >= 1 && Number(m[1]) <= PRESET_AVATAR_COUNT;
+  return isValid ? PROFILE_AVATAR : defaultAvatarId();
+}
 
 function populatePresetAvatarGrid() {
   const grid = document.getElementById('presetAvatarGrid');
   if (grid.children.length) return; // already populated
   for (let i = 1; i <= PRESET_AVATAR_COUNT; i++) {
-    const src = `assets/avatar_preset_${String(i).padStart(2, '0')}.png`;
+    const id = `avatar_preset_${String(i).padStart(2, '0')}`;
     const img = document.createElement('img');
-    img.src = src;
-    img.alt = `Preset avatar ${i}`;
-    img.onclick = () => choosePresetAvatar(src, img);
+    img.src = avatarSrc(id);
+    img.alt = `Avatar ${i}`;
+    img.onclick = () => choosePresetAvatar(id, img);
     grid.appendChild(img);
   }
 }
 
-// presets are already square/pre-cropped assets - just re-encode through a
-// canvas (same as the upload path) so the staged value is a normal data URL,
-// not a same-origin file path, matching what updateProfile expects to store
-function choosePresetAvatar(src, imgEl) {
-  const loader = new Image();
-  loader.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = loader.width; canvas.height = loader.height;
-    canvas.getContext('2d').drawImage(loader, 0, 0);
-    stagedAvatar = canvas.toDataURL('image/jpeg', 0.85);
-    renderAvatarPreview(stagedAvatar);
-    document.querySelectorAll('#presetAvatarGrid img').forEach((el) => el.classList.remove('selected'));
-    imgEl.classList.add('selected');
-  };
-  loader.src = src;
+function choosePresetAvatar(id, imgEl) {
+  stagedAvatar = id;
+  renderAvatarPreview(id);
+  document.querySelectorAll('#presetAvatarGrid img').forEach((el) => el.classList.remove('selected'));
+  imgEl.classList.add('selected');
 }
 
-function renderAvatarPreview(dataUrl) {
-  const img = document.getElementById('avatarPreview');
-  const placeholder = document.getElementById('avatarPlaceholder');
-  if (dataUrl) { img.src = dataUrl; img.style.display = 'block'; placeholder.style.display = 'none'; }
-  else { img.style.display = 'none'; placeholder.style.display = 'block'; }
+function renderAvatarPreview(id) {
+  document.getElementById('avatarPreview').src = avatarSrc(id);
+}
+
+function refreshMainMenuAvatar() {
+  document.getElementById('mainMenuAvatarImg').src = avatarSrc(currentAvatarId());
 }
 
 function refreshProfileAccountHint() {
@@ -1409,40 +1427,16 @@ function openProfile() {
   document.getElementById('profileError').textContent = '';
   document.getElementById('profileNameInput').value = PLAYER_NAME;
   document.getElementById('profileCountrySelect').value = PROFILE_COUNTRY || '';
-  renderAvatarPreview(PROFILE_AVATAR);
+  const activeId = currentAvatarId();
+  renderAvatarPreview(activeId);
+  document.querySelectorAll('#presetAvatarGrid img').forEach((el) => {
+    el.classList.toggle('selected', el.alt === `Avatar ${Number(activeId.slice(-2))}`);
+  });
   refreshProfileAccountHint();
   document.getElementById('profile-screen').style.display = 'flex';
 }
 function closeProfile() {
   document.getElementById('profile-screen').style.display = 'none';
-}
-
-function pickAvatarFile() {
-  document.getElementById('avatarFileInput').click();
-}
-
-function onAvatarFileChosen(event) {
-  const file = event.target.files && event.target.files[0];
-  event.target.value = ''; // allow re-picking the same file later
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      const SIZE = 256;
-      const canvas = document.createElement('canvas');
-      canvas.width = SIZE; canvas.height = SIZE;
-      const ctx = canvas.getContext('2d');
-      // cover-crop to a centered square so non-square photos don't distort
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
-      stagedAvatar = canvas.toDataURL('image/jpeg', 0.7);
-      renderAvatarPreview(stagedAvatar);
-    };
-    img.src = reader.result;
-  };
-  reader.readAsDataURL(file);
 }
 
 function saveProfile() {
