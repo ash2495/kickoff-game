@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "625935548720",
+    "project_id": "kickoff-duel",
+    "storage_bucket": "kickoff-duel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:625935548720:android:7760b9eeef7fdd1ca548f5",
+        "android_client_info": {
+          "package_name": "com.ash.kickoffduel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "625935548720-scu45a6qj47bijbfpja2o37vvc6n5vjm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ash.kickoffduel",
+            "certificate_hash": "bfde56d004f7dd4a8297ef2ebd70eec909b3ed28"
+          }
+        },
+        {
+          "client_id": "625935548720-44mekpvie8i5hq1ic9iggb3cfk7io7bu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXyGS9mg5eJY6tKarrMzb3Z4wFmuV1nHs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "625935548720-44mekpvie8i5hq1ic9iggb3cfk7io7bu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
