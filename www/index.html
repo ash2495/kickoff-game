@@ -10,8 +10,8 @@
      first paint - swapped to 'all' once it finishes loading (see loadCSS
      pattern). A slow/blocking font request was the main cause of the black
      screen on launch. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap"></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&family=Press+Start+2P&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&family=Press+Start+2P&display=swap"></noscript>
 <style>
   html, body {
     margin: 0; padding: 0; overflow: hidden;
@@ -79,106 +79,92 @@
     padding: max(18px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
              max(34px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   }
+  /* pixel-art stadium art, scoped to the main menu only (per earlier scope
+     decision) - sits inside #mode-select so it never shows on any other
+     screen, same trick .profile-pill already uses */
+  #mode-select .pixel-menu-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background: url('assets/menu_bg_pixel.jpg') center center / cover no-repeat;
+  }
+  #mode-select .pixel-banner {
+    position: absolute; top: 32%; height: 20%; z-index: 1;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+    pointer-events: none;
+  }
+  #mode-select .pixel-banner img { height: 100%; display: block; }
+  #mode-select .pixel-banner.left { left: 1.5%; }
+  #mode-select .pixel-banner.right { right: 1.5%; }
   #mode-select .content {
-    /* settings-row and mode-buttons are display:contents below, so their
-       children (2 setting-groups + 2 mode-btns) become direct items of
-       this grid - grid-template-columns: auto auto sizes each column to
-       the WIDER of its two stacked items, so e.g. the Quick Match button
-       and the Match Length group end up sharing the same column width
-       instead of each row centering independently at a different size */
-    display: grid; grid-template-columns: auto auto;
-    column-gap: 14px; row-gap: 16px;
-    justify-content: center; justify-items: center;
-    text-align: center; margin: auto 0; width: 100%; max-width: 640px;
-    padding: 20px 26px;
+    /* title-block is a normal flex child now (not absolutely positioned
+       separately) so it always reserves its own space in the stack and can
+       never visually overlap settings-row/mode-buttons at short viewport
+       heights, regardless of how much room is left for auto-centering */
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; text-align: center; width: 100%; max-width: 720px;
+    /* auto top-margin still centers when it fits, but a fixed bottom margin
+       biases the whole block upward, leaving clear space below for future
+       additions instead of sitting dead-center - vh, not %, since percentage
+       margins resolve against the containing block's WIDTH even for
+       margin-bottom/top, not its height */
+    margin: auto 0 3vh 0;
+    padding: 14px 26px;
   }
   #mode-select .title-block {
-    position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
-    width: 100%; text-align: center; pointer-events: none;
+    pointer-events: none;
   }
-  #mode-select h1 {
-    margin: 0 0 8px 0; font-size: 28px; letter-spacing: 3px;
-    font-family: 'Orbitron', sans-serif; font-weight: 900;
-    background: linear-gradient(120deg, #ffe9a8 0%, #ffcb3d 45%, #ffe9a8 70%, #ffcb3d 100%);
-    background-size: 220% auto;
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 20px rgba(255,203,61,0.5), 0 2px 6px rgba(0,0,0,0.45);
-    animation: titleShine 6s linear infinite;
-  }
-  @keyframes titleShine { to { background-position: 220% center; } }
-  #mode-select .title-underline {
-    width: 110px; height: 4px; border-radius: 2px; margin: 0 auto 16px;
-    background: linear-gradient(90deg, transparent, #ffcb3d, transparent);
+  #mode-select .title-block img {
+    height: 8vh; max-height: 76px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
   }
   #mode-select .settings-row, #mode-select .mode-buttons {
-    /* see .content above - these wrappers are removed from layout so their
-       children become direct grid items, sharing column widths across rows */
-    display: contents;
+    display: flex; gap: 3.5%; justify-content: center; align-items: flex-end;
   }
+  #mode-select .setting-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
   #mode-select .duration-label {
-    display: inline-block; background: rgba(10,14,22,0.7);
-    border-radius: 999px; padding: 4px 12px; margin-bottom: 6px;
-    font-size: 11px; letter-spacing: 2px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px;
+    color: #ffcb3d; text-shadow: 0 2px 0 #1a1008; margin-bottom: 0;
   }
   #mode-select .duration-chips {
-    background: rgba(15,20,30,0.55); border-radius: 999px; padding: 4px; gap: 3px;
+    /* overrides the shared .duration-chips base rule's flex-wrap:wrap and
+       max-width:340px - without these, the box wraps to 2 rows well before
+       it actually runs out of horizontal room */
+    display: flex; flex-wrap: nowrap; max-width: none;
+    gap: 4px; background: #0e1a2b;
+    border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
+    border-radius: 6px; padding: 5px;
   }
   #mode-select .duration-chip {
-    border: none; border-radius: 999px; background: transparent;
-    padding: 6px 11px; font-size: 12px;
-    /* tap area must match the pill shape, not its square bounding box -
-       the small negative inset on top/sides keeps the corners tight while
-       leaving room for .selected's glow shadow below to still render */
-    clip-path: inset(-3px -3px -13px -3px round 999px);
+    /* clip-path: none overrides the shared base rule's pill-shaped
+       (round 20px) tap-area mask, which would otherwise clip the corners
+       of this much less rounded (3px) chip */
+    font-family: 'Press Start 2P', monospace; font-size: 9px; color: #cfd8e6;
+    border: 2px solid #7a6a45; border-radius: 3px; background: #16233a;
+    padding: 6px 8px; cursor: pointer; white-space: nowrap; clip-path: none;
   }
   #mode-select .duration-chip.selected {
-    background: linear-gradient(135deg, #2ecc71, #17a589); color: #05261c;
-    box-shadow: 0 3px 10px rgba(46,204,113,0.4);
+    background: #1e9e46; border-color: #6fe085; color: #eafff0;
+    box-shadow: 0 0 8px rgba(46,204,113,0.5);
   }
+  #mode-select .duration-chip:active { transform: scale(0.95); }
   #mode-select .mode-btn {
-    font-family: 'Rajdhani', sans-serif;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    color: white; border: none; border-radius: 16px;
-    font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
-    padding: 12px 22px; white-space: nowrap; min-width: 130px;
-    cursor: pointer;
-    background: linear-gradient(160deg, #2ecc71, #14795a);
-    box-shadow: 0 5px 0 #0d5a41, 0 8px 18px rgba(46,204,113,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
-    position: relative; overflow: hidden;
-    /* tap area must match the rounded button shape, not its square bounding
-       box - generous bottom buffer preserves the 3D bevel shadow below */
-    clip-path: inset(-3px -3px -28px -3px round 16px);
+    border: none; background: none; padding: 0; cursor: pointer;
+    width: 185px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+    transition: transform .08s;
   }
-  #mode-select .mode-btn .icon { font-size: 22px; line-height: 1; }
-  #mode-select .mode-btn::after {
-    content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
-    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
-    transform: skewX(-20deg);
-    animation: btnShine 3.6s ease-in-out infinite;
-  }
-  @keyframes btnShine { 0% { left: -60%; } 40%, 100% { left: 130%; } }
-  #mode-select .mode-btn.purple {
-    background: linear-gradient(160deg, #2c3e5c, #1b2740);
-    box-shadow: 0 5px 0 #10182a, 0 8px 18px rgba(20,30,50,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
-  }
-  #mode-select .mode-btn:active {
-    transform: translateY(3px);
-    box-shadow: 0 2px 0 #0d5a41, 0 4px 10px rgba(46,204,113,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
-  }
-  #mode-select .mode-btn.purple:active {
-    box-shadow: 0 2px 0 #10182a, 0 4px 10px rgba(20,30,50,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-  }
+  #mode-select .mode-btn img { width: 100%; display: block; }
+  #mode-select .mode-btn:active { transform: scale(0.96) translateY(2px); }
 
   .settings-gear {
     position: fixed;
     top: max(16px, env(safe-area-inset-top));
     right: max(16px, env(safe-area-inset-right));
     z-index: 3;
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
-    color: white; font-size: 22px; width: 44px; height: 44px; border-radius: 50%;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    clip-path: circle(50%); /* tap area must be the circle, not its square bounding box */
+    width: 46px; height: 46px; padding: 6px;
+    background: #0e1a2b; border: 3px solid #e9c873;
+    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
+    border-radius: 6px; cursor: pointer;
   }
+  .settings-gear img { width: 100%; height: 100%; display: block; }
   .profile-pill {
     /* absolute (not fixed) + nested inside #mode-select (see markup) so it's
        only ever visible on the main menu, never on other screens layered on
@@ -188,19 +174,19 @@
     left: max(16px, env(safe-area-inset-left));
     z-index: 3;
     display: flex; align-items: center; gap: 9px;
-    background: rgba(6,10,18,0.65); border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 999px; padding: 5px 16px 5px 5px;
+    background: #0e1a2b; border: 3px solid #e9c873;
+    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
+    border-radius: 6px; padding: 5px 16px 5px 5px;
     cursor: pointer; max-width: 200px;
-    clip-path: inset(-3px -3px -3px -3px round 999px);
   }
   .profile-pill img {
     width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
-    border: 2px solid rgba(255,203,61,0.55); flex-shrink: 0;
+    border: 2px solid #e9c873; flex-shrink: 0;
   }
   .profile-pill span {
-    font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700;
-    color: white; letter-spacing: 0.3px; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
+    font-family: 'Press Start 2P', monospace; font-size: 11px;
+    color: #fff; letter-spacing: 0.3px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 0 #1a1008;
   }
 
   #settings-panel, #match-end, #profile-screen {
@@ -577,6 +563,7 @@
     transform: skewX(-20deg);
     animation: btnShine 3.6s ease-in-out infinite;
   }
+  @keyframes btnShine { 0% { left: -60%; } 40%, 100% { left: 130%; } }
   .done-btn:active {
     transform: translateY(4px);
     box-shadow: 0 1px 0 #a8790f, 0 3px 8px rgba(255,203,61,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
@@ -663,7 +650,7 @@
   <div class="floating-ball" style="top:42%; left:4%; font-size:22px; animation-delay:2.6s;">⚽</div>
 </div>
 
-<button class="settings-gear" onclick="SFX.click(); openSettings()">⚙️</button>
+<button class="settings-gear" onclick="SFX.click(); openSettings()"><img src="assets/menu_gear_pixel.png" alt="Settings" /></button>
 
 <div id="login-screen">
   <div class="overlay-card">
@@ -707,15 +694,17 @@
 </div>
 
 <div id="mode-select">
+  <div class="pixel-menu-bg"></div>
+  <div class="pixel-banner left"><img src="assets/menu_banner_left.png" alt="" /></div>
+  <div class="pixel-banner right"><img src="assets/menu_banner_right.png" alt="" /></div>
   <button class="profile-pill" onclick="SFX.click(); openProfile()">
     <img id="mainMenuAvatarImg" alt="Profile" />
     <span id="mainMenuNameLabel"></span>
   </button>
-  <div class="title-block">
-    <h1>KICKOFF DUEL</h1>
-    <div class="title-underline"></div>
-  </div>
   <div class="content">
+    <div class="title-block">
+      <img src="assets/menu_logo_pixel.png" alt="Kickoff Duel" />
+    </div>
     <div class="settings-row">
       <div class="setting-group">
         <div class="duration-label">MATCH LENGTH</div>
@@ -737,8 +726,8 @@
     </div>
 
     <div class="mode-buttons">
-      <button class="mode-btn" onclick="SFX.click(); quickMatch()"><span class="icon">⚡</span><span class="label">QUICK MATCH</span></button>
-      <button class="mode-btn purple" onclick="SFX.click(); openPrivateMenu()"><span class="icon">🔒</span><span class="label">PRIVATE MATCH</span></button>
+      <button class="mode-btn" onclick="SFX.click(); quickMatch()"><img src="assets/menu_quick_match_btn.png" alt="Quick Match" /></button>
+      <button class="mode-btn" onclick="SFX.click(); openPrivateMenu()"><img src="assets/menu_private_match_btn.png" alt="Private Match" /></button>
     </div>
   </div>
 </div>
@@ -1390,7 +1379,7 @@ function populateCountrySelect() {
 
 let stagedAvatar = undefined; // undefined = unchanged this session, "avatar_preset_NN" = staged for save
 
-const PRESET_AVATAR_COUNT = 5;
+const PRESET_AVATAR_COUNT = 6;
 
 function avatarSrc(id) {
   return `assets/${id}.png`;

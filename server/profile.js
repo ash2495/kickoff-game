@@ -17,7 +17,7 @@ const googleClient = GOOGLE_WEB_CLIENT_ID ? new OAuth2Client(GOOGLE_WEB_CLIENT_I
 
 // avatars are a fixed set of in-game presets (www/assets/avatar_preset_NN.png)
 // selected by ID - no user-uploaded images, so no image data to validate or store
-const AVATAR_PRESET_COUNT = 5;
+const AVATAR_PRESET_COUNT = 6;
 
 function sanitizeName(name) {
   if (typeof name !== 'string') return 'Player';
