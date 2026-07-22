@@ -101,7 +101,7 @@
        heights, regardless of how much room is left for auto-centering */
     position: relative; z-index: 2;
     display: flex; flex-direction: column; align-items: center;
-    gap: 10px; text-align: center; width: 100%; max-width: 720px;
+    gap: 16px; text-align: center; width: 100%; max-width: 760px;
     /* auto top-margin still centers when it fits, but a fixed bottom margin
        biases the whole block upward, leaving clear space below for future
        additions instead of sitting dead-center - vh, not %, since percentage
@@ -114,14 +114,14 @@
     pointer-events: none;
   }
   #mode-select .title-block img {
-    height: 8vh; max-height: 76px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
+    height: 11vh; max-height: 100px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
   }
   #mode-select .settings-row, #mode-select .mode-buttons {
-    display: flex; gap: 3.5%; justify-content: center; align-items: flex-end;
+    display: flex; gap: 5%; justify-content: center; align-items: flex-end;
   }
-  #mode-select .setting-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  #mode-select .setting-group { display: flex; flex-direction: column; align-items: center; gap: 7px; }
   #mode-select .duration-label {
-    font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px;
+    font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 1px;
     color: #ffcb3d; text-shadow: 0 2px 0 #1a1008; margin-bottom: 0;
   }
   #mode-select .duration-chips {
@@ -129,17 +129,17 @@
        max-width:340px - without these, the box wraps to 2 rows well before
        it actually runs out of horizontal room */
     display: flex; flex-wrap: nowrap; max-width: none;
-    gap: 4px; background: #0e1a2b;
+    gap: 6px; background: #0e1a2b;
     border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
-    border-radius: 6px; padding: 5px;
+    border-radius: 6px; padding: 6px;
   }
   #mode-select .duration-chip {
     /* clip-path: none overrides the shared base rule's pill-shaped
        (round 20px) tap-area mask, which would otherwise clip the corners
        of this much less rounded (3px) chip */
-    font-family: 'Press Start 2P', monospace; font-size: 9px; color: #cfd8e6;
+    font-family: 'Press Start 2P', monospace; font-size: 11px; color: #cfd8e6;
     border: 2px solid #7a6a45; border-radius: 3px; background: #16233a;
-    padding: 6px 8px; cursor: pointer; white-space: nowrap; clip-path: none;
+    padding: 9px 12px; cursor: pointer; white-space: nowrap; clip-path: none;
   }
   #mode-select .duration-chip.selected {
     background: #1e9e46; border-color: #6fe085; color: #eafff0;
@@ -148,7 +148,7 @@
   #mode-select .duration-chip:active { transform: scale(0.95); }
   #mode-select .mode-btn {
     border: none; background: none; padding: 0; cursor: pointer;
-    width: 185px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+    width: 220px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
     transition: transform .08s;
   }
   #mode-select .mode-btn img { width: 100%; display: block; }
