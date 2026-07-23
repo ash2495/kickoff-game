@@ -898,10 +898,12 @@ let kickoffRevealed = false; // true once the player can actually see/hear the p
 
 // ---- Online / private match state ----
 // Ships with a default so players never have to find/paste a URL themselves.
-// No UI exposes changing this - it only reads a prior override (if one was
-// ever set back when a settings field for it existed) from localStorage.
+// No UI exposes changing this - always use the hardcoded default so a stale
+// override saved by a long-gone settings field (from an older build) can
+// never silently redirect the app to an unreachable server.
 const DEFAULT_SERVER_URL = 'https://kickoff-game-production.up.railway.app';
-let SERVER_URL = localStorage.getItem('kickoffDuelServerUrl') || DEFAULT_SERVER_URL;
+let SERVER_URL = DEFAULT_SERVER_URL;
+localStorage.removeItem('kickoffDuelServerUrl');
 let PLAYER_NAME = localStorage.getItem('kickoffDuelPlayerName') || 'Player';
 function setPlayerName(value) {
   PLAYER_NAME = (value || '').trim().slice(0, 16) || 'Player';
@@ -969,6 +971,12 @@ function guestLogin() {
   document.getElementById('loginRetryBtn').style.display = 'none';
   document.getElementById('loginSpinner').style.display = 'inline-block';
   document.getElementById('loginStatusText').textContent = 'Signing you in…';
+  const onConnectFail = () => {
+    document.getElementById('loginSpinner').style.display = 'none';
+    document.getElementById('loginStatusText').textContent = 'Could not sign in';
+    document.getElementById('loginError').textContent = "Couldn't reach the server. Check your connection and try again.";
+    document.getElementById('loginRetryBtn').style.display = 'block';
+  };
   ensureSocket(() => {
     socket.emit('guestLogin', { deviceId: DEVICE_ID }, (res) => {
       if (!res || !res.ok) {
@@ -982,7 +990,7 @@ function guestLogin() {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('mode-select').style.display = 'flex';
     });
-  });
+  }, onConnectFail);
 }
 
 // Google Sign-In is offered as an upgrade from the Profile screen (not a
@@ -1521,13 +1529,15 @@ function showPrivateError(msg) {
   document.getElementById('privateError').textContent = msg;
 }
 
-function ensureSocket(onReady) {
+function ensureSocket(onReady, onFail) {
   if (!SERVER_URL) {
     showPrivateError('Set a Multiplayer Server URL in ⚙️ Settings first.');
+    if (onFail) onFail();
     return;
   }
   if (typeof io === 'undefined') {
     showPrivateError('Could not load multiplayer networking. Check your connection.');
+    if (onFail) onFail();
     return;
   }
   if (socket && socket.connected) { onReady(); return; }
@@ -1535,7 +1545,10 @@ function ensureSocket(onReady) {
   showPrivateError('Connecting…');
   socket = io(SERVER_URL, { transports: ['websocket', 'polling'], timeout: 8000 });
   socket.on('connect', () => { showPrivateError(''); onReady(); });
-  socket.on('connect_error', () => showPrivateError("Couldn't reach that server. Check the URL and that it's deployed."));
+  socket.on('connect_error', () => {
+    showPrivateError("Couldn't reach that server. Check the URL and that it's deployed.");
+    if (onFail) onFail();
+  });
   socket.on('lobbyUpdate', renderLobby);
   socket.on('matchStarted', () => {
     if (isQuickMatchFlow) {
@@ -1591,7 +1604,7 @@ function createPrivateRoom() {
       document.getElementById('lobbyNameInput').value = PLAYER_NAME;
       document.getElementById('lobby-screen').style.display = 'flex';
     });
-  });
+  }, () => { joinRequestInFlight = false; });
 }
 
 function joinPrivateRoom() {
@@ -1610,7 +1623,7 @@ function joinPrivateRoom() {
       document.getElementById('lobbyNameInput').value = PLAYER_NAME;
       document.getElementById('lobby-screen').style.display = 'flex';
     });
-  });
+  }, () => { joinRequestInFlight = false; });
 }
 
 // auto-matchmaking: join an already-waiting public room if one exists for
@@ -1635,7 +1648,7 @@ function quickMatch() {
       hideAllMenus();
       document.getElementById('matchmaking-screen').style.display = 'flex';
     });
-  });
+  }, () => { joinRequestInFlight = false; });
 }
 
 // Fisher-Yates shuffle, used to randomize the order team slots pop in so
@@ -1879,15 +1892,13 @@ function exitOnlineMatch() {
 // ============================================================
 
 const FIELD = { w: 1600, h: 800 };
-const GOAL_WIDTH = 180; // vertical opening size
-const GOAL_DEPTH = 40;
-
-// pixel-art character sprite sheet: 2 frames (legs together / legs apart),
-// baked at a fixed native pixel size (not scaled at runtime) so the physics
-// circle's radius/offset stay simple, exact numbers instead of depending on
-// a Phaser gameObject scale factor
-const CHAR_W = 54, CHAR_H = 66;
-const CHAR_STRIDE = 18; // px travelled per leg-swap when walking
+// character sprite sheet: 4 poses (front, frontleft, left, back) x 7 real
+// running-cycle frames each = 28 frames - right-side facings are just the
+// left-side poses mirrored (setFlipX), so no separate art is needed
+const CHAR_W = 43, CHAR_H = 68;
+const CHAR_STRIDE = 14; // px travelled per animation frame advance
+const CHAR_RUN_FRAMES = 7;
+const POSE_FRAME = { front: 0, frontleft: 7, left: 14, back: 21 };
 
 // Shared, standard-sized exit button used by every mode -
 // a real tappable button (not just text) so it's easy to see and hit mid-match.
@@ -1968,6 +1979,7 @@ class OnlineScene extends Phaser.Scene {
   constructor() { super('online'); }
 
   preload() {
+    this.load.image('fieldTexture', 'assets/field.png');
     this.load.image('ballTexture', 'assets/ball.png');
     this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
     this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
@@ -2005,38 +2017,17 @@ class OnlineScene extends Phaser.Scene {
     glow(this.mirrorX(0), 0, 0x2e86f5);
     glow(this.mirrorX(W), 0, 0xff4757);
 
-    const pitchX = 20, pitchY = 20, pitchW = W - 40, pitchH = H - 40;
-    const stripeCount = 10, stripeW = pitchW / stripeCount;
-    for (let i = 0; i < stripeCount; i++) {
-      const c = i % 2 === 0 ? 0x1b6b3a : 0x1f7a41;
-      this.add.rectangle(pitchX + stripeW*i + stripeW/2, H/2, stripeW, pitchH, c);
-    }
+    // illustrated pitch background - stretched independently on each axis to
+    // exactly fill the FIELD canvas (not uniformly "cover"-scaled), since the
+    // source art's own touchline sits close enough to its top/bottom edges
+    // that cropping to cover would clip the boundary line off entirely; the
+    // aspect mismatch is minor so the stretch isn't noticeable on a grass texture
+    const fieldImg = this.add.image(W/2, H/2, 'fieldTexture');
+    fieldImg.setScale(W / fieldImg.width, H / fieldImg.height);
 
+    // goal frames/nets are already drawn into the field art itself, so no
+    // separate box/crosshatch is drawn here
     const g = this.add.graphics();
-    const drawLines = (color, alpha, width) => {
-      g.lineStyle(width, color, alpha);
-      g.strokeRect(pitchX, pitchY, pitchW, pitchH);
-      g.lineBetween(W/2, pitchY, W/2, H-pitchY);
-      g.strokeCircle(W/2, H/2, 90);
-    };
-    drawLines(0xffcb3d, 0.25, 8);
-    drawLines(0xf5f7fa, 0.9, 3);
-
-    const goalY = H/2 - GOAL_WIDTH/2;
-    g.lineStyle(3, 0xf5f7fa, 0.9);
-    g.strokeRect(20, goalY, 100, GOAL_WIDTH);
-    g.strokeRect(W-120, goalY, 100, GOAL_WIDTH);
-
-    // net crosshatch texture inside each goal box
-    g.lineStyle(1, 0xf5f7fa, 0.35);
-    for (let nx = 20; nx <= 120; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
-    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(20, ny, 120, ny); }
-    for (let nx = W-120; nx <= W-20; nx += 14) { g.lineBetween(nx, goalY, nx, goalY+GOAL_WIDTH); }
-    for (let ny = goalY; ny <= goalY+GOAL_WIDTH; ny += 14) { g.lineBetween(W-120, ny, W-20, ny); }
-
-    g.fillStyle(0xffcb3d, 0.9);
-    g.fillRect(0, goalY, 6, GOAL_WIDTH);
-    g.fillRect(W-6, goalY, 6, GOAL_WIDTH);
 
     // ---- Players (2 or 3 per team) - plain sprites, positions driven by
     // server state. Sprites are created lazily (see ensureEntitySprite) as
@@ -2162,7 +2153,7 @@ class OnlineScene extends Phaser.Scene {
     const label = createPillLabel(this, x, y-54, labelText, team === 'A' ? 0x9ccdff : 0xffb3ba);
     const sprite = {
       circle, shadow, ring, label, x, y, targetX: x, targetY: y,
-      prevX: x, prevY: y, kick: null, walkDist: 0, flip: false,
+      prevX: x, prevY: y, kick: null, walkDist: 0, flip: false, pose: 'front',
     };
     this.entitySprites[slot] = sprite;
     return sprite;
@@ -2300,27 +2291,37 @@ class OnlineScene extends Phaser.Scene {
       if (s.kick && time < s.kick.until) {
         const t = 1 - (s.kick.until - time) / s.kick.duration;
         const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
-        if (Math.abs(Math.cos(s.kick.angle)) > 0.15) s.flip = Math.cos(s.kick.angle) < 0;
+        if (Math.abs(Math.cos(s.kick.angle)) > 0.15) s.flip = Math.cos(s.kick.angle) > 0;
         s.circle.setFlipX(!!s.flip);
         s.circle.setScale(1 + ease * 0.35, 1 - ease * 0.22);
-        s.circle.setFrame(0);
+        s.circle.setFrame(POSE_FRAME[s.pose]);
       } else {
         s.circle.setScale(1, 1);
         // no true velocity here (position is server-driven + locally
         // interpolated), so approximate this frame's screen-space movement
-        // to drive facing (left/right flip, not rotation - the art is a
-        // front-facing pose) + the walk-cycle
+        // to drive facing: 8 directions bucketed from the movement angle,
+        // covered by only 4 unique poses since right-side facings are just
+        // the left-side art mirrored (setFlipX) - frozen on the last pose
+        // when standing still rather than snapping back to a default
         const dx = s.x - s.prevX, dy = s.y - s.prevY;
         const dist = Math.hypot(dx, dy);
-        // walk-cycle: swap legs every CHAR_STRIDE px travelled, frozen on
-        // the neutral frame (0) when standing still - flip keeps the last
-        // facing side instead of snapping back to a default
+        // run-cycle: step through the real 7-frame running animation for the
+        // current pose every CHAR_STRIDE px travelled, frozen on that pose's
+        // neutral frame (0) when standing still
         if (dist > 0.6) {
-          if (Math.abs(dx) > 0.4) s.flip = dx < 0;
+          let deg = Math.atan2(dy, dx) * 180 / Math.PI;
+          if (deg < 0) deg += 360;
+          const sector = Math.round(deg / 45) % 8;
+          // [pose, flip] per 45-degree sector, starting at 0=right, going clockwise in screen space
+          const SECTOR_POSE = [
+            ['left', true], ['frontleft', true], ['front', false], ['frontleft', false],
+            ['left', false], ['back', false], ['back', false], ['back', true],
+          ];
+          [s.pose, s.flip] = SECTOR_POSE[sector];
           s.walkDist += dist;
-          s.circle.setFrame(Math.floor(s.walkDist / CHAR_STRIDE) % 2);
+          s.circle.setFrame(POSE_FRAME[s.pose] + (Math.floor(s.walkDist / CHAR_STRIDE) % CHAR_RUN_FRAMES));
         } else {
-          s.circle.setFrame(0);
+          s.circle.setFrame(POSE_FRAME[s.pose]);
         }
         s.circle.setFlipX(!!s.flip);
       }

@@ -28,7 +28,9 @@ const PORT = process.env.PORT || 3000;
 // ---- Match constants (mirrors the geometry in www/index.html) ----
 const FIELD = { w: 1600, h: 800 };
 const GOAL_WIDTH = 180;
-const PITCH = { x: 20, y: 20, w: FIELD.w - 40, h: FIELD.h - 40 };
+// x/y match the touchline's actual position in the current field art (it
+// sits at ~42,26 in FIELD-space, not flush with the canvas edge)
+const PITCH = { x: 40, y: 24, w: FIELD.w - 80, h: FIELD.h - 48 };
 const PLAYER_R = 26;
 const BALL_R = 16;
 const PLAYER_SPEED = 260;
@@ -361,17 +363,20 @@ function updateBall(room, dt) {
   const minX = PITCH.x + BALL_R, maxX = PITCH.x + PITCH.w - BALL_R;
 
   if (b.x < minX) {
-    if (inMouth) { if (b.x < -10) { b.x = -10; b.vx *= -0.4; } }
+    // the net pocket is drawn INSIDE the field art itself (it doesn't extend
+    // past the canvas edge), so the ball must never be allowed past x=0/w -
+    // otherwise it renders beyond the net into blank space
+    if (inMouth) { if (b.x < 2) { b.x = 2; b.vx *= -0.4; } }
     else { b.x = minX; b.vx *= -0.6; }
   }
   if (b.x > maxX) {
-    if (inMouth) { if (b.x > FIELD.w + 10) { b.x = FIELD.w + 10; b.vx *= -0.4; } }
+    if (inMouth) { if (b.x > FIELD.w - 2) { b.x = FIELD.w - 2; b.vx *= -0.4; } }
     else { b.x = maxX; b.vx *= -0.6; }
   }
 
   // hard failsafe: regardless of the goal-mouth exception above, the ball
   // should never end up meaningfully outside the pitch + net pockets
-  b.x = clampNum(b.x, -14, FIELD.w + 14);
+  b.x = clampNum(b.x, 2, FIELD.w - 2);
   b.y = clampNum(b.y, minY, maxY);
 }
 
