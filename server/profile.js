@@ -52,12 +52,18 @@ function verifyToken(userId, token) {
 }
 
 function toPublicProfile(doc) {
+  const matchesPlayed = doc.matchesPlayed || 0;
+  const matchesWon = doc.matchesWon || 0;
   return {
     userId: doc._id.toString(),
     name: doc.name,
     country: doc.country,
     avatar: doc.avatar,
     hasGoogle: !!doc.googleId,
+    matchesPlayed,
+    matchesWon,
+    goalsScored: doc.goalsScored || 0,
+    winRate: matchesPlayed > 0 ? Math.round((matchesWon / matchesPlayed) * 100) : 0,
   };
 }
 
@@ -168,4 +174,26 @@ async function updateProfile(userId, authToken, { name, country, avatar } = {}) 
   return { ok: true, ...toPublicProfile(doc) };
 }
 
-module.exports = { guestLogin, googleLogin, updateProfile };
+async function getStats(userId) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
+  const users = getUsers();
+  const doc = await users.findOne({ _id: new ObjectId(userId) });
+  if (!doc) return { ok: false, error: 'Profile not found.' };
+  return { ok: true, ...toPublicProfile(doc) };
+}
+
+// called from server.js at match end (matchesPlayed/matchesWon for every
+// real player) and on each goal (goalsScored for whoever last kicked it) -
+// fire-and-forget from the caller's perspective, no ack needed
+async function incrementStats(userId, { played = 0, won = 0, goals = 0 } = {}) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return;
+  const inc = {};
+  if (played) inc.matchesPlayed = played;
+  if (won) inc.matchesWon = won;
+  if (goals) inc.goalsScored = goals;
+  if (Object.keys(inc).length === 0) return;
+  const users = getUsers();
+  await users.updateOne({ _id: new ObjectId(userId) }, { $inc: inc });
+}
+
+module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats };

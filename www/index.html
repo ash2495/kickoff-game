@@ -367,34 +367,41 @@
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px;
     overflow-y: auto;
   }
-  #settings-panel .overlay-card { padding: 12px 26px; max-width: 440px; }
-  #settings-panel h2 { margin: 0 0 8px 0; font-size: 18px; }
-  #settings-panel .setting-row { margin-bottom: 10px; }
-  #settings-panel .setting-row .label-row { margin-bottom: 6px; font-size: 14px; }
-  #settings-panel .toggle-btn {
-    font-family: 'Rajdhani', sans-serif; border: none; border-radius: 999px;
-    padding: 7px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
-    color: #05261c; background: linear-gradient(135deg, #2ecc71, #17a589);
-    box-shadow: 0 3px 10px rgba(46,204,113,0.35);
-    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
-    clip-path: inset(-3px -3px -13px -3px round 999px);
+  #settings-panel .overlay-card { padding: 20px 28px; max-width: 480px; width: 100%; }
+  #settings-panel h2 { margin: 0 0 16px 0; font-size: 24px; }
+  #settings-panel .settings-section { margin-bottom: 16px; text-align: left; }
+  #settings-panel .settings-section-title {
+    font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 800;
+    letter-spacing: 1px; color: #ffcb3d; margin-bottom: 10px;
   }
-  #settings-panel .toggle-btn.off {
-    background: rgba(255,255,255,0.1); color: white; box-shadow: none;
-  }
-  #settings-panel .controls-highlight {
-    display: flex; gap: 12px; margin: 6px 0 16px;
-  }
+  #settings-panel .controls-highlight { display: flex; align-items: stretch; justify-content: center; gap: 10px; }
   #settings-panel .control-card {
-    flex: 1; background: rgba(255,203,61,0.1); border: 1px solid rgba(255,203,61,0.35);
-    border-radius: 14px; padding: 10px 10px; text-align: center;
+    height: 108px; width: 204px; background: #0d1a2e center / cover no-repeat;
+    border: 1px solid rgba(159,179,200,0.55); border-radius: 10px;
   }
-  #settings-panel .control-icon { font-size: 28px; margin-bottom: 6px; line-height: 1; }
-  #settings-panel .control-label {
-    font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 800;
-    letter-spacing: 1px; color: #ffcb3d; margin-bottom: 5px;
+  #settings-panel .control-card-move { background-image: url('assets/settings_move_card.png'); }
+  #settings-panel .control-card-kick { background-image: url('assets/settings_kick_card.png'); }
+  #settings-panel .pref-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
   }
-  #settings-panel .control-desc { font-size: 12px; opacity: 0.85; line-height: 1.35; }
+  #settings-panel .pref-row:last-of-type { border-bottom: none; }
+  #settings-panel .pref-label { font-size: 15px; font-weight: 700; flex: 0 0 auto; }
+  #settings-panel .pref-music-mid { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  #settings-panel .pref-music-mid input[type=range] { flex: 1; min-width: 0; accent-color: #ffcb3d; height: 5px; }
+  #settings-panel .vol-icon { font-size: 13px; opacity: 0.7; flex: 0 0 auto; }
+  .switch-toggle {
+    position: relative; width: 50px; height: 27px; border-radius: 999px; border: none;
+    cursor: pointer; flex: 0 0 auto; padding: 0;
+    background: rgba(255,255,255,0.15); transition: background 0.15s;
+    clip-path: inset(-4px round 999px);
+  }
+  .switch-toggle.on { background: linear-gradient(135deg, #3ddc6a, #1f9e4a); }
+  .switch-toggle .switch-knob {
+    position: absolute; top: 3px; left: 3px; width: 21px; height: 21px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.4); transition: left 0.15s;
+  }
+  .switch-toggle.on .switch-knob { left: 26px; }
   .duration-label {
     font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: 3px;
     color: #9fb3c8; margin-bottom: 10px; text-align: center;
@@ -435,7 +442,14 @@
   }
   .login-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1); }
   .login-btn.guest { background: rgba(255,255,255,0.1); color: white; }
-  .login-btn.google { background: #ffffff; color: #1f1f1f; }
+  /* real cropped UI-reference asset (www/assets/connect_google_btn.png) -
+     the "G" span + text stay in the DOM for accessibility/hit-area but are
+     made invisible since the artwork already renders them */
+  .login-btn.google {
+    background: url('assets/connect_google_btn.png') center / 100% 100% no-repeat;
+    aspect-ratio: 1682 / 311; padding: 0; color: transparent; box-shadow: none;
+    border-radius: 0;
+  }
   #loginError { color: #ff6b6b; font-size: 12px; margin-top: 10px; min-height: 14px; }
 
   /* ---- Profile screen (avatar / name / country) - reuses the settings-panel
@@ -448,11 +462,35 @@
   }
   /* single-screen layout (no scroll) - side-by-side columns instead of one
      tall vertical stack, sized to fit a short landscape viewport */
-  #profile-screen .overlay-card { padding: 16px 26px; max-width: 620px; width: 100%; }
-  #profile-screen h2 { margin-bottom: 10px; }
+  #profile-screen .overlay-card { padding: 16px 26px; max-width: 860px; width: 100%; }
+  #profile-screen h2 {
+    width: 320px; aspect-ratio: 1049 / 127; margin: 0 auto 10px;
+    background: url('assets/profile_title.png') center / 100% 100% no-repeat;
+    color: transparent; font-size: 0;
+  }
   .profile-cols { display: flex; gap: 26px; align-items: flex-start; text-align: left; }
   .profile-col-avatar { flex: 0 0 auto; width: 190px; text-align: center; }
-  .profile-col-fields { flex: 1; min-width: 0; }
+  .profile-col-fields { flex: 0 0 auto; width: 200px; min-width: 0; }
+  .profile-col-stats { flex: 1; min-width: 0; }
+  .stats-title {
+    display: block; width: 240px; aspect-ratio: 1266 / 238; margin: 0 auto 12px;
+    background: url('assets/profile_stats_tab.png') center / 100% 100% no-repeat;
+  }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    text-align: left; background: #0d1f36; border: 2px solid #3a6ea5;
+    border-radius: 8px; padding: 10px 14px;
+  }
+  .stat-card .stat-label {
+    display: block; font-size: 10px; letter-spacing: 0.5px; color: #b9c6d6;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .stat-card .stat-row { display: flex; align-items: center; gap: 10px; }
+  .stat-card .stat-icon { font-size: 26px; line-height: 1; flex: 0 0 auto; }
+  .stat-card .stat-value {
+    font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 26px;
+    color: #fff; line-height: 1;
+  }
   .avatar-picker {
     width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 8px;
     background: rgba(255,255,255,0.08); border: 2px solid rgba(255,203,61,0.4);
@@ -689,6 +727,39 @@
         <button class="done-btn" onclick="SFX.click(); saveProfile()">SAVE</button>
         <div id="profileError" style="color:#ff6b6b; font-size:12px; margin-top:6px; min-height:14px;"></div>
       </div>
+      <div class="profile-col-stats">
+        <div class="stats-title" role="img" aria-label="Statistics"></div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Matches Played</span>
+            <div class="stat-row">
+              <span class="stat-icon">🎮</span>
+              <div class="stat-value" id="statMatchesPlayed">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Matches Won</span>
+            <div class="stat-row">
+              <span class="stat-icon">🏆</span>
+              <div class="stat-value" id="statMatchesWon">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Goals Scored</span>
+            <div class="stat-row">
+              <span class="stat-icon">⚽</span>
+              <div class="stat-value" id="statGoalsScored">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Win Rate</span>
+            <div class="stat-row">
+              <span class="stat-icon">🎯</span>
+              <div class="stat-value" id="statWinRate">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -825,24 +896,39 @@
 </div>
 
 <div id="settings-panel">
+  <button class="back-circle-btn" onclick="SFX.click(); closeSettings()"><span class="chevron-left"></span></button>
   <div class="overlay-card">
     <h2>SETTINGS</h2>
-    <div class="setting-row" style="display:flex; align-items:center; justify-content:space-between;">
-      <span style="font-size:14px; font-weight:700;">Sound Effects</span>
-      <button id="sfxToggleBtn" class="toggle-btn" onclick="toggleSFX()">🔊 ON</button>
-    </div>
-    <div class="controls-highlight">
-      <div class="control-card">
-        <div class="control-icon">🕹️</div>
-        <div class="control-label">MOVE</div>
-        <div class="control-desc">Left half of screen<br>tap &amp; drag anywhere</div>
-      </div>
-      <div class="control-card">
-        <div class="control-icon">⚽</div>
-        <div class="control-label">KICK</div>
-        <div class="control-desc">Right half of screen<br>tap anywhere</div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">1. CONTROLS</div>
+      <div class="controls-highlight">
+        <div class="control-card control-card-move" role="img" aria-label="Move: left half of screen, tap and drag anywhere"></div>
+        <div class="control-card control-card-kick" role="img" aria-label="Kick: right half of screen, tap anywhere"></div>
       </div>
     </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">2. PREFERENCES</div>
+      <div class="pref-row">
+        <span class="pref-label">Sound Effects</span>
+        <button id="sfxToggleBtn" class="switch-toggle" onclick="toggleSFX()" role="switch" aria-label="Sound Effects"><span class="switch-knob"></span></button>
+      </div>
+      <div class="pref-row">
+        <span class="pref-label">Music</span>
+        <div class="pref-music-mid">
+          <span class="vol-icon">🔈</span>
+          <input type="range" id="musicVolumeSlider" min="0" max="100" value="70" oninput="setMusicVolume(this.value)" aria-label="Music volume">
+          <span class="vol-icon">🔊</span>
+        </div>
+        <button id="musicToggleBtn" class="switch-toggle" onclick="toggleMusic()" role="switch" aria-label="Music"><span class="switch-knob"></span></button>
+      </div>
+      <div class="pref-row">
+        <span class="pref-label">Vibration</span>
+        <button id="vibrationToggleBtn" class="switch-toggle" onclick="toggleVibration()" role="switch" aria-label="Vibration"><span class="switch-knob"></span></button>
+      </div>
+    </div>
+
     <button class="done-btn" onclick="SFX.click(); closeSettings()">DONE</button>
   </div>
 </div>
@@ -892,7 +978,15 @@
 </script>
 <script>
 let MATCH_DURATION = 180; // seconds; 0 = no limit
-let SFX_ENABLED = true;
+let SFX_ENABLED = localStorage.getItem('kickoffDuelSfxEnabled') !== '0';
+let MUSIC_ENABLED = localStorage.getItem('kickoffDuelMusicEnabled') !== '0';
+const storedMusicVolume = localStorage.getItem('kickoffDuelMusicVolume');
+let MUSIC_VOLUME = storedMusicVolume !== null ? Math.min(1, Math.max(0, parseInt(storedMusicVolume, 10) / 100)) : 0.7;
+let VIBRATION_ENABLED = localStorage.getItem('kickoffDuelVibrationEnabled') !== '0';
+function vibrate(pattern) {
+  if (!VIBRATION_ENABLED) return;
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
 let gameInstance = null;
 let kickoffRevealed = false; // true once the player can actually see/hear the pitch (see matchStarted handler)
 
@@ -1098,6 +1192,8 @@ const SFX = (function() {
     src.start(startTime);
   }
   function on() { return typeof SFX_ENABLED === 'undefined' || SFX_ENABLED; }
+  function musicOn() { return typeof MUSIC_ENABLED === 'undefined' || MUSIC_ENABLED; }
+  function crowdGain() { return 0.14 * (typeof MUSIC_VOLUME === 'number' ? MUSIC_VOLUME : 1); }
 
   // real recorded goal SFX (assets/sfx_goal.wav) - decoded once up front;
   // falls back to the synthesized siren below if it hasn't finished
@@ -1134,7 +1230,6 @@ const SFX = (function() {
     .catch(() => {});
 
   let crowdSession = null; // { src, gain } while the ambience loop is live
-  const CROWD_BASE_GAIN = 0.14;
   function startCrowdLoop() {
     if (crowdSession || !crowdBuffer) return;
     const c = ensureCtx();
@@ -1142,7 +1237,7 @@ const SFX = (function() {
     src.buffer = crowdBuffer;
     src.loop = true;
     const gain = c.createGain();
-    gain.gain.value = CROWD_BASE_GAIN;
+    gain.gain.value = crowdGain();
     src.connect(gain).connect(c.destination);
     src.start(c.currentTime);
     crowdSession = { src, gain };
@@ -1204,7 +1299,7 @@ const SFX = (function() {
     },
     crowdAmbience: {
       start() {
-        if (!on()) return;
+        if (!musicOn()) return;
         if (!crowdBuffer) { crowdWantsToPlay = true; return; }
         startCrowdLoop();
       },
@@ -1221,14 +1316,22 @@ const SFX = (function() {
       },
       // brief louder swell riding on the same loop - "the crowd reacts" - used on goals
       swell() {
-        if (!on() || !crowdSession) return;
+        if (!musicOn() || !crowdSession) return;
         const c = ensureCtx();
         const t = c.currentTime;
         const g = crowdSession.gain;
         g.gain.cancelScheduledValues(t);
         g.gain.setValueAtTime(g.gain.value, t);
         g.gain.linearRampToValueAtTime(0.55, t + 0.25);
-        g.gain.linearRampToValueAtTime(CROWD_BASE_GAIN, t + 3.5);
+        g.gain.linearRampToValueAtTime(crowdGain(), t + 3.5);
+      },
+      // pushes a just-changed MUSIC_VOLUME into the live gain node, if the
+      // ambience loop is currently playing - called from the settings slider
+      applyVolume() {
+        if (!crowdSession) return;
+        const c = ensureCtx();
+        crowdSession.gain.gain.cancelScheduledValues(c.currentTime);
+        crowdSession.gain.gain.setValueAtTime(crowdGain(), c.currentTime);
       }
     }
   };
@@ -1236,16 +1339,35 @@ const SFX = (function() {
 
 function toggleSFX() {
   SFX_ENABLED = !SFX_ENABLED;
+  localStorage.setItem('kickoffDuelSfxEnabled', SFX_ENABLED ? '1' : '0');
   const btn = document.getElementById('sfxToggleBtn');
-  btn.textContent = SFX_ENABLED ? '🔊 ON' : '🔇 OFF';
-  btn.classList.toggle('off', !SFX_ENABLED);
-  // the crowd ambience loop runs independently of on()'s per-call check
-  // (it's already-started audio, not a fresh trigger), so mute/unmute it
-  // explicitly - gated on kickoffRevealed (not just gameInstance) so toggling
-  // SFX during Quick Match's still-hidden reveal curtain can't start the
-  // ambience early
-  if (SFX_ENABLED) { SFX.click(); if (kickoffRevealed) SFX.crowdAmbience.start(); }
+  btn.classList.toggle('on', SFX_ENABLED);
+  if (SFX_ENABLED) SFX.click();
+}
+
+function toggleMusic() {
+  MUSIC_ENABLED = !MUSIC_ENABLED;
+  localStorage.setItem('kickoffDuelMusicEnabled', MUSIC_ENABLED ? '1' : '0');
+  const btn = document.getElementById('musicToggleBtn');
+  btn.classList.toggle('on', MUSIC_ENABLED);
+  // gated on kickoffRevealed (not just gameInstance) so toggling Music during
+  // Quick Match's still-hidden reveal curtain can't start the ambience early
+  if (MUSIC_ENABLED) { if (kickoffRevealed) SFX.crowdAmbience.start(); }
   else SFX.crowdAmbience.stop();
+}
+
+function setMusicVolume(value) {
+  MUSIC_VOLUME = Math.min(1, Math.max(0, Number(value) / 100));
+  localStorage.setItem('kickoffDuelMusicVolume', String(Math.round(MUSIC_VOLUME * 100)));
+  SFX.crowdAmbience.applyVolume();
+}
+
+function toggleVibration() {
+  VIBRATION_ENABLED = !VIBRATION_ENABLED;
+  localStorage.setItem('kickoffDuelVibrationEnabled', VIBRATION_ENABLED ? '1' : '0');
+  const btn = document.getElementById('vibrationToggleBtn');
+  btn.classList.toggle('on', VIBRATION_ENABLED);
+  if (VIBRATION_ENABLED && navigator.vibrate) navigator.vibrate(30);
 }
 
 // Best-effort screen lock for browsers/PWAs that support it (native Android
@@ -1331,6 +1453,10 @@ function confirmExitNo() {
 
 function openSettings() {
   document.getElementById('settings-panel').style.display = 'flex';
+  document.getElementById('sfxToggleBtn').classList.toggle('on', SFX_ENABLED);
+  document.getElementById('musicToggleBtn').classList.toggle('on', MUSIC_ENABLED);
+  document.getElementById('vibrationToggleBtn').classList.toggle('on', VIBRATION_ENABLED);
+  document.getElementById('musicVolumeSlider').value = Math.round(MUSIC_VOLUME * 100);
   hideProfilePill();
 }
 function closeSettings() {
@@ -1464,8 +1590,28 @@ function openProfile() {
     el.classList.toggle('selected', el.alt === `Avatar ${Number(activeId.slice(-2))}`);
   });
   refreshProfileAccountHint();
+  refreshProfileStats();
   document.getElementById('profile-screen').style.display = 'flex';
   hideProfilePill();
+}
+
+// stats live on the server (they change after every match), so the cached
+// login-time profile can't be trusted - refetch fresh each time this screen
+// opens rather than relying on cacheProfile's snapshot
+function refreshProfileStats() {
+  ['statMatchesPlayed', 'statMatchesWon', 'statGoalsScored', 'statWinRate'].forEach((id) => {
+    document.getElementById(id).textContent = '-';
+  });
+  if (!PROFILE_USER_ID) return;
+  ensureSocket(() => {
+    socket.emit('getProfileStats', { userId: PROFILE_USER_ID }, (res) => {
+      if (!res || !res.ok) return;
+      document.getElementById('statMatchesPlayed').textContent = res.matchesPlayed;
+      document.getElementById('statMatchesWon').textContent = res.matchesWon;
+      document.getElementById('statGoalsScored').textContent = res.goalsScored;
+      document.getElementById('statWinRate').textContent = res.winRate + '%';
+    });
+  });
 }
 function closeProfile() {
   document.getElementById('profile-screen').style.display = 'none';
@@ -1594,7 +1740,7 @@ function createPrivateRoom() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, userId: PROFILE_USER_ID }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
@@ -1613,7 +1759,7 @@ function joinPrivateRoom() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('joinRoom', { code, name: PLAYER_NAME }, (res) => {
+    socket.emit('joinRoom', { code, name: PLAYER_NAME, userId: PROFILE_USER_ID }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not join room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -1634,7 +1780,7 @@ function quickMatch() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION }, (res) => {
+    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, userId: PROFILE_USER_ID }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not find a match.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -1757,6 +1903,7 @@ function revealBotsAndCountdown(onDone) {
     numEl.textContent = n;
     overlay.style.display = 'flex';
     if (typeof SFX !== 'undefined') SFX.whistle();
+    vibrate(25);
     const timer = setInterval(() => {
       n--;
       if (n > 0) {
@@ -1766,6 +1913,7 @@ function revealBotsAndCountdown(onDone) {
         numEl.textContent = 'GO!';
         clearInterval(timer);
         if (typeof SFX !== 'undefined') SFX.goal();
+        vibrate([40, 30, 40]);
         setTimeout(onDone, 500);
       }
     }, 700);
@@ -2075,7 +2223,7 @@ class OnlineScene extends Phaser.Scene {
     // skip this for Quick Match while its reveal curtain is still up - the
     // scene mounts immediately behind it (see startOnlineMatch), and the
     // reveal's own countdown already plays a whistle right before "GO!"
-    if (typeof SFX !== 'undefined' && !(isQuickMatchFlow && !kickoffRevealed)) SFX.whistle(false);
+    if (typeof SFX !== 'undefined' && !(isQuickMatchFlow && !kickoffRevealed)) { SFX.whistle(false); vibrate(25); }
   }
 
   setupOnlineJoystick() {
@@ -2200,6 +2348,7 @@ class OnlineScene extends Phaser.Scene {
     if (data.ended && !this.matchEnded) {
       this.matchEnded = true;
       if (typeof SFX !== 'undefined') SFX.whistle(true);
+      vibrate(60);
       let label;
       if (data.score.A > data.score.B) label = (mySlot && mySlot[0]==='A') ? '🏆 YOUR TEAM WINS!' : '🏆 TEAM A WINS!';
       else if (data.score.B > data.score.A) label = (mySlot && mySlot[0]==='B') ? '🏆 YOUR TEAM WINS!' : '🏆 TEAM B WINS!';
@@ -2215,6 +2364,7 @@ class OnlineScene extends Phaser.Scene {
     this.cameras.main.flash(350, 255, 255, 255);
     this.cameras.main.shake(300, 0.01);
     if (typeof SFX !== 'undefined') { SFX.goal(); SFX.crowdAmbience.swell(); }
+    vibrate([40, 30, 40]);
 
     // full-screen flash + radiating burst celebration - gold rays punch
     // outward from center while a big white/gold-outlined GOAL! scales in
@@ -2258,6 +2408,7 @@ class OnlineScene extends Phaser.Scene {
 
   showStallReset() {
     if (typeof SFX !== 'undefined') SFX.whistle(false);
+    vibrate(25);
     const { width: W, height: H } = this.scale;
     const msg = this.add.text(W/2, H/2 - 40, '⚠ BALL RESET — STUCK IN CORNER', {
       fontFamily: 'Rajdhani', fontSize: '26px', fontStyle: '700', align: 'center',

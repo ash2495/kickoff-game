@@ -84,17 +84,13 @@ function sanitizeTeamSize(size) {
   return TEAM_SIZES.includes(n) ? n : 2;
 }
 
-// each bot gets one of these difficulties at random (see randomBotDifficulty)
-// instead of a single room-wide level, so a match's bots feel like a mixed
-// bag of opponents rather than uniformly easy/medium/hard
+// every bot plays at one fixed medium-high skill level (no more random
+// easy/medium/hard per bot) - fast reactions, tight aim, short cooldown
 const BOT_DIFFICULTY = {
-  easy:   { speed: 90,  reactionMs: 800, hesitateChance: 0.30, kickCooldownMs: 2200, wobble: 1.1 },
-  medium: { speed: 150, reactionMs: 450, hesitateChance: 0.15, kickCooldownMs: 1500, wobble: 0.6 },
-  hard:   { speed: 210, reactionMs: 150, hesitateChance: 0.03, kickCooldownMs: 900,  wobble: 0.22 },
+  smart: { speed: 178, reactionMs: 260, hesitateChance: 0.06, kickCooldownMs: 1000, wobble: 0.24 },
 };
-const BOT_DIFFICULTY_LEVELS = Object.keys(BOT_DIFFICULTY);
 function randomBotDifficulty() {
-  return BOT_DIFFICULTY_LEVELS[Math.floor(Math.random() * BOT_DIFFICULTY_LEVELS.length)];
+  return 'smart';
 }
 
 // e.g. teamSize=2 -> ['A1','A2','B1','B2'], teamSize=3 -> ['A1','A2','A3','B1','B2','B3']
@@ -141,7 +137,7 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId) {
   const code = makeRoomCode();
   const size = sanitizeTeamSize(teamSize);
   const slots = getSlots(size);
@@ -150,7 +146,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
   slots.forEach((slot) => {
     entities[slot] = {
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
-      team: slot[0], isBot: true, socketId: null, name: randomBotName(),
+      team: slot[0], isBot: true, socketId: null, name: randomBotName(), userId: null,
       difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
     };
   });
@@ -166,7 +162,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
     ended: false,
     resetting: false,
     entities,
-    ball: { x: FIELD.w / 2, y: FIELD.h / 2, vx: 0, vy: 0 },
+    ball: { x: FIELD.w / 2, y: FIELD.h / 2, vx: 0, vy: 0, lastKickSlot: null },
     score: { A: 0, B: 0 },
     timeRemaining: null,
     tickHandle: null,
@@ -186,6 +182,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize) {
   entities.A1.isBot = false;
   entities.A1.socketId = hostSocketId;
   entities.A1.name = sanitizeName(hostName);
+  entities.A1.userId = typeof hostUserId === 'string' ? hostUserId : null;
   rooms.set(code, room);
   return room;
 }
@@ -297,30 +294,149 @@ function updatePlayers(room, dt) {
   });
 }
 
+// whichever entity (human or bot) is nearest the ball on each team becomes
+// that team's ball chaser for this tick; a team's other BOTS hold a
+// supporting position instead of all crowding the ball at once - a human
+// nearest the ball puts every bot on that team into support mode
+function botAssignRoles(room) {
+  const roles = {};
+  ['A', 'B'].forEach((team) => {
+    const teamSlots = room.slots.filter((s) => room.entities[s].team === team);
+    let nearestSlot = null, nearestDist = Infinity;
+    teamSlots.forEach((s) => {
+      const e = room.entities[s];
+      const d = Math.hypot(room.ball.x - e.x, room.ball.y - e.y);
+      if (d < nearestDist) { nearestDist = d; nearestSlot = s; }
+    });
+    teamSlots.forEach((s) => {
+      roles[s] = (s === nearestSlot && room.entities[s].isBot) ? 'chase' : 'support';
+    });
+  });
+  return roles;
+}
+
+// a loose team shape for bots not currently chasing the ball: hold roughly
+// their kickoff spot, but drift upfield/downfield and sideways with the
+// ball so the team doesn't just camp on the center circle all match
+function supportTarget(room, slot) {
+  const e = room.entities[slot];
+  const home = room.startPos[slot];
+  const attackSign = e.team === 'A' ? 1 : -1;
+  const advance = clampNum((room.ball.x - FIELD.w / 2) * 0.3 * attackSign, -70, 130);
+  return {
+    x: clampNum(home.x + advance, PITCH.x + PLAYER_R + 10, PITCH.x + PITCH.w - PLAYER_R - 10),
+    y: home.y + (room.ball.y - home.y) * 0.35,
+  };
+}
+
+// decide what a bot does with the ball once it's in range: shoot if close
+// enough to goal, pass to a teammate who's meaningfully further upfield and
+// reachable, otherwise nudge the ball forward rather than always blasting a
+// full-power shot at goal from anywhere on the pitch
+function chooseBotKick(room, slot) {
+  const e = room.entities[slot];
+  const attackGoalX = e.team === 'A' ? FIELD.w - 20 : 20;
+  const goalCenterY = FIELD.h / 2;
+  const distToGoal = Math.hypot(attackGoalX - e.x, goalCenterY - e.y);
+
+  let bestPassTarget = null, bestPassScore = -Infinity;
+  room.slots.forEach((s) => {
+    if (s === slot) return;
+    const t = room.entities[s];
+    if (t.team !== e.team) return;
+    const dist = Math.hypot(t.x - e.x, t.y - e.y);
+    if (dist < 60 || dist > 560) return; // too close to bother, or too far to hit cleanly
+    const advancement = e.team === 'A' ? (t.x - e.x) : (e.x - t.x); // + = teammate is further upfield
+    if (advancement < -120) return; // still fine with a square/build-up pass, just not a clear backward one
+
+    // favor teammates the opposing team isn't already tight on ("open")
+    const nearestMarker = room.slots.reduce((min, os) => {
+      const o = room.entities[os];
+      if (o.team === t.team) return min;
+      return Math.min(min, Math.hypot(o.x - t.x, o.y - t.y));
+    }, Infinity);
+    const opennessBonus = Math.min(nearestMarker, 220);
+
+    const score = advancement - dist * 0.2 + opennessBonus * 0.6;
+    if (score > bestPassScore) { bestPassScore = score; bestPassTarget = t; }
+  });
+
+  const SHOOT_RANGE = 480, CLEAR_SHOT_RANGE = 160;
+  if (distToGoal < SHOOT_RANGE && (!bestPassTarget || distToGoal < CLEAR_SHOT_RANGE)) {
+    return { type: 'shoot' };
+  }
+  if (bestPassTarget) return { type: 'pass', target: bestPassTarget };
+  return { type: 'dribble' };
+}
+
+function applyBotKick(room, slot, e, cfg) {
+  const decision = chooseBotKick(room, slot);
+  const wobble = (Math.random() - 0.5) * cfg.wobble;
+
+  if (decision.type === 'pass') {
+    const t = decision.target;
+    // lead the pass toward where the receiver is headed, not just where
+    // they are right now
+    const leadTime = 0.35;
+    const targetX = t.x + t.vx * leadTime;
+    const targetY = t.y + t.vy * leadTime;
+    const passDist = Math.hypot(targetX - e.x, targetY - e.y);
+    const passPower = clampNum(passDist * 1.7, 220, KICK_POWER * 0.85);
+    const aimAngle = Math.atan2(targetY - e.y, targetX - e.x) + wobble * 0.5;
+    room.ball.vx = Math.cos(aimAngle) * passPower;
+    room.ball.vy = Math.sin(aimAngle) * passPower;
+  } else if (decision.type === 'shoot') {
+    const goalX = e.team === 'A' ? FIELD.w - 20 : 20;
+    const aimAngle = Math.atan2(FIELD.h / 2 - e.y, goalX - e.x) + wobble;
+    room.ball.vx = Math.cos(aimAngle) * KICK_POWER;
+    room.ball.vy = Math.sin(aimAngle) * KICK_POWER;
+  } else {
+    // dribble: nudge the ball forward upfield at a controlled pace rather
+    // than a full-power blast, like advancing it through midfield
+    const goalX = e.team === 'A' ? FIELD.w - 20 : 20;
+    const aimAngle = Math.atan2(FIELD.h / 2 - e.y, goalX - e.x) + wobble * 1.3;
+    const dribblePower = KICK_POWER * 0.45;
+    room.ball.vx = Math.cos(aimAngle) * dribblePower;
+    room.ball.vy = Math.sin(aimAngle) * dribblePower;
+  }
+  room.ball.lastKickSlot = slot;
+}
+
 function updateBots(room, dt) {
   const now = Date.now();
+  const roles = botAssignRoles(room);
   room.slots.forEach((slot) => {
     const e = room.entities[slot];
     if (!e.isBot) return;
-    const cfg = BOT_DIFFICULTY[e.difficulty] || BOT_DIFFICULTY.easy;
+    const cfg = BOT_DIFFICULTY[e.difficulty] || BOT_DIFFICULTY.smart;
     let bs = room.botState[slot];
     if (!bs) bs = room.botState[slot] = { targetRefresh: 0, target: null, hesitate: false, lastKick: 0 };
 
-    // reaction time + hesitation chance both tighten as difficulty increases
-    if (now - bs.targetRefresh > cfg.reactionMs) {
-      bs.targetRefresh = now;
-      bs.target = { x: room.ball.x, y: room.ball.y };
-      bs.hesitate = Math.random() < cfg.hesitateChance;
+    const role = roles[slot];
+    let moveTarget, speed;
+    if (role === 'chase') {
+      // reaction time + hesitation chance both tighten as difficulty increases
+      if (now - bs.targetRefresh > cfg.reactionMs) {
+        bs.targetRefresh = now;
+        bs.target = { x: room.ball.x, y: room.ball.y };
+        bs.hesitate = Math.random() < cfg.hesitateChance;
+      }
+      moveTarget = bs.target || room.ball;
+      speed = cfg.speed;
+    } else {
+      bs.hesitate = false;
+      moveTarget = supportTarget(room, slot);
+      speed = cfg.speed * 0.8; // holding shape is a jog, not a sprint
     }
-    const target = bs.target || room.ball;
-    const dx = target.x - e.x, dy = target.y - e.y;
+
+    const dx = moveTarget.x - e.x, dy = moveTarget.y - e.y;
     const dist = Math.hypot(dx, dy);
 
     if (bs.hesitate || dist <= 4) {
       e.vx = 0; e.vy = 0;
     } else {
-      e.vx = (dx / dist) * cfg.speed;
-      e.vy = (dy / dist) * cfg.speed;
+      e.vx = (dx / dist) * speed;
+      e.vy = (dy / dist) * speed;
     }
     e.x += e.vx * dt;
     e.y += e.vy * dt;
@@ -329,12 +445,7 @@ function updateBots(room, dt) {
     const realDist = Math.hypot(room.ball.x - e.x, room.ball.y - e.y);
     if (!room.resetting && realDist < KICK_RANGE && now - bs.lastKick > cfg.kickCooldownMs) {
       bs.lastKick = now;
-      const goalX = e.team === 'A' ? FIELD.w - 20 : 20; // attack the opposing goal
-      const baseAngle = Math.atan2(FIELD.h / 2 - e.y, goalX - e.x);
-      const wobble = (Math.random() - 0.5) * cfg.wobble;
-      const aimAngle = baseAngle + wobble;
-      room.ball.vx = Math.cos(aimAngle) * KICK_POWER;
-      room.ball.vy = Math.sin(aimAngle) * KICK_POWER;
+      applyBotKick(room, slot, e, cfg);
     }
   });
 }
@@ -428,6 +539,16 @@ function checkGoals(room) {
 function scoreGoal(room, team) {
   room.resetting = true;
   room.score[team]++;
+
+  // attribute the goal to whoever last kicked it, as long as that's a real
+  // player on the scoring team (an own-goal's kicker is on the OTHER team,
+  // so this naturally excludes those from getting credit)
+  const kickerSlot = room.ball.lastKickSlot;
+  const kicker = kickerSlot && room.entities[kickerSlot];
+  if (kicker && !kicker.isBot && kicker.userId && kicker.team === team) {
+    profile.incrementStats(kicker.userId, { goals: 1 }).catch(() => {});
+  }
+
   setTimeout(() => {
     if (rooms.get(room.code) !== room) return; // room was torn down mid-reset
     room.slots.forEach((slot) => {
@@ -456,6 +577,13 @@ function endMatch(room) {
   room.ended = true;
   broadcastState(room);
   if (room.tickHandle) { clearInterval(room.tickHandle); room.tickHandle = null; }
+
+  const winner = room.score.A === room.score.B ? null : (room.score.A > room.score.B ? 'A' : 'B');
+  room.slots.forEach((slot) => {
+    const e = room.entities[slot];
+    if (e.isBot || !e.userId) return;
+    profile.incrementStats(e.userId, { played: 1, won: e.team === winner ? 1 : 0 }).catch(() => {});
+  });
 }
 
 function tick(room) {
@@ -569,7 +697,8 @@ io.on('connection', (socket) => {
     if (typeof cb !== 'function') return;
     if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize);
+    const hostUserId = typeof (data && data.userId) === 'string' ? data.userId : null;
+    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, hostUserId);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
@@ -590,6 +719,7 @@ io.on('connection', (socket) => {
     room.entities[slot].isBot = false;
     room.entities[slot].socketId = socket.id;
     room.entities[slot].name = sanitizeName(data && data.name);
+    room.entities[slot].userId = typeof (data && data.userId) === 'string' ? data.userId : null;
     socket.join(code);
     socket.data.code = code;
     socket.data.slot = slot;
@@ -612,6 +742,7 @@ io.on('connection', (socket) => {
       existing.entities[slot].isBot = false;
       existing.entities[slot].socketId = socket.id;
       existing.entities[slot].name = sanitizeName(data && data.name);
+      existing.entities[slot].userId = typeof (data && data.userId) === 'string' ? data.userId : null;
       socket.join(existing.code);
       socket.data.code = existing.code;
       socket.data.slot = slot;
@@ -625,7 +756,8 @@ io.on('connection', (socket) => {
     }
 
     const matchDuration = Number(data && data.matchDuration) || 0;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize);
+    const hostUserId = typeof (data && data.userId) === 'string' ? data.userId : null;
+    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, hostUserId);
     room.isPublic = true;
     room.matchmakeCountdownEndsAt = Date.now() + QUICKMATCH_COUNTDOWN_MS;
     room.matchmakeTimer = setTimeout(() => {
@@ -730,6 +862,7 @@ io.on('connection', (socket) => {
       const angle = Math.atan2(dy, dx);
       room.ball.vx = Math.cos(angle) * KICK_POWER;
       room.ball.vy = Math.sin(angle) * KICK_POWER;
+      room.ball.lastKickSlot = socket.data.slot;
     }
   });
 
@@ -757,6 +890,14 @@ io.on('connection', (socket) => {
       country: data && data.country,
       avatar: data && data.avatar,
     }));
+  });
+
+  // re-fetches current stats (matches played/won, goals) without a full
+  // login round-trip - called each time the Profile screen opens, since the
+  // cached profile from login can be stale after playing more matches
+  socket.on('getProfileStats', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.getStats(data && data.userId));
   });
 });
 
