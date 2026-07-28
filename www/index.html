@@ -558,6 +558,60 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   #match-end .me-actions { position: relative; z-index: 1; width: 100%; max-width: 280px; }
+
+  #meDrawView, #meOutcomeView {
+    display: none; flex-direction: column; align-items: center;
+    position: relative; z-index: 1;
+  }
+  #meOutcomeView .me-title {
+    width: 260px; background: center / 100% 100% no-repeat; margin-bottom: 8px;
+  }
+  #meOutcomeView.victory .me-title { aspect-ratio: 654 / 174; background-image: url('assets/me_victory_title.png'); }
+  #meOutcomeView.defeat .me-title { aspect-ratio: 578 / 190; background-image: url('assets/me_defeat_title.png'); }
+  #meOutcomeView .me-icon {
+    width: 84px; background: center / 100% 100% no-repeat; margin-bottom: 12px;
+  }
+  #meOutcomeView.victory .me-icon { aspect-ratio: 239 / 240; background-image: url('assets/me_victory_trophy.png'); }
+  #meOutcomeView.defeat .me-icon { aspect-ratio: 210 / 249; background-image: url('assets/me_defeat_shield.png'); }
+  #meOutcomeView .me-scorecard {
+    width: 320px; max-width: 88vw; border-radius: 14px; padding: 14px 16px 16px;
+    box-sizing: border-box; margin-bottom: 18px; background: #0a1420; border: 3px solid #f1d040;
+  }
+  #meOutcomeView.defeat .me-scorecard { background: #0d1114; border-color: #969696; }
+  #meOutcomeView .me-names-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  #meOutcomeView .me-name-bar {
+    flex: 1; min-width: 0; height: 30px; background: center / 100% 100% no-repeat;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #meOutcomeView .me-name-bar span {
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 88%;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  #meOutcomeView.victory .me-bar-a { background-image: url('assets/me_victory_bar_blue.png'); }
+  #meOutcomeView.victory .me-bar-b { background-image: url('assets/me_victory_bar_red.png'); }
+  #meOutcomeView.defeat .me-bar-a { background-image: url('assets/me_defeat_bar_blue.png'); }
+  #meOutcomeView.defeat .me-bar-b { background-image: url('assets/me_defeat_bar_red.png'); }
+  #meOutcomeView .me-score-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  #meOutcomeView .me-jersey { width: 44px; background: center / 100% 100% no-repeat; }
+  #meOutcomeView.victory .me-jersey-a { aspect-ratio: 201 / 180; background-image: url('assets/me_victory_jersey_blue.png'); }
+  #meOutcomeView.victory .me-jersey-b { aspect-ratio: 191 / 178; background-image: url('assets/me_victory_jersey_red.png'); }
+  #meOutcomeView.defeat .me-jersey-a { aspect-ratio: 187 / 185; background-image: url('assets/me_defeat_jersey_blue.png'); }
+  #meOutcomeView.defeat .me-jersey-b { aspect-ratio: 181 / 181; background-image: url('assets/me_defeat_jersey_red.png'); }
+  #meOutcomeView .me-vs { width: 34px; background: center / 100% 100% no-repeat; }
+  #meOutcomeView.victory .me-vs { aspect-ratio: 103 / 78; background-image: url('assets/me_victory_vs.png'); }
+  #meOutcomeView.defeat .me-vs { aspect-ratio: 103 / 80; background-image: url('assets/me_defeat_vs.png'); }
+  #meOutcomeView .me-score-num {
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 34px; line-height: 1;
+  }
+  #meOutcomeView .me-score-a { color: #4a90ff; text-shadow: 0 2px 0 #0d2a5c; }
+  #meOutcomeView .me-score-b { color: #ff4d4d; text-shadow: 0 2px 0 #5c0d0d; }
+  #meOutcomeView .me-actions-img { display: flex; gap: 10px; width: 320px; max-width: 88vw; }
+  #meOutcomeView .me-btn-img {
+    flex: 1; border: none; padding: 0; cursor: pointer; background: center / 100% 100% no-repeat;
+  }
+  #meOutcomeView #meBtnMenu { aspect-ratio: 447 / 125; background-image: url('assets/me_btn_menu.png'); }
+  #meOutcomeView #meBtnAgain { aspect-ratio: 454 / 125; background-image: url('assets/me_btn_again.png'); }
   .overlay-card {
     background: rgba(15, 22, 40, 0.55);
     backdrop-filter: blur(20px) saturate(150%);
@@ -633,6 +687,83 @@
     background: rgba(6,10,18,0.6);
     backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
+  #pause-menu {
+    position: fixed; inset: 0; z-index: 955; display: none;
+    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+    background: rgba(6,10,18,0.6);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  #pause-menu .pause-panel {
+    position: relative; width: 300px; max-width: 100%; aspect-ratio: 931 / 1031;
+    background: url('assets/pause_menu_panel.png') center / 100% 100% no-repeat;
+  }
+  #pause-menu .pause-hit {
+    position: absolute; left: 8%; width: 84%; border: none; background: transparent;
+    padding: 0; margin: 0; cursor: pointer;
+  }
+  #pause-menu .pause-hit-resume { top: 24%; height: 20%; }
+  #pause-menu .pause-hit-settings { top: 49%; height: 20%; }
+  #pause-menu .pause-hit-exit { top: 74%; height: 20%; }
+
+  #goal-celebration {
+    position: fixed; inset: 0; z-index: 955; display: none;
+    align-items: center; justify-content: center; overflow: hidden; padding: 16px; box-sizing: border-box;
+    background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.78) 0%, rgba(4,7,14,0.94) 70%);
+  }
+  #goal-celebration .gc-crowd {
+    position: absolute; bottom: 0; width: 220px; max-width: 26vw;
+    background: center / contain no-repeat; opacity: 0.9; pointer-events: none;
+  }
+  #goal-celebration .gc-crowd-left { left: 0; aspect-ratio: 421 / 238; background-image: url('assets/gc_crowd_left.png'); }
+  #goal-celebration .gc-crowd-right { right: 0; aspect-ratio: 321 / 238; background-image: url('assets/gc_crowd_right.png'); }
+  #goal-celebration .gc-ribbon {
+    position: absolute; top: 16%; width: 170px; max-width: 20vw;
+    background: center / 100% 100% no-repeat; pointer-events: none;
+  }
+  #goal-celebration .gc-ribbon-left { left: 0; aspect-ratio: 318 / 146; background-image: url('assets/gc_ribbon_blue.png'); }
+  #goal-celebration .gc-ribbon-right { right: 0; aspect-ratio: 334 / 144; background-image: url('assets/gc_ribbon_red.png'); }
+  #goal-celebration .gc-content {
+    position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; max-width: 90vw;
+  }
+  #goal-celebration .gc-title {
+    width: 260px; max-width: 66vw; aspect-ratio: 818 / 262;
+    background: center / 100% 100% no-repeat url('assets/gc_title.png');
+    margin-bottom: 4px;
+  }
+  #goal-celebration .gc-scored-banner {
+    width: 260px; max-width: 72vw; aspect-ratio: 797 / 114;
+    background: center / 100% 100% no-repeat url('assets/gc_scored_banner.png');
+    display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+  }
+  #goal-celebration .gc-scored-banner span {
+    font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 14px; color: #fff;
+    letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    max-width: 62%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #goal-celebration .gc-player {
+    width: 140px; aspect-ratio: 475 / 277; background: center / 100% 100% no-repeat url('assets/gc_player.png');
+    margin-bottom: 8px;
+  }
+  #goal-celebration .gc-info-card {
+    position: relative; width: 280px; max-width: 82vw; aspect-ratio: 742 / 175;
+    background: center / 100% 100% no-repeat url('assets/gc_info_card.png');
+    margin-bottom: 12px;
+  }
+  #goal-celebration .gc-avatar-img {
+    position: absolute; left: 4.3%; top: 11%; width: 21%; height: 76%;
+    border-radius: 6px; object-fit: cover;
+  }
+  #goal-celebration .gc-info-text {
+    position: absolute; left: 30%; top: 0; right: 4%; height: 100%;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px;
+  }
+  #goal-celebration .gc-info-name {
+    font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 14px; color: #4ea8ff;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #goal-celebration .gc-info-sub { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; color: #ffcb3d; }
+  #goal-celebration .gc-countdown { font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #cfd8e6; letter-spacing: 1px; }
+  #goal-celebration .gc-countdown span { color: #ffcb3d; font-weight: 800; font-size: 17px; }
 
   /* fixed system-font styling only (no webfont/image dependency) so this
      paints the instant the HTML parses, before anything else can load */
@@ -877,12 +1008,37 @@
 
 <div id="match-end">
   <div id="matchEndConfetti"></div>
-  <div class="me-ribbon" id="matchEndTitle">FULL TIME</div>
-  <div id="matchEndWinner"></div>
-  <div id="matchEndScore"></div>
-  <div class="me-actions">
-    <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); restartOnlineMatch()">🔁 REMATCH</button>
-    <button id="matchEndMenuBtn" class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); exitOnlineMatch()">🏠 MAIN MENU</button>
+
+  <div id="meDrawView">
+    <div class="me-ribbon" id="matchEndTitle">FULL TIME</div>
+    <div id="matchEndWinner"></div>
+    <div id="matchEndScore"></div>
+    <div class="me-actions">
+      <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); restartOnlineMatch()">🔁 REMATCH</button>
+      <button id="matchEndMenuBtn" class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); exitOnlineMatch()">🏠 MAIN MENU</button>
+    </div>
+  </div>
+
+  <div id="meOutcomeView">
+    <div class="me-title" id="meTitleImg"></div>
+    <div class="me-icon" id="meIconImg"></div>
+    <div class="me-scorecard">
+      <div class="me-names-row">
+        <div class="me-name-bar me-bar-a"><span id="meNameA"></span></div>
+        <div class="me-name-bar me-bar-b"><span id="meNameB"></span></div>
+      </div>
+      <div class="me-score-row">
+        <div class="me-jersey me-jersey-a"></div>
+        <span class="me-score-num me-score-a" id="meScoreA"></span>
+        <div class="me-vs"></div>
+        <span class="me-score-num me-score-b" id="meScoreB"></span>
+        <div class="me-jersey me-jersey-b"></div>
+      </div>
+    </div>
+    <div class="me-actions-img">
+      <button class="me-btn-img" id="meBtnMenu" onclick="SFX.click(); exitOnlineMatch()" aria-label="Main Menu"></button>
+      <button class="me-btn-img" id="meBtnAgain" onclick="SFX.click(); restartOnlineMatch()" aria-label="Play Again"></button>
+    </div>
   </div>
 </div>
 
@@ -892,6 +1048,34 @@
     <div style="font-size:15px; opacity:0.8; margin-bottom:22px;">Your current progress will be lost.</div>
     <button class="done-btn red" onclick="SFX.click(); confirmExitYes()">✕ YES, EXIT</button>
     <button class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); confirmExitNo()">CONTINUE PLAYING</button>
+  </div>
+</div>
+
+<div id="pause-menu">
+  <div class="pause-panel">
+    <button class="pause-hit pause-hit-resume" onclick="SFX.click(); resumeFromPauseMenu()" aria-label="Resume"></button>
+    <button class="pause-hit pause-hit-settings" onclick="SFX.click(); openSettingsFromPause()" aria-label="Settings"></button>
+    <button class="pause-hit pause-hit-exit" onclick="SFX.click(); exitFromPauseMenu()" aria-label="Exit Match"></button>
+  </div>
+</div>
+
+<div id="goal-celebration">
+  <div class="gc-crowd gc-crowd-left"></div>
+  <div class="gc-crowd gc-crowd-right"></div>
+  <div class="gc-ribbon gc-ribbon-left"></div>
+  <div class="gc-ribbon gc-ribbon-right"></div>
+  <div class="gc-content">
+    <div class="gc-title"></div>
+    <div class="gc-scored-banner"><span id="gcScorerText"></span></div>
+    <div class="gc-player"></div>
+    <div class="gc-info-card">
+      <img class="gc-avatar-img" id="gcAvatarImg" alt="">
+      <div class="gc-info-text">
+        <div class="gc-info-name" id="gcInfoName"></div>
+        <div class="gc-info-sub" id="gcInfoSub"></div>
+      </div>
+    </div>
+    <div class="gc-countdown">Resuming in <span id="gcCountdownNum">5</span></div>
   </div>
 </div>
 
@@ -1407,16 +1591,47 @@ function spawnMatchEndConfetti() {
 }
 
 function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
-  document.getElementById('matchEndWinner').textContent = winnerLabel;
-  document.getElementById('matchEndScore').textContent = scoreA + '   -   ' + scoreB;
-  const rematchBtn = document.getElementById('matchEndRematchBtn');
-  const menuBtn = document.getElementById('matchEndMenuBtn');
+  // a goal celebration might still be showing if the match ended right as
+  // the final goal landed - don't let it linger over the match-end screen
+  if (goalCelebrationTimer) { clearInterval(goalCelebrationTimer); goalCelebrationTimer = null; }
+  document.getElementById('goal-celebration').style.display = 'none';
+
   // Quick Match opponents are a one-off random group, not a standing room to
   // rematch - only Private Match's host gets the option to run it back
-  rematchBtn.style.display = (isHost && !isQuickMatchFlow) ? 'block' : 'none';
-  rematchBtn.onclick = () => { SFX.click(); restartOnlineMatch(); };
-  menuBtn.onclick = () => { SFX.click(); exitOnlineMatch(); };
-  spawnMatchEndConfetti();
+  const canRematch = isHost && !isQuickMatchFlow;
+  const drawView = document.getElementById('meDrawView');
+  const outcomeView = document.getElementById('meOutcomeView');
+
+  const myTeam = mySlot ? mySlot[0] : 'A';
+  const myScore = myTeam === 'A' ? scoreA : scoreB;
+  const oppScore = myTeam === 'A' ? scoreB : scoreA;
+  const outcome = myScore > oppScore ? 'victory' : (myScore < oppScore ? 'defeat' : 'draw');
+
+  if (outcome === 'draw') {
+    outcomeView.style.display = 'none';
+    document.getElementById('matchEndWinner').textContent = winnerLabel;
+    document.getElementById('matchEndScore').textContent = scoreA + '   -   ' + scoreB;
+    const rematchBtn = document.getElementById('matchEndRematchBtn');
+    const menuBtn = document.getElementById('matchEndMenuBtn');
+    rematchBtn.style.display = canRematch ? 'block' : 'none';
+    rematchBtn.onclick = () => { SFX.click(); restartOnlineMatch(); };
+    menuBtn.onclick = () => { SFX.click(); exitOnlineMatch(); };
+    drawView.style.display = 'flex';
+  } else {
+    drawView.style.display = 'none';
+    outcomeView.classList.remove('victory', 'defeat');
+    outcomeView.classList.add(outcome);
+    document.getElementById('meNameA').textContent = PLAYER_NAME || 'YOU';
+    document.getElementById('meNameB').textContent = 'OPPONENT';
+    document.getElementById('meScoreA').textContent = myScore;
+    document.getElementById('meScoreB').textContent = oppScore;
+    document.getElementById('meBtnAgain').style.display = canRematch ? 'block' : 'none';
+    outcomeView.style.display = 'flex';
+  }
+  // confetti is a victory-only celebration - clear any leftover pieces from
+  // a previous match-end screen instead of spawning fresh ones otherwise
+  if (outcome === 'victory') spawnMatchEndConfetti();
+  else document.getElementById('matchEndConfetti').innerHTML = '';
   document.getElementById('match-end').style.display = 'flex';
 }
 
@@ -1425,9 +1640,13 @@ function restartOnlineMatch() {
   if (socket && roomCode) socket.emit('restartMatch', { code: roomCode });
 }
 
-// ---- Exit confirmation (shared by every mode via createExitButton) ----
+// ---- Exit confirmation (reachable via the in-match pause menu) ----
 let pendingExitCallback = null;
 let pausedSceneForExit = null;
+// true while "CONTINUE PLAYING" should reopen the pause menu instead of
+// resuming gameplay directly - set whenever exit-confirm is reached via the
+// in-match pause menu's EXIT MATCH button rather than any other entry point
+let exitConfirmReturnsToPauseMenu = false;
 
 function requestExitConfirm(onExit, scene) {
   pendingExitCallback = onExit;
@@ -1441,14 +1660,96 @@ function confirmExitYes() {
   const cb = pendingExitCallback;
   pendingExitCallback = null;
   pausedSceneForExit = null;
+  exitConfirmReturnsToPauseMenu = false;
   if (cb) cb();
 }
 
 function confirmExitNo() {
   document.getElementById('exit-confirm').style.display = 'none';
-  if (pausedSceneForExit) pausedSceneForExit.scene.resume();
+  if (exitConfirmReturnsToPauseMenu) {
+    // scene stays paused - back to the pause menu, not live gameplay
+    document.getElementById('pause-menu').style.display = 'flex';
+  } else if (pausedSceneForExit) {
+    pausedSceneForExit.scene.resume();
+  }
+  exitConfirmReturnsToPauseMenu = false;
   pendingExitCallback = null;
   pausedSceneForExit = null;
+}
+
+// ---- In-match pause menu (Resume / Settings / Exit Match) ----
+let pauseMenuScene = null;
+let pauseMenuOnExit = null;
+// true while closing Settings should reopen the pause menu instead of the
+// normal main-menu profile-pill cleanup - set only when Settings was opened
+// from inside the pause menu
+let settingsReturnsToPauseMenu = false;
+
+function openPauseMenu(scene, onExit) {
+  pauseMenuScene = scene;
+  pauseMenuOnExit = onExit;
+  if (scene) scene.scene.pause();
+  document.getElementById('pause-menu').style.display = 'flex';
+}
+
+function resumeFromPauseMenu() {
+  document.getElementById('pause-menu').style.display = 'none';
+  if (pauseMenuScene) pauseMenuScene.scene.resume();
+  pauseMenuScene = null;
+  pauseMenuOnExit = null;
+}
+
+function openSettingsFromPause() {
+  document.getElementById('pause-menu').style.display = 'none';
+  settingsReturnsToPauseMenu = true;
+  openSettings();
+}
+
+function exitFromPauseMenu() {
+  document.getElementById('pause-menu').style.display = 'none';
+  exitConfirmReturnsToPauseMenu = true;
+  requestExitConfirm(pauseMenuOnExit, pauseMenuScene);
+}
+
+// ---- In-match goal celebration overlay ----
+// The server freezes the sim for GOAL_RESET_DELAY_MS (5s) on every goal, so
+// this overlay's own 5s countdown lines up with gameplay actually resuming
+// on its own - no explicit "resume" call needed, it just hides itself.
+let goalCelebrationTimer = null;
+
+function ordinalLabel(n) {
+  const suffixes = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+}
+
+function showGoalCelebration(goalInfo) {
+  const el = document.getElementById('goal-celebration');
+  const name = goalInfo && goalInfo.name;
+
+  document.getElementById('gcScorerText').textContent = name ? (name.toUpperCase() + ' SCORED!') : 'GOAL!';
+  document.getElementById('gcInfoName').textContent = name || 'GOAL!';
+  document.getElementById('gcInfoSub').textContent = (goalInfo && goalInfo.matchGoals)
+    ? `★ ${ordinalLabel(goalInfo.matchGoals)} GOAL ★` : '★ GOAL ★';
+
+  const isMe = !!(goalInfo && goalInfo.slot && mySlot && goalInfo.slot === mySlot);
+  const avatarId = isMe ? currentAvatarId() : mmAvatarFor(name || 'Player');
+  document.getElementById('gcAvatarImg').src = avatarSrc(avatarId);
+
+  if (goalCelebrationTimer) clearInterval(goalCelebrationTimer);
+  let secondsLeft = 5;
+  document.getElementById('gcCountdownNum').textContent = secondsLeft;
+  el.style.display = 'flex';
+  goalCelebrationTimer = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      clearInterval(goalCelebrationTimer);
+      goalCelebrationTimer = null;
+      el.style.display = 'none';
+    } else {
+      document.getElementById('gcCountdownNum').textContent = secondsLeft;
+    }
+  }, 1000);
 }
 
 function openSettings() {
@@ -1461,7 +1762,12 @@ function openSettings() {
 }
 function closeSettings() {
   document.getElementById('settings-panel').style.display = 'none';
-  showProfilePillIfOnMainMenu();
+  if (settingsReturnsToPauseMenu) {
+    settingsReturnsToPauseMenu = false;
+    document.getElementById('pause-menu').style.display = 'flex';
+  } else {
+    showProfilePillIfOnMainMenu();
+  }
 }
 
 // ==================== PROFILE (name / country / avatar) ====================
@@ -2025,6 +2331,8 @@ function exitOnlineMatch() {
   if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false; isQuickMatchFlow = false;
+  if (goalCelebrationTimer) { clearInterval(goalCelebrationTimer); goalCelebrationTimer = null; }
+  document.getElementById('goal-celebration').style.display = 'none';
   document.getElementById('match-end').style.display = 'none';
   document.getElementById('game-container').style.display = 'none';
   document.getElementById('stadium-bg').style.display = 'block';
@@ -2048,65 +2356,51 @@ const CHAR_STRIDE = 14; // px travelled per animation frame advance
 const CHAR_RUN_FRAMES = 7;
 const POSE_FRAME = { front: 0, frontleft: 7, left: 14, back: 21 };
 
-// Shared, standard-sized exit button used by every mode -
-// a real tappable button (not just text) so it's easy to see and hit mid-match.
-function createExitButton(scene, onExit) {
+// Shared, standard-sized pause button used by every mode - opens the
+// Resume/Settings/Exit Match pause menu (a real tappable button, not just
+// text, so it's easy to see and hit mid-match).
+function createPauseButton(scene, onExit) {
   const W = scene.scale.width;
-  // small circular icon button (not a wide solid rectangle) - the top-right
-  // corner is exactly where the ball ends up during corner stalls, so a
-  // smaller, semi-transparent button leaves the ball/players visible
-  // instead of getting fully hidden behind it
-  const r = 22; // ~44px diameter, same tap-target size as the settings gear
-  const x = W - 16 - r, y = 16 + r;
+  // top-right corner is exactly where the ball ends up during corner
+  // stalls, so keep this compact and out of the way rather than a big panel
+  const iconW = 60, iconH = iconW * (496 / 920);
+  const x = W - 14 - iconW / 2, y = 14 + iconH / 2;
 
-  const bg = scene.add.graphics();
-  bg.fillStyle(0xff4757, 0.55);
-  bg.lineStyle(2, 0xffb3ba, 0.85);
-  bg.fillCircle(0, 0, r);
-  bg.strokeCircle(0, 0, r);
-
-  const label = scene.add.text(0, 0, '✕', {
-    fontFamily: 'Rajdhani', fontSize: '20px', fontStyle: '700', color: '#ffffff'
-  }).setOrigin(0.5);
-
-  const container = scene.add.container(x, y, [bg, label]);
-  container.setSize(r * 2, r * 2);
+  const icon = scene.add.image(0, 0, 'pauseIcon').setDisplaySize(iconW, iconH);
+  const container = scene.add.container(x, y, [icon]);
+  container.setSize(iconW, iconH);
   // the kick zone covers the entire right half of the screen (including this
   // button's corner) - without a higher depth it eats every tap here since
   // Phaser's input hit-test picks the topmost object at equal depth.
   container.setDepth(1000);
   container.setInteractive({ useHandCursor: true });
-  container.on('pointerdown', (pointer) => {
-    // setInteractive() with no shape defaults to the full r*2 x r*2
-    // bounding square, which would let a tap in the button's corner
-    // (visually outside the circle) register here instead of passing
-    // through to the kick zone underneath - a Phaser.Geom.Circle hit area
-    // was tried first, but Container hit-area-shape coordinates don't line
-    // up with the container's own drawing origin (verified empirically),
-    // so instead just reject clicks outside the radius using
-    // getLocalPoint(), which IS guaranteed relative to that origin
-    const local = container.getLocalPoint(pointer.x, pointer.y);
-    if (Math.hypot(local.x, local.y) > r) return;
+  container.on('pointerdown', () => {
     scene.tweens.add({ targets: container, scale: 0.9, duration: 70, yoyo: true });
     if (typeof SFX !== 'undefined') SFX.click();
-    requestExitConfirm(onExit, scene);
+    openPauseMenu(scene, onExit);
   });
   return container;
 }
 
-// small pill-backed name tag - a rounded, semi-transparent background behind
-// the label text, sized once to fit the given text (used by OnlineScene)
-function createPillLabel(scene, x, y, text, accentHex) {
-  const cssColor = '#' + accentHex.toString(16).padStart(6, '0');
-  const label = scene.add.text(0, 0, text, {fontFamily:'Rajdhani', fontSize:'14px', fontStyle:'700', color: cssColor}).setOrigin(0.5);
-  const padX = 10, padY = 4;
-  const w = label.width + padX * 2, h = label.height + padY * 2;
-  const pill = scene.add.graphics();
-  pill.fillStyle(0x0b1220, 0.6);
-  pill.fillRoundedRect(-w/2, -h/2, w, h, h/2);
-  pill.lineStyle(1, accentHex, 0.7);
-  pill.strokeRoundedRect(-w/2, -h/2, w, h, h/2);
-  return scene.add.container(x, y, [pill, label]);
+// name tag banner (team-colored art, with a tail pointing down at the
+// player) - a fixed-size plate rather than a dynamically-sized pill, so
+// every tag reads at the same crisp pixel-art scale regardless of name
+// length. TAG_SRC_W/H is the raw asset size; the tail is baked into the
+// bottom ~24% of it, so the container is offset upward from the tag's
+// vertical center to keep the tail's tip pointing right at the player.
+const TAG_SRC_W = 1149, TAG_SRC_H = 297;
+const TAG_BODY_FRACTION = 0.758; // fraction of the asset's height that's the flat banner (not the tail)
+function createNameTag(scene, x, y, text, team) {
+  const tagH = 32, tagW = tagH * (TAG_SRC_W / TAG_SRC_H);
+  const tagImg = scene.add.image(0, 0, team === 'A' ? 'tagBlue' : 'tagRed').setDisplaySize(tagW, tagH);
+  const textY = -(0.5 - TAG_BODY_FRACTION / 2) * tagH;
+  const label = scene.add.text(0, textY, text, {
+    fontFamily: 'Rajdhani', fontSize: '13px', fontStyle: '700', color: '#ffffff'
+  }).setOrigin(0.5);
+  // shrink long names to fit inside the banner's body width instead of overflowing it
+  const maxTextW = tagW * 0.72;
+  if (label.width > maxTextW) label.setScale(maxTextW / label.width);
+  return scene.add.container(x, y, [tagImg, label]);
 }
 
 </script>
@@ -2129,6 +2423,9 @@ class OnlineScene extends Phaser.Scene {
   preload() {
     this.load.image('fieldTexture', 'assets/field.png');
     this.load.image('ballTexture', 'assets/ball.png');
+    this.load.image('pauseIcon', 'assets/pause_icon.png');
+    this.load.image('tagBlue', 'assets/tag_blue.png');
+    this.load.image('tagRed', 'assets/tag_red.png');
     this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
     this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
   }
@@ -2138,6 +2435,7 @@ class OnlineScene extends Phaser.Scene {
     this.matchEnded = false;
     this.lastInputSent = 0;
     this.lastScore = { A: 0, B: 0 };
+    this.lastGoalSeq = 0;
     this.lastStallResetCount = 0;
     // mirror the whole world horizontally for Team B viewers, so every
     // player sees their own side on the left regardless of which team
@@ -2207,8 +2505,8 @@ class OnlineScene extends Phaser.Scene {
       fontFamily: 'Rajdhani', fontSize: '15px', color: '#ffffff', fontStyle:'700'
     }).setAlpha(0.55);
 
-    // ---- Exit button (mid-match) ----
-    createExitButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
+    // ---- Pause button (mid-match) ----
+    createPauseButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
 
     // ---- Controls: reuse the same full-half-screen joystick + kick zone pattern ----
     this.setupOnlineJoystick();
@@ -2298,7 +2596,7 @@ class OnlineScene extends Phaser.Scene {
     // server always assigns a real name to bot slots too (random flavor name),
     // so we never need to hardcode "BOT" here anymore
     const labelText = info.name;
-    const label = createPillLabel(this, x, y-54, labelText, team === 'A' ? 0x9ccdff : 0xffb3ba);
+    const label = createNameTag(this, x, y-56, labelText, team);
     const sprite = {
       circle, shadow, ring, label, x, y, targetX: x, targetY: y,
       prevX: x, prevY: y, kick: null, walkDist: 0, flip: false, pose: 'front',
@@ -2332,7 +2630,13 @@ class OnlineScene extends Phaser.Scene {
       this.lastScore = { A: data.score.A, B: data.score.B };
     } else if (data.score.A > this.lastScore.A || data.score.B > this.lastScore.B) {
       this.lastScore = { A: data.score.A, B: data.score.B };
-      this.celebrateGoal();
+    }
+    // driven by goalSeq (not the score diff above) so the celebration always
+    // fires exactly once per goal, including the rare case where a second
+    // goal arrives before the first celebration's state update settles
+    if (data.goalSeq && data.goalSeq !== this.lastGoalSeq) {
+      this.lastGoalSeq = data.goalSeq;
+      this.celebrateGoal(data.lastGoalInfo);
     }
     if (data.stallResetCount > this.lastStallResetCount) {
       this.lastStallResetCount = data.stallResetCount;
@@ -2357,43 +2661,18 @@ class OnlineScene extends Phaser.Scene {
     } else if (!data.ended && this.matchEnded) {
       // a rematch started server-side - resume normal play
       this.matchEnded = false;
+      this.lastGoalSeq = 0;
     }
   }
 
-  celebrateGoal() {
+  celebrateGoal(goalInfo) {
     this.cameras.main.flash(350, 255, 255, 255);
     this.cameras.main.shake(300, 0.01);
     if (typeof SFX !== 'undefined') { SFX.goal(); SFX.crowdAmbience.swell(); }
     vibrate([40, 30, 40]);
 
-    // full-screen flash + radiating burst celebration - gold rays punch
-    // outward from center while a big white/gold-outlined GOAL! scales in
-    const { width: W, height: H } = this.scale;
-
-    const rayGfx = this.add.graphics().setDepth(900).setAlpha(0);
-    rayGfx.lineStyle(3, 0xffcb3d, 0.6);
-    const rayCount = 12, rayLen = 420;
-    for (let i = 0; i < rayCount; i++) {
-      const angle = (Math.PI * 2 / rayCount) * i;
-      rayGfx.lineBetween(0, 0, Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
-    }
-    rayGfx.setPosition(W/2, H/2).setScale(0.3);
-
-    const goalTxt = this.add.text(W/2, H/2, 'GOAL!', {
-      fontFamily: 'Orbitron', fontSize: '70px', fontStyle: '900',
-      color: '#ffffff', stroke: '#ffcb3d', strokeThickness: 10
-    }).setOrigin(0.5).setScale(0.2).setAlpha(0).setDepth(901);
-
-    this.tweens.add({ targets: rayGfx, alpha: 1, scale: 1, duration: 260, ease: 'Cubic.easeOut' });
-    this.tweens.add({ targets: goalTxt, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
-
-    this.time.delayedCall(650, () => {
-      this.tweens.add({
-        targets: [rayGfx, goalTxt], alpha: 0, duration: 300,
-        onComplete: () => { rayGfx.destroy(); goalTxt.destroy(); }
-      });
-    });
-
+    // quick particle burst at the ball on impact; the full celebration
+    // (title/scorer/countdown) is the DOM overlay below, not drawn here
     const emitter = this.add.particles(this.ball.x, this.ball.y, 'particleDot', {
       lifespan: 700,
       speed: { min: 150, max: 350 },
@@ -2404,6 +2683,8 @@ class OnlineScene extends Phaser.Scene {
     });
     emitter.explode(24, this.ball.x, this.ball.y);
     this.time.delayedCall(800, () => emitter.destroy());
+
+    if (typeof showGoalCelebration === 'function') showGoalCelebration(goalInfo);
   }
 
   showStallReset() {
@@ -2437,7 +2718,7 @@ class OnlineScene extends Phaser.Scene {
       s.circle.setPosition(s.x, s.y);
       s.shadow.setPosition(s.x, s.y+28);
       s.ring.setPosition(s.x, s.y+30);
-      s.label.setPosition(s.x, s.y-54);
+      s.label.setPosition(s.x, s.y-56);
 
       if (s.kick && time < s.kick.until) {
         const t = 1 - (s.kick.until - time) / s.kick.duration;
