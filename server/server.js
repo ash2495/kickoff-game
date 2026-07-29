@@ -39,9 +39,7 @@ const BALL_DRAG = 0.96; // per-tick velocity multiplier
 const KICK_RANGE = 90;
 const KICK_POWER = 520;
 const TICK_MS = 50; // 20Hz simulation + broadcast rate
-// long enough to show the full goal-celebration overlay in sync on every
-// client - the sim stays frozen (see room.resetting) for the whole window
-const GOAL_RESET_DELAY_MS = 5000;
+const GOAL_RESET_DELAY_MS = 900;
 
 // Quick Match: how long a public room waits for real players before
 // auto-starting with bots filling whatever's still empty
@@ -149,7 +147,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
     entities[slot] = {
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
       team: slot[0], isBot: true, socketId: null, name: randomBotName(), userId: null,
-      difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 }, matchGoals: 0,
+      difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
@@ -166,8 +164,6 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
     entities,
     ball: { x: FIELD.w / 2, y: FIELD.h / 2, vx: 0, vy: 0, lastKickSlot: null },
     score: { A: 0, B: 0 },
-    goalSeq: 0,
-    lastGoalInfo: null,
     timeRemaining: null,
     tickHandle: null,
     botState: {},
@@ -218,13 +214,11 @@ function resetMatchState(room) {
   room.ended = false;
   room.resetting = false;
   room.score = { A: 0, B: 0 };
-  room.goalSeq = 0;
-  room.lastGoalInfo = null;
   room.timeRemaining = room.matchDuration > 0 ? room.matchDuration : null;
   room.slots.forEach((slot) => {
     const e = room.entities[slot];
     e.x = room.startPos[slot].x; e.y = room.startPos[slot].y;
-    e.vx = 0; e.vy = 0; e.inputVec = { x: 0, y: 0 }; e.matchGoals = 0;
+    e.vx = 0; e.vy = 0; e.inputVec = { x: 0, y: 0 };
   });
   room.ball.x = FIELD.w / 2; room.ball.y = FIELD.h / 2;
   room.ball.vx = 0; room.ball.vy = 0;
@@ -545,26 +539,15 @@ function checkGoals(room) {
 function scoreGoal(room, team) {
   room.resetting = true;
   room.score[team]++;
-  room.goalSeq++;
 
   // attribute the goal to whoever last kicked it, as long as that's a real
   // player on the scoring team (an own-goal's kicker is on the OTHER team,
   // so this naturally excludes those from getting credit)
   const kickerSlot = room.ball.lastKickSlot;
   const kicker = kickerSlot && room.entities[kickerSlot];
-  const validScorer = kicker && kicker.team === team;
-  if (validScorer) kicker.matchGoals = (kicker.matchGoals || 0) + 1;
-  if (validScorer && !kicker.isBot && kicker.userId) {
+  if (kicker && !kicker.isBot && kicker.userId && kicker.team === team) {
     profile.incrementStats(kicker.userId, { goals: 1 }).catch(() => {});
   }
-  room.lastGoalInfo = {
-    seq: room.goalSeq,
-    team,
-    slot: validScorer ? kickerSlot : null,
-    name: validScorer ? kicker.name : null,
-    isBot: validScorer ? kicker.isBot : null,
-    matchGoals: validScorer ? kicker.matchGoals : null,
-  };
 
   setTimeout(() => {
     if (rooms.get(room.code) !== room) return; // room was torn down mid-reset
@@ -587,8 +570,6 @@ function broadcastState(room) {
     timeRemaining: room.timeRemaining,
     ended: room.ended,
     stallResetCount: room.stallResetCount,
-    goalSeq: room.goalSeq,
-    lastGoalInfo: room.lastGoalInfo,
   });
 }
 
