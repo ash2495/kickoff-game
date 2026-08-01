@@ -33,7 +33,7 @@ const FIELD = { w: 1600, h: 800 };
 // depth-limited by how much margin was available between the touchline and
 // the image edge), scaled into FIELD-space by the same per-axis stretch the
 // client applies to fit the art to the canvas
-const GOAL_WIDTH = 312;
+const GOAL_WIDTH = 196;
 const PITCH = { x: 75, y: 125, w: 1438, h: 559 };
 // how far into the goal net (past PITCH's x bounds) the ball may travel
 // before hitting the net's actual back wall in the art - previously a flat
@@ -281,15 +281,18 @@ function checkBallStall(room, now) {
   }
 }
 
-// half the character sprite's own height (CHAR_H=68 in www/index.html) -
-// clamping the sideline by this instead of PLAYER_R keeps the drawn sprite's
-// edge (not just its smaller invisible collision circle) from crossing the
-// touchline, so the character visually stops flush at the line
-const CHAR_HALF_H = 34;
+// the sprite's shadow (the visual "feet"/ground-contact point) sits 28px
+// below the entity's own y in screen space (see the +28 in ensureEntitySprite
+// in www/index.html) - clamping so the SHADOW lands on the touchline (not the
+// entity's y, which is the sprite's vertical center) means the feet actually
+// touch the line. Since the head sits above the feet, this naturally pushes
+// the head/body into the crowd at the top line while keeping the whole body
+// on-pitch at the bottom line - that asymmetry is correct, not a bug.
+const SHADOW_OFFSET = 28;
 
 function clampToPitch(e) {
   const minX = PITCH.x + PLAYER_R, maxX = PITCH.x + PITCH.w - PLAYER_R;
-  const minY = PITCH.y + CHAR_HALF_H, maxY = PITCH.y + PITCH.h - CHAR_HALF_H;
+  const minY = PITCH.y - SHADOW_OFFSET, maxY = PITCH.y + PITCH.h - SHADOW_OFFSET;
   e.x = clampNum(e.x, minX, maxX);
   e.y = clampNum(e.y, minY, maxY);
 }
