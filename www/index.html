@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Kickoff Duel</title>
+<title>Retro Kick</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- non-blocking: media=print doesn't apply to screen, so this never delays
@@ -114,7 +114,7 @@
     pointer-events: none;
   }
   #mode-select .title-block img {
-    height: 11vh; max-height: 100px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
+    height: 17vh; max-height: 160px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
   }
   #mode-select .settings-row, #mode-select .mode-buttons {
     display: flex; gap: 5%; justify-content: center; align-items: flex-end;
@@ -260,6 +260,48 @@
   }
   #privateError { color: #ff6b6b; font-size: 13px; margin-top: 12px; min-height: 16px; text-align: center; }
 
+  /* ---- Private Match (create/join only, not the lobby screen below it)
+     replaces the plain translucent cards with the supplied illustrated
+     panels - the real name/code inputs and Create/Join buttons sit as
+     transparent overlays positioned (in %, measured off the artwork) over
+     the panel's own baked-in input box and button graphic, so typed text
+     and taps land in the right spot without duplicating the drawn labels.
+     The "YOUR NAME"/"ROOM CODE" labels are now baked into the art itself
+     (centered), not a separate HTML element. */
+  #private-select .pm-title-img {
+    height: clamp(30px, 11vh, 90px); width: auto; aspect-ratio: 909 / 152;
+    margin-bottom: clamp(8px, 2.2vh, 20px); filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+  }
+  #private-select .pm-cols { justify-content: center; align-items: center; gap: clamp(8px, 2vh, 20px); max-width: none; }
+  #private-select .pm-or-img { height: clamp(28px, 9vh, 64px); width: auto; aspect-ratio: 143 / 107; flex: 0 0 auto; }
+  #private-select .pm-panel {
+    position: relative; flex: 0 0 auto; height: clamp(170px, 56vh, 480px); width: auto;
+    background: center / 100% 100% no-repeat; border: none; border-radius: 0; padding: 0;
+    display: block; box-sizing: border-box;
+  }
+  #private-select .pm-panel-create { aspect-ratio: 703 / 712; background-image: url('assets/pm_create_panel.png'); }
+  #private-select .pm-panel-join { aspect-ratio: 704 / 712; background-image: url('assets/pm_join_panel.png'); }
+  #private-select .pm-input {
+    position: absolute; box-sizing: border-box; border: none; border-radius: 0;
+    background: transparent; color: white; font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    padding: 0 3%; clip-path: none;
+  }
+  #private-select .pm-input::placeholder { color: rgba(255,255,255,0.4); }
+  #private-select .pm-panel-create .pm-input {
+    left: 8.5%; top: 36%; width: 82.5%; height: 19%; font-size: clamp(11px, 4.4vh, 32px);
+  }
+  #private-select .pm-panel-join .pm-input {
+    left: 8.4%; top: 36%; width: 83.2%; height: 19%;
+    text-transform: uppercase; font-size: clamp(11px, 4.4vh, 32px);
+  }
+  #private-select .pm-btn-img {
+    position: absolute; border: none; background: transparent; padding: 0; cursor: pointer;
+    transition: transform 0.08s;
+  }
+  #private-select .pm-btn-img:active { transform: scale(0.96); }
+  #private-select .pm-panel-create .pm-btn-img { left: 14.2%; top: 68.4%; width: 69.8%; height: 18%; }
+  #private-select .pm-panel-join .pm-btn-img { left: 13.1%; top: 69.4%; width: 73.3%; height: 17%; }
+
   .lobby-code {
     font-family: 'Orbitron', sans-serif; font-weight: 900; letter-spacing: 8px; color: #ffcb3d;
     font-size: 30px; text-align: center;
@@ -380,7 +422,7 @@
   }
   #settings-panel .controls-highlight { display: flex; align-items: stretch; justify-content: center; gap: 10px; }
   #settings-panel .control-card {
-    height: clamp(36px, 11vh, 108px); width: auto; aspect-ratio: 204 / 108;
+    height: clamp(46px, 17vh, 150px); width: auto; aspect-ratio: 204 / 108;
     background: #0d1a2e center / cover no-repeat;
     border: 1px solid rgba(159,179,200,0.55); border-radius: 10px;
   }
@@ -395,7 +437,14 @@
   #settings-panel .pref-music-mid { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
   #settings-panel .pref-music-mid input[type=range] { flex: 1; min-width: 0; accent-color: #ffcb3d; height: 5px; }
   #settings-panel .vol-icon { font-size: 13px; opacity: 0.7; flex: 0 0 auto; }
-  #settings-panel .done-btn { padding: clamp(6px, 1.8vh, 14px); font-size: clamp(13px, 3vh, 19px); margin-top: clamp(2px, 0.8vh, 6px); }
+  /* smaller, calmer than the shared .done-btn look elsewhere (Save/Create/
+     Rematch etc.) - a settings screen's confirm action shouldn't visually
+     out-shout the controls above it */
+  #settings-panel .done-btn {
+    padding: clamp(5px, 1.3vh, 10px); font-size: clamp(12px, 2.4vh, 16px); margin-top: clamp(2px, 0.8vh, 6px);
+    box-shadow: 0 3px 0 #a8790f, 0 4px 8px rgba(255,203,61,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  #settings-panel .done-btn::after { display: none; }
   .switch-toggle {
     position: relative; width: clamp(36px, 8vh, 50px); height: clamp(19px, 4.4vh, 27px); border-radius: 999px; border: none;
     cursor: pointer; flex: 0 0 auto; padding: 0;
@@ -403,11 +452,16 @@
     clip-path: inset(-4px round 999px);
   }
   .switch-toggle.on { background: linear-gradient(135deg, #3ddc6a, #1f9e4a); }
+  /* knob sized off the toggle's HEIGHT (not width) with aspect-ratio:1, so it
+     stays a true circle - sizing both dimensions as a % of the toggle's own
+     width/height (which aren't equal, since it's a pill) previously stretched
+     it into a flattened oval */
   .switch-toggle .switch-knob {
-    position: absolute; top: 8%; left: 8%; width: 78%; height: 78%; border-radius: 50%;
+    position: absolute; top: 50%; left: 8%; transform: translateY(-50%);
+    height: 78%; aspect-ratio: 1; width: auto; border-radius: 50%;
     background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.4); transition: left 0.15s;
   }
-  .switch-toggle.on .switch-knob { left: 14%; }
+  .switch-toggle.on .switch-knob { left: 50%; }
   .duration-label {
     font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: 3px;
     color: #9fb3c8; margin-bottom: 10px; text-align: center;
@@ -575,31 +629,31 @@
      past the screen's actual height; clamping the height directly guarantees
      the whole stack fits without ever needing to scroll or clip */
   #meOutcomeView .me-title {
-    height: clamp(28px, 8vh, 64px); width: auto; background: center / 100% 100% no-repeat;
-    margin-bottom: clamp(2px, 0.8vh, 8px);
+    height: clamp(30px, 24vh, 260px); width: auto; background: center / 100% 100% no-repeat;
+    margin-bottom: clamp(2px, 1vh, 14px);
   }
-  #meOutcomeView.victory .me-title { aspect-ratio: 654 / 174; background-image: url('assets/me_victory_title.png'); }
-  #meOutcomeView.defeat .me-title { aspect-ratio: 578 / 190; background-image: url('assets/me_defeat_title.png'); }
+  #meOutcomeView.victory .me-title { aspect-ratio: 772 / 187; background-image: url('assets/me_victory_title.png'); }
+  #meOutcomeView.defeat .me-title { aspect-ratio: 775 / 229; background-image: url('assets/me_defeat_title.png'); }
   #meOutcomeView .me-icon {
-    height: clamp(26px, 7vh, 60px); width: auto; background: center / 100% 100% no-repeat;
-    margin-bottom: clamp(2px, 1vh, 12px);
+    height: clamp(28px, 21vh, 240px); width: auto; background: center / 100% 100% no-repeat;
+    margin-bottom: clamp(2px, 1.4vh, 18px);
   }
-  #meOutcomeView.victory .me-icon { aspect-ratio: 239 / 240; background-image: url('assets/me_victory_trophy.png'); }
+  #meOutcomeView.victory .me-icon { aspect-ratio: 766 / 795; background-image: url('assets/me_victory_trophy.png'); }
   #meOutcomeView.defeat .me-icon { aspect-ratio: 210 / 249; background-image: url('assets/me_defeat_shield.png'); }
   #meOutcomeView .me-scorecard {
-    width: min(320px, 56vh, 88vw); border-radius: 14px;
-    padding: clamp(6px, 1.6vh, 14px) clamp(8px, 2vh, 16px);
-    box-sizing: border-box; margin-bottom: clamp(4px, 1.4vh, 18px);
+    width: min(680px, 74vh, 96vw); border-radius: 14px;
+    padding: clamp(9px, 3.3vh, 35px) clamp(11px, 3.8vh, 37px);
+    box-sizing: border-box; margin-bottom: clamp(4px, 2.4vh, 32px);
     background: #0a1420; border: 3px solid #f1d040;
   }
   #meOutcomeView.defeat .me-scorecard { background: #0d1114; border-color: #969696; }
-  #meOutcomeView .me-names-row { display: flex; gap: 8px; margin-bottom: clamp(3px, 1vh, 12px); }
+  #meOutcomeView .me-names-row { display: flex; gap: 8px; margin-bottom: clamp(3px, 1.8vh, 22px); }
   #meOutcomeView .me-name-bar {
-    flex: 1; min-width: 0; height: clamp(16px, 4vh, 30px); background: center / 100% 100% no-repeat;
+    flex: 1; min-width: 0; height: clamp(18px, 7.5vh, 70px); background: center / 100% 100% no-repeat;
     display: flex; align-items: center; justify-content: center;
   }
   #meOutcomeView .me-name-bar span {
-    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: clamp(8px, 2.2vh, 13px); color: #fff;
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: clamp(9px, 3.4vh, 26px); color: #fff;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 88%;
     text-shadow: 0 1px 2px rgba(0,0,0,0.6);
   }
@@ -607,23 +661,30 @@
   #meOutcomeView.victory .me-bar-b { background-image: url('assets/me_victory_bar_red.png'); }
   #meOutcomeView.defeat .me-bar-a { background-image: url('assets/me_defeat_bar_blue.png'); }
   #meOutcomeView.defeat .me-bar-b { background-image: url('assets/me_defeat_bar_red.png'); }
-  #meOutcomeView .me-score-row { display: flex; align-items: center; justify-content: center; gap: clamp(4px, 1.2vh, 10px); }
-  #meOutcomeView .me-jersey { height: clamp(18px, 5vh, 40px); width: auto; background: center / 100% 100% no-repeat; }
+  #meOutcomeView .me-score-row { display: flex; align-items: center; justify-content: center; gap: clamp(4px, 2vh, 22px); }
+  #meOutcomeView .me-jersey { height: clamp(20px, 9.5vh, 92px); width: auto; background: center / 100% 100% no-repeat; }
   #meOutcomeView.victory .me-jersey-a { aspect-ratio: 201 / 180; background-image: url('assets/me_victory_jersey_blue.png'); }
   #meOutcomeView.victory .me-jersey-b { aspect-ratio: 191 / 178; background-image: url('assets/me_victory_jersey_red.png'); }
   #meOutcomeView.defeat .me-jersey-a { aspect-ratio: 187 / 185; background-image: url('assets/me_defeat_jersey_blue.png'); }
   #meOutcomeView.defeat .me-jersey-b { aspect-ratio: 181 / 181; background-image: url('assets/me_defeat_jersey_red.png'); }
-  #meOutcomeView .me-vs { height: clamp(14px, 4vh, 32px); width: auto; background: center / 100% 100% no-repeat; }
+  #meOutcomeView .me-vs { height: clamp(16px, 7.5vh, 74px); width: auto; background: center / 100% 100% no-repeat; }
   #meOutcomeView.victory .me-vs { aspect-ratio: 103 / 78; background-image: url('assets/me_victory_vs.png'); }
   #meOutcomeView.defeat .me-vs { aspect-ratio: 103 / 80; background-image: url('assets/me_defeat_vs.png'); }
   #meOutcomeView .me-score-num {
-    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(14px, 4.4vh, 34px); line-height: 1;
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(16px, 9vh, 84px); line-height: 1;
   }
   #meOutcomeView .me-score-a { color: #4a90ff; text-shadow: 0 2px 0 #0d2a5c; }
   #meOutcomeView .me-score-b { color: #ff4d4d; text-shadow: 0 2px 0 #5c0d0d; }
-  #meOutcomeView .me-actions-img { display: flex; gap: clamp(6px, 1.6vh, 10px); width: min(320px, 46vh, 88vw); }
+  #meOutcomeView .me-actions-img {
+    display: flex; align-items: stretch; justify-content: center;
+    gap: clamp(6px, 2.4vh, 18px); width: min(680px, 64vh, 96vw);
+  }
+  /* fixed size per button (not flex:1) so a single button (Quick Match, no
+     rematch option) doesn't stretch to fill the whole row - it stays the
+     same size whether it's shown alone or side-by-side with Play Again */
   #meOutcomeView .me-btn-img {
-    flex: 1; border: none; padding: 0; cursor: pointer; background: center / 100% 100% no-repeat;
+    flex: 0 0 auto; width: min(330px, 31vh, 50vw); border: none; padding: 0; cursor: pointer;
+    background: center / 100% 100% no-repeat;
   }
   #meOutcomeView #meBtnMenu { aspect-ratio: 447 / 125; background-image: url('assets/me_btn_menu.png'); }
   #meOutcomeView #meBtnAgain { aspect-ratio: 454 / 125; background-image: url('assets/me_btn_again.png'); }
@@ -720,23 +781,28 @@
   #pause-menu .pause-hit-settings { top: 49%; height: 20%; }
   #pause-menu .pause-hit-exit { top: 74%; height: 20%; }
 
-  /* fixed system-font styling only (no webfont/image dependency) so this
-     paints the instant the HTML parses, before anything else can load */
+  /* a solid fallback color paints instantly behind the background image,
+     so there's never a flash of blank white while loading_bg_pixel.jpg
+     (bundled locally, not fetched from a CDN) decodes */
   #loading-screen {
     position: fixed; inset: 0; z-index: 2000;
-    background: linear-gradient(180deg, #060a16 0%, #0d1730 55%, #122544 100%);
+    background: #060a16 url('assets/loading_bg_pixel.jpg') center / cover no-repeat;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     transition: opacity 0.4s ease;
   }
   #loading-screen.hidden { opacity: 0; pointer-events: none; }
-  #loading-screen .loading-ball { font-size: 56px; animation: loadingSpin 1.1s linear infinite; }
-  #loading-screen .loading-title {
-    margin-top: 18px; font-family: -apple-system, Helvetica, Arial, sans-serif;
-    font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #fff;
+  #loading-screen .loading-title-img {
+    height: clamp(50px, 20vh, 190px); width: auto; aspect-ratio: 1098 / 438;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
   }
-  #loading-screen .loading-hint {
-    margin-top: 6px; font-family: -apple-system, Helvetica, Arial, sans-serif;
-    font-size: 13px; letter-spacing: 3px; color: #ffcb3d; text-transform: uppercase; opacity: 0.85;
+  #loading-screen .loading-hint-img {
+    height: clamp(20px, 7vh, 64px); width: auto; aspect-ratio: 869 / 103;
+    margin-top: clamp(8px, 2vh, 20px);
+  }
+  #loading-screen .loading-ball {
+    height: clamp(50px, 16vh, 140px); width: auto; aspect-ratio: 487 / 461;
+    margin-top: clamp(14px, 3vh, 28px);
+    animation: loadingSpin 1.1s linear infinite;
   }
   @keyframes loadingSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
@@ -744,9 +810,9 @@
 <body>
 
 <div id="loading-screen">
-  <div class="loading-ball">⚽</div>
-  <div class="loading-title">KICKOFF DUEL</div>
-  <div class="loading-hint">Loading…</div>
+  <img class="loading-title-img" src="assets/menu_logo_retrokick.png" alt="Retro Kick" />
+  <img class="loading-hint-img" src="assets/loading_text.png" alt="Loading" />
+  <img class="loading-ball" src="assets/loading_ball.png" alt="" />
 </div>
 <script>
   (function() {
@@ -779,7 +845,7 @@
 <div id="login-screen">
   <div class="overlay-card">
     <div class="icon login-spinner" id="loginSpinner">⚽</div>
-    <h2>KICKOFF DUEL</h2>
+    <h2>RETRO KICK</h2>
     <div class="login-sub" id="loginStatusText">Signing you in…</div>
     <div id="loginError"></div>
     <button id="loginRetryBtn" class="login-btn guest" style="display:none;" onclick="SFX.click(); guestLogin()">↻ Retry</button>
@@ -860,7 +926,7 @@
   </button>
   <div class="content">
     <div class="title-block">
-      <img src="assets/menu_logo_pixel.png" alt="Kickoff Duel" />
+      <img src="assets/menu_logo_retrokick.png" alt="Retro Kick" />
     </div>
     <div class="settings-row">
       <div class="setting-group">
@@ -891,26 +957,16 @@
 
 <div id="private-select">
   <button class="back-circle-btn" onclick="SFX.click(); closePrivateMenu()"><span class="chevron-left"></span></button>
-  <div class="pm-eyebrow">PRIVATE MATCH</div>
+  <img class="pm-title-img" src="assets/pm_title.png" alt="Private Match" />
   <div class="pm-cols">
-    <div class="pm-panel">
-      <div class="pm-panel-title">CREATE ROOM</div>
-      <div>
-        <label class="pm-field-label">Your Name</label>
-        <input id="playerNameInput" maxlength="16" placeholder="Player" oninput="setPlayerName(this.value)" class="pm-input">
-      </div>
-      <div style="flex:1;"></div>
-      <button class="done-btn" onclick="SFX.click(); createPrivateRoom()">➕ CREATE</button>
+    <div class="pm-panel pm-panel-create">
+      <input id="playerNameInput" maxlength="16" placeholder="" oninput="setPlayerName(this.value)" class="pm-input">
+      <button class="pm-btn-img" onclick="SFX.click(); createPrivateRoom()" aria-label="Create room"></button>
     </div>
-    <div class="pm-divider">OR</div>
-    <div class="pm-panel">
-      <div class="pm-panel-title">JOIN ROOM</div>
-      <div>
-        <label class="pm-field-label">Room Code</label>
-        <input id="joinCodeInput" maxlength="5" placeholder="CODE" class="pm-input pm-code-input">
-      </div>
-      <div style="flex:1;"></div>
-      <button class="done-btn blue" onclick="SFX.click(); joinPrivateRoom()">JOIN ROOM</button>
+    <img class="pm-or-img" src="assets/pm_or.png" alt="or" />
+    <div class="pm-panel pm-panel-join">
+      <input id="joinCodeInput" maxlength="5" placeholder="" class="pm-input pm-code-input">
+      <button class="pm-btn-img" onclick="SFX.click(); joinPrivateRoom()" aria-label="Join room"></button>
     </div>
   </div>
   <div id="privateError"></div>
@@ -1054,7 +1110,7 @@
 
 <div id="rotate-warning">
   <div class="icon">📱↻</div>
-  <div style="font-size:19px; font-family:'Rajdhani',sans-serif; letter-spacing:0.5px;">Rotate your phone to landscape<br/>to play Kickoff Duel</div>
+  <div style="font-size:19px; font-family:'Rajdhani',sans-serif; letter-spacing:0.5px;">Rotate your phone to landscape<br/>to play Retro Kick</div>
 </div>
 
 <div id="game-container" style="display:none;"></div>
@@ -1537,6 +1593,7 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   const myScore = myTeam === 'A' ? scoreA : scoreB;
   const oppScore = myTeam === 'A' ? scoreB : scoreA;
   const outcome = myScore > oppScore ? 'victory' : (myScore < oppScore ? 'defeat' : 'draw');
+  const matchEnd = document.getElementById('match-end');
 
   if (outcome === 'draw') {
     outcomeView.style.display = 'none';
@@ -1563,7 +1620,7 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   // a previous match-end screen instead of spawning fresh ones otherwise
   if (outcome === 'victory') spawnMatchEndConfetti();
   else document.getElementById('matchEndConfetti').innerHTML = '';
-  document.getElementById('match-end').style.display = 'flex';
+  matchEnd.style.display = 'flex';
 }
 
 function restartOnlineMatch() {
@@ -1840,6 +1897,10 @@ function hideAllMenus() {
   document.getElementById('private-select').style.display = 'none';
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('matchmaking-screen').style.display = 'none';
+  // the gear is a fixed, always-on-top element that lives outside #mode-select
+  // (see .settings-gear), so hiding mode-select alone doesn't hide it - every
+  // screen this clears is main-menu-only, so it should go with them
+  document.querySelector('.settings-gear').style.display = 'none';
 }
 
 // Settings and Profile overlay ON TOP of mode-select (blurred behind them)
@@ -1865,6 +1926,7 @@ function openPrivateMenu() {
 
 function closePrivateMenu() {
   hideAllMenus();
+  document.querySelector('.settings-gear').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
 }
 
@@ -2213,6 +2275,7 @@ function leavePrivateRoom() {
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false;
   hideAllMenus();
+  document.querySelector('.settings-gear').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
 }
 
@@ -2232,7 +2295,7 @@ function exitOnlineMatch() {
 </script>
 <script>
 // ============================================================
-// KICKOFF DUEL — shared constants/helpers used by OnlineScene
+// RETRO KICK — shared constants/helpers used by OnlineScene
 // (Quick Match and Private Match both run through it).
 // ============================================================
 
@@ -2241,8 +2304,12 @@ const FIELD = { w: 1600, h: 800 };
 // running-cycle frames each = 28 frames - right-side facings are just the
 // left-side poses mirrored (setFlipX), so no separate art is needed
 const CHAR_W = 43, CHAR_H = 68;
-const CHAR_STRIDE = 14; // px travelled per animation frame advance
+// smaller = legs cycle through more per pixel actually travelled, reading as
+// a snappier run instead of a glide/slide at the same movement speed
+const CHAR_STRIDE = 8; // px travelled per animation frame advance
 const CHAR_RUN_FRAMES = 7;
+// original front/frontleft/back poses restored; only "left" (the side-view
+// running pose, used for left/right movement) is the video-derived cycle
 const POSE_FRAME = { front: 0, frontleft: 7, left: 14, back: 21 };
 
 // Shared, standard-sized pause button used by every mode - opens the
@@ -2310,7 +2377,7 @@ class OnlineScene extends Phaser.Scene {
   constructor() { super('online'); }
 
   preload() {
-    this.load.image('fieldTexture', 'assets/field.png');
+    this.load.image('fieldTexture', 'assets/field_stadium.jpg');
     this.load.image('ballTexture', 'assets/ball.png');
     this.load.image('pauseIcon', 'assets/pause_icon.png');
     this.load.image('tagBlue', 'assets/tag_blue.png');

@@ -27,10 +27,13 @@ const PORT = process.env.PORT || 3000;
 
 // ---- Match constants (mirrors the geometry in www/index.html) ----
 const FIELD = { w: 1600, h: 800 };
-const GOAL_WIDTH = 180;
-// x/y match the touchline's actual position in the current field art (it
-// sits at ~42,26 in FIELD-space, not flush with the canvas edge)
-const PITCH = { x: 40, y: 24, w: FIELD.w - 80, h: FIELD.h - 48 };
+// x/y/w/h and GOAL_WIDTH are measured off the stadium field art's own
+// touchline/goal-mouth pixels (field_stadium.jpg, 1662x946 source), scaled
+// into FIELD-space by the same per-axis stretch the client applies to fit
+// the art to the canvas - so the invisible ball/player walls line up with
+// the drawn lines instead of floating past or short of them
+const GOAL_WIDTH = 122;
+const PITCH = { x: 121, y: 111, w: 1356, h: 577 };
 const PLAYER_R = 26;
 const BALL_R = 16;
 const PLAYER_SPEED = 260;

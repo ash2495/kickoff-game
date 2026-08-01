@@ -1,6 +1,6 @@
 {
   "appId": "com.ash.kickoffduel",
-  "appName": "Kickoff Duel",
+  "appName": "Retro Kick",
   "webDir": "www",
   "plugins": {
     "FirebaseAuthentication": {
