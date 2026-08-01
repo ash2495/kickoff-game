@@ -281,12 +281,15 @@ function checkBallStall(room, now) {
   }
 }
 
+// half the character sprite's own height (CHAR_H=68 in www/index.html) -
+// clamping the sideline by this instead of PLAYER_R keeps the drawn sprite's
+// edge (not just its smaller invisible collision circle) from crossing the
+// touchline, so the character visually stops flush at the line
+const CHAR_HALF_H = 34;
+
 function clampToPitch(e) {
   const minX = PITCH.x + PLAYER_R, maxX = PITCH.x + PITCH.w - PLAYER_R;
-  // no PLAYER_R buffer on the sidelines (top/bottom) - players can run all
-  // the way to the touchline, their sprite visually spilling over the crowd
-  // at the boundary, rather than stopping short with a gap before the line
-  const minY = PITCH.y, maxY = PITCH.y + PITCH.h;
+  const minY = PITCH.y + CHAR_HALF_H, maxY = PITCH.y + PITCH.h - CHAR_HALF_H;
   e.x = clampNum(e.x, minX, maxX);
   e.y = clampNum(e.y, minY, maxY);
 }
