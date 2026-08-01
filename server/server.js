@@ -28,12 +28,12 @@ const PORT = process.env.PORT || 3000;
 // ---- Match constants (mirrors the geometry in www/index.html) ----
 const FIELD = { w: 1600, h: 800 };
 // x/y/w/h and GOAL_WIDTH are measured off the stadium field art's own
-// touchline/goal-mouth pixels (field_stadium.jpg, 1662x946 source), scaled
+// touchline/goal-mouth pixels (field_stadium.jpg, 1536x1024 source), scaled
 // into FIELD-space by the same per-axis stretch the client applies to fit
 // the art to the canvas - so the invisible ball/player walls line up with
 // the drawn lines instead of floating past or short of them
-const GOAL_WIDTH = 122;
-const PITCH = { x: 121, y: 111, w: 1356, h: 577 };
+const GOAL_WIDTH = 234;
+const PITCH = { x: 107, y: 127, w: 1373, h: 544 };
 const PLAYER_R = 26;
 const BALL_R = 16;
 const PLAYER_SPEED = 260;
@@ -468,6 +468,15 @@ function updateBall(room, dt) {
     b.vx = 0; b.vy = 0;
   }
 
+  clampBallBounds(room);
+}
+
+// pulled out of updateBall so it can also run after resolveCollisions - a
+// player-ball push there was moving the ball past the goal frame (into the
+// crowd/stand area) without ever being clamped back, since it only got
+// caught on the FOLLOWING tick's updateBall call at the earliest
+function clampBallBounds(room) {
+  const b = room.ball;
   const minY = PITCH.y + BALL_R, maxY = PITCH.y + PITCH.h - BALL_R;
   if (b.y < minY) { b.y = minY; b.vy *= -0.6; }
   if (b.y > maxY) { b.y = maxY; b.vy *= -0.6; }
@@ -526,6 +535,7 @@ function resolveCollisions(room) {
       const push = 180 * 0.15;
       room.ball.vx += nx * push;
       room.ball.vy += ny * push;
+      clampBallBounds(room);
     }
   });
 }
