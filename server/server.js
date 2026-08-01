@@ -554,8 +554,12 @@ function checkGoals(room) {
   const b = room.ball;
   const goalY0 = FIELD.h / 2 - GOAL_WIDTH / 2, goalY1 = FIELD.h / 2 + GOAL_WIDTH / 2;
   if (b.y < goalY0 || b.y > goalY1) return;
-  if (b.x <= 4) scoreGoal(room, 'B');       // ball crossed A's line -> B scores
-  else if (b.x >= FIELD.w - 4) scoreGoal(room, 'A'); // ball crossed B's line -> A scores
+  // NET_MIN_X/NET_MAX_X is as deep into the net as the ball can physically
+  // get (clampBallBounds stops it there) - these were previously a flat
+  // 4 / FIELD.w-4 that clampBallBounds' tighter net bounds could no longer
+  // reach, so a goal could never actually fire
+  if (b.x <= NET_MIN_X) scoreGoal(room, 'B');       // ball crossed A's line -> B scores
+  else if (b.x >= NET_MAX_X) scoreGoal(room, 'A'); // ball crossed B's line -> A scores
 }
 
 function scoreGoal(room, team) {
