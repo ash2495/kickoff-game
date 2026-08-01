@@ -28,12 +28,18 @@ const PORT = process.env.PORT || 3000;
 // ---- Match constants (mirrors the geometry in www/index.html) ----
 const FIELD = { w: 1600, h: 800 };
 // x/y/w/h and GOAL_WIDTH are measured off the stadium field art's own
-// touchline/goal-mouth pixels (field_stadium.jpg, 1536x1024 source), scaled
-// into FIELD-space by the same per-axis stretch the client applies to fit
-// the art to the canvas - so the invisible ball/player walls line up with
-// the drawn lines instead of floating past or short of them
+// touchline/goal-mouth pixels (field_stadium.jpg, cropped to 1446x1024 to
+// trim the excess crowd margin either side of the goals), scaled into
+// FIELD-space by the same per-axis stretch the client applies to fit the
+// art to the canvas - so the invisible ball/player walls line up with the
+// drawn lines instead of floating past or short of them
 const GOAL_WIDTH = 234;
-const PITCH = { x: 107, y: 127, w: 1373, h: 544 };
+const PITCH = { x: 64, y: 127, w: 1458, h: 544 };
+// how far into the goal net (past PITCH's x bounds) the ball may travel
+// before hitting the net's actual back wall in the art - previously a flat
+// 2 / FIELD.w-2 let the ball sail into the crowd past the net entirely
+const NET_MIN_X = 10;
+const NET_MAX_X = 1572;
 const PLAYER_R = 26;
 const BALL_R = 16;
 const PLAYER_SPEED = 260;
@@ -277,7 +283,10 @@ function checkBallStall(room, now) {
 
 function clampToPitch(e) {
   const minX = PITCH.x + PLAYER_R, maxX = PITCH.x + PITCH.w - PLAYER_R;
-  const minY = PITCH.y + PLAYER_R, maxY = PITCH.y + PITCH.h - PLAYER_R;
+  // no PLAYER_R buffer on the sidelines (top/bottom) - players can run all
+  // the way to the touchline, their sprite visually spilling over the crowd
+  // at the boundary, rather than stopping short with a gap before the line
+  const minY = PITCH.y, maxY = PITCH.y + PITCH.h;
   e.x = clampNum(e.x, minX, maxX);
   e.y = clampNum(e.y, minY, maxY);
 }
@@ -486,20 +495,20 @@ function clampBallBounds(room) {
   const minX = PITCH.x + BALL_R, maxX = PITCH.x + PITCH.w - BALL_R;
 
   if (b.x < minX) {
-    // the net pocket is drawn INSIDE the field art itself (it doesn't extend
-    // past the canvas edge), so the ball must never be allowed past x=0/w -
-    // otherwise it renders beyond the net into blank space
-    if (inMouth) { if (b.x < 2) { b.x = 2; b.vx *= -0.4; } }
+    // the net has a real, finite depth in the field art - NET_MIN_X/NET_MAX_X
+    // mark where its back wall actually is, so the ball stops inside the net
+    // instead of sailing past it into the crowd
+    if (inMouth) { if (b.x < NET_MIN_X) { b.x = NET_MIN_X; b.vx *= -0.4; } }
     else { b.x = minX; b.vx *= -0.6; }
   }
   if (b.x > maxX) {
-    if (inMouth) { if (b.x > FIELD.w - 2) { b.x = FIELD.w - 2; b.vx *= -0.4; } }
+    if (inMouth) { if (b.x > NET_MAX_X) { b.x = NET_MAX_X; b.vx *= -0.4; } }
     else { b.x = maxX; b.vx *= -0.6; }
   }
 
   // hard failsafe: regardless of the goal-mouth exception above, the ball
   // should never end up meaningfully outside the pitch + net pockets
-  b.x = clampNum(b.x, 2, FIELD.w - 2);
+  b.x = clampNum(b.x, NET_MIN_X, NET_MAX_X);
   b.y = clampNum(b.y, minY, maxY);
 }
 
