@@ -28,18 +28,18 @@ const PORT = process.env.PORT || 3000;
 // ---- Match constants (mirrors the geometry in www/index.html) ----
 const FIELD = { w: 1600, h: 800 };
 // x/y/w/h and GOAL_WIDTH are measured off the stadium field art's own
-// touchline/goal-mouth pixels (field_stadium.jpg, cropped to 1446x1024 to
-// trim the excess crowd margin either side of the goals), scaled into
-// FIELD-space by the same per-axis stretch the client applies to fit the
-// art to the canvas - so the invisible ball/player walls line up with the
-// drawn lines instead of floating past or short of them
-const GOAL_WIDTH = 234;
-const PITCH = { x: 64, y: 127, w: 1458, h: 544 };
+// touchline/goal-mouth pixels (field_stadium.jpg, 1536x1024 - a no-net pitch
+// with a separately supplied net image composited into both goal mouths,
+// depth-limited by how much margin was available between the touchline and
+// the image edge), scaled into FIELD-space by the same per-axis stretch the
+// client applies to fit the art to the canvas
+const GOAL_WIDTH = 312;
+const PITCH = { x: 75, y: 125, w: 1438, h: 559 };
 // how far into the goal net (past PITCH's x bounds) the ball may travel
 // before hitting the net's actual back wall in the art - previously a flat
 // 2 / FIELD.w-2 let the ball sail into the crowd past the net entirely
-const NET_MIN_X = 10;
-const NET_MAX_X = 1572;
+const NET_MIN_X = 8;
+const NET_MAX_X = 1592;
 const PLAYER_R = 26;
 const BALL_R = 16;
 const PLAYER_SPEED = 260;
