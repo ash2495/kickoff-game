@@ -333,17 +333,19 @@ function botAssignRoles(room) {
   return roles;
 }
 
-// a loose team shape for bots not currently chasing the ball: hold roughly
-// their kickoff spot, but drift upfield/downfield and sideways with the
-// ball so the team doesn't just camp on the center circle all match
+// a loose team shape for bots not currently chasing the ball: keep each
+// bot's own lane (their kickoff Y keeps teammates spread across the width
+// instead of collapsing onto the ball), but roam much further up/downfield
+// and across that lane with the run of play, like a real player shifting
+// around the pitch rather than being tethered near a fixed spot
 function supportTarget(room, slot) {
   const e = room.entities[slot];
   const home = room.startPos[slot];
   const attackSign = e.team === 'A' ? 1 : -1;
-  const advance = clampNum((room.ball.x - FIELD.w / 2) * 0.3 * attackSign, -70, 130);
+  const advance = clampNum((room.ball.x - FIELD.w / 2) * 0.55 * attackSign, -220, 320);
   return {
     x: clampNum(home.x + advance, PITCH.x + PLAYER_R + 10, PITCH.x + PITCH.w - PLAYER_R - 10),
-    y: home.y + (room.ball.y - home.y) * 0.35,
+    y: clampNum(home.y + (room.ball.y - home.y) * 0.55, PITCH.y + PLAYER_R + 10, PITCH.y + PITCH.h - PLAYER_R - 10),
   };
 }
 
