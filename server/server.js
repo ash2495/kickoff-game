@@ -933,6 +933,13 @@ io.on('connection', (socket) => {
     if (typeof cb !== 'function') return;
     cb(await profile.getStats(data && data.userId));
   });
+
+  // current week's live top 10 + the caller's own rank, last week's frozen
+  // top-3 winners for the podium, and when the current week ends
+  socket.on('getLeaderboard', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.getLeaderboard(data && data.userId));
+  });
 });
 
 connectDb()

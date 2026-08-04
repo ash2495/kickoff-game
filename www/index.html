@@ -154,7 +154,156 @@
   #mode-select .mode-btn img { width: 100%; display: block; }
   #mode-select .mode-btn:active { transform: scale(0.96) translateY(2px); }
 
+  /* absolutely positioned like .profile-pill/.pixel-banner rather than a
+     normal flex sibling of .content - #mode-select is flex ROW, so a plain
+     sibling would sit beside .content instead of below it. .content's own
+     3vh bottom margin was already left as breathing room for exactly this
+     kind of addition (see its own comment). A flex row so more icon
+     buttons can just be added alongside the leaderboard one later. */
+  #mode-select .bottom-panel {
+    position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom));
+    transform: translateX(-50%); z-index: 2;
+    height: clamp(44px, 8vh, 64px); width: min(90vw, 640px);
+    background: center / 100% 100% no-repeat;
+    background-image: url('assets/menu_bottom_panel.png');
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.6vh, 16px); box-sizing: border-box;
+  }
+  #mode-select .bottom-panel-btn {
+    height: 76%; aspect-ratio: 1 / 1; border: none; background: center / 100% 100% no-repeat;
+    padding: 0; cursor: pointer; transition: transform 0.08s;
+  }
+  #mode-select .bottom-panel-btn:active { transform: scale(0.92); }
+
+  /* ---- Leaderboard screen ---- */
+  #leaderboard-screen {
+    position: fixed; inset: 0; z-index: 960; display: none;
+    flex-direction: column; align-items: center;
+    font-family: 'Rajdhani', sans-serif; color: white; box-sizing: border-box;
+    background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
+    padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    overflow: hidden;
+  }
+  #leaderboard-screen .lb-header {
+    position: relative; flex: 0 0 auto; width: 100%; max-width: 900px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: clamp(4px, 1.2vh, 12px);
+  }
+  #leaderboard-screen .lb-title-img {
+    height: clamp(26px, 6.5vh, 52px); width: auto; aspect-ratio: 2041 / 295;
+  }
+  #leaderboard-screen .lb-info-btn {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    width: clamp(28px, 5.5vh, 42px); height: clamp(28px, 5.5vh, 42px);
+    border: none; padding: 0; cursor: pointer;
+    background: center / 100% 100% no-repeat; background-image: url('assets/lb_info_btn.png');
+  }
+  #leaderboard-screen .lb-timer-pill {
+    flex: 0 0 auto; position: relative;
+    height: clamp(24px, 5vh, 38px); width: clamp(120px, 22vw, 200px);
+    background: center / 100% 100% no-repeat; background-image: url('assets/lb_timer_pill.png');
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 12%; box-sizing: border-box; margin-bottom: clamp(4px, 1.2vh, 10px);
+  }
+  #leaderboard-screen .lb-timer-pill span {
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(8px, 1.8vh, 13px); color: #ffcb3d;
+  }
+  #leaderboard-screen .lb-last-week-label {
+    flex: 0 0 auto; font-family: 'Orbitron', sans-serif; font-weight: 800; letter-spacing: 1.5px;
+    color: #ffcb3d; font-size: clamp(10px, 2vh, 15px); text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    margin-bottom: clamp(4px, 1vh, 10px);
+  }
+  #leaderboard-screen .lb-podium {
+    flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: center;
+    gap: clamp(4px, 1.4vh, 14px); width: 100%; max-width: 560px;
+    margin-bottom: clamp(6px, 1.6vh, 14px);
+  }
+  #leaderboard-screen .lb-podium-col { display: flex; flex-direction: column; align-items: center; width: 30%; }
+  #leaderboard-screen .lb-podium-col.rank-1 { width: 34%; order: 2; }
+  #leaderboard-screen .lb-podium-col.rank-2 { order: 1; }
+  #leaderboard-screen .lb-podium-col.rank-3 { order: 3; }
+  #leaderboard-screen .lb-wreath { position: relative; width: 76%; margin-bottom: -6%; z-index: 1; }
+  #leaderboard-screen .lb-wreath .lb-wreath-frame { display: block; width: 100%; height: auto; }
+  #leaderboard-screen .lb-wreath .lb-wreath-avatar {
+    position: absolute; border-radius: 50%; object-fit: cover; background: #0e1a2b;
+  }
+  #leaderboard-screen .lb-pedestal { position: relative; width: 100%; }
+  #leaderboard-screen .lb-pedestal img { display: block; width: 100%; height: auto; }
+  #leaderboard-screen .lb-pedestal .lb-ped-name {
+    position: absolute; left: 8%; width: 84%; top: 40%;
+    text-align: center; font-weight: 700; color: #fff;
+    font-size: clamp(7px, 1.6vh, 12px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
+  #leaderboard-screen .lb-pedestal .lb-ped-score {
+    position: absolute; left: 8%; width: 84%; top: 52%;
+    text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
+    font-size: clamp(8px, 2vh, 15px); text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
+  #leaderboard-screen .lb-list-panel {
+    position: relative; flex: 1 1 auto; min-height: 0; width: 100%; max-width: 900px;
+    background: center top / 100% 100% no-repeat; background-image: url('assets/lb_list_panel.png');
+    display: flex; flex-direction: column;
+    padding: clamp(8px, 2.2vh, 20px) clamp(10px, 2.6vw, 26px);
+    box-sizing: border-box;
+  }
+  #leaderboard-screen .lb-list-header {
+    flex: 0 0 auto; display: flex; align-items: center;
+    padding: 0 clamp(6px, 1.5vw, 14px) clamp(4px, 1.2vh, 10px) clamp(6px, 1.5vw, 14px);
+    font-family: 'Orbitron', sans-serif; font-weight: 800; letter-spacing: 1px;
+    color: #4fc3f7; font-size: clamp(8px, 1.6vh, 12px);
+  }
+  #leaderboard-screen .lb-col-rank { flex: 0 0 auto; width: 15%; }
+  #leaderboard-screen .lb-col-player { flex: 1 1 auto; min-width: 0; }
+  #leaderboard-screen .lb-col-goals { flex: 0 0 auto; width: 22%; text-align: right; }
+  #leaderboard-screen .lb-list-rows {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    display: flex; flex-direction: column; gap: clamp(3px, 0.9vh, 8px);
+  }
+  #leaderboard-screen .lb-row {
+    position: relative; flex: 0 0 auto; height: clamp(30px, 6.4vh, 50px);
+    background: center / 100% 100% no-repeat; background-image: url('assets/lb_row_normal.png');
+    display: flex; align-items: center;
+    padding: 0 clamp(6px, 1.8vw, 16px); box-sizing: border-box; gap: clamp(6px, 1.6vw, 14px);
+  }
+  #leaderboard-screen .lb-row.me { background-image: url('assets/lb_row_highlight.png'); }
+  #leaderboard-screen .lb-row-rank {
+    flex: 0 0 auto; width: 15%; display: flex; align-items: center;
+    font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: clamp(9px, 2vh, 15px); color: #cfd8e6;
+  }
+  #leaderboard-screen .lb-row-rank img { height: clamp(16px, 3.4vh, 26px); width: auto; display: block; }
+  #leaderboard-screen .lb-row-avatar {
+    flex: 0 0 auto; width: clamp(20px, 4.2vh, 32px); height: clamp(20px, 4.2vh, 32px);
+    border-radius: 50%; object-fit: cover; background: #0e1a2b; border: 2px solid rgba(255,255,255,0.25);
+  }
+  #leaderboard-screen .lb-row-name {
+    flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: clamp(9px, 2vh, 14px); color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #leaderboard-screen .lb-row-goals {
+    flex: 0 0 auto; width: 22%; display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+    font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: clamp(9px, 2vh, 14px); color: #ffcb3d;
+  }
+  #leaderboard-screen .lb-row-goals img { height: clamp(11px, 2.2vh, 16px); width: auto; display: block; }
+  #leaderboard-screen .lb-empty-msg {
+    flex: 0 0 auto; text-align: center; opacity: 0.6; font-size: clamp(10px, 1.8vh, 14px); padding: 10px 0;
+  }
+
   .settings-gear {
+    position: fixed;
+    top: max(16px, env(safe-area-inset-top));
+    right: calc(max(16px, env(safe-area-inset-right)) + 46px + 8px);
+    z-index: 3;
+    width: 46px; height: 46px; padding: 6px;
+    background: #0e1a2b; border: 3px solid #e9c873;
+    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
+    border-radius: 6px; cursor: pointer;
+  }
+  .settings-gear img { width: 100%; height: 100%; display: block; }
+  /* exit-app icon, same card treatment as the gear, sitting to its right
+     (i.e. the rightmost of the pair, at the corner the gear used to own) */
+  .exit-app-btn {
     position: fixed;
     top: max(16px, env(safe-area-inset-top));
     right: max(16px, env(safe-area-inset-right));
@@ -164,7 +313,25 @@
     box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
     border-radius: 6px; cursor: pointer;
   }
-  .settings-gear img { width: 100%; height: 100%; display: block; }
+  .exit-app-btn img { width: 100%; height: 100%; display: block; }
+
+  #appExitConfirm {
+    position: fixed; inset: 0; z-index: 1600; display: none;
+    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+    background: rgba(6,10,18,0.65);
+  }
+  #appExitConfirm .aec-panel {
+    position: relative; width: min(480px, 86vw); aspect-ratio: 1128 / 812;
+    background: center / 100% 100% no-repeat;
+    background-image: url('assets/exit_confirm_panel.png');
+  }
+  #appExitConfirm .aec-btn {
+    position: absolute; top: 67.9%; height: 20.7%; border: none; background: transparent;
+    padding: 0; cursor: pointer; transition: transform 0.08s;
+  }
+  #appExitConfirm .aec-btn:active { transform: scale(0.96); }
+  #appExitConfirm .aec-yes { left: 12.9%; width: 34.2%; }
+  #appExitConfirm .aec-no { left: 52.6%; width: 34.4%; }
   .profile-pill {
     /* absolute (not fixed) + nested inside #mode-select (see markup) so it's
        only ever visible on the main menu, never on other screens layered on
@@ -841,6 +1008,14 @@
 </div>
 
 <button class="settings-gear" onclick="SFX.click(); openSettings()"><img src="assets/menu_gear_pixel.png" alt="Settings" /></button>
+<button class="exit-app-btn" onclick="SFX.click(); openAppExitConfirm()"><img src="assets/menu_exit_icon.png" alt="Exit" /></button>
+
+<div id="appExitConfirm">
+  <div class="aec-panel">
+    <button class="aec-btn aec-yes" onclick="SFX.click(); confirmAppExitYes()" aria-label="Yes, exit"></button>
+    <button class="aec-btn aec-no" onclick="SFX.click(); confirmAppExitNo()" aria-label="No, stay"></button>
+  </div>
+</div>
 
 <div id="login-screen">
   <div class="overlay-card">
@@ -952,6 +1127,28 @@
       <button class="mode-btn" onclick="SFX.click(); quickMatch()"><img src="assets/menu_quick_match_btn.png" alt="Quick Match" /></button>
       <button class="mode-btn" onclick="SFX.click(); openPrivateMenu()"><img src="assets/menu_private_match_btn.png" alt="Private Match" /></button>
     </div>
+  </div>
+  <div class="bottom-panel">
+    <button class="bottom-panel-btn" style="background-image: url('assets/menu_leaderboard_icon.png')" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard"></button>
+  </div>
+</div>
+
+<div id="leaderboard-screen">
+  <button class="back-circle-btn" onclick="SFX.click(); closeLeaderboard()"><span class="chevron-left"></span></button>
+  <div class="lb-header">
+    <img class="lb-title-img" src="assets/lb_title_banner.png" alt="Leaderboard" />
+    <button class="lb-info-btn" onclick="SFX.click(); showLeaderboardInfo()" aria-label="Info"></button>
+  </div>
+  <div class="lb-timer-pill"><span id="lbTimerText">--</span></div>
+  <div class="lb-last-week-label">LAST WEEK WINNERS</div>
+  <div class="lb-podium" id="lbPodium"></div>
+  <div class="lb-list-panel">
+    <div class="lb-list-header">
+      <span class="lb-col-rank">RANK</span>
+      <span class="lb-col-player">PLAYER</span>
+      <span class="lb-col-goals">GOALS</span>
+    </div>
+    <div class="lb-list-rows" id="lbListRows"></div>
   </div>
 </div>
 
@@ -1665,6 +1862,21 @@ function confirmExitNo() {
   pausedSceneForExit = null;
 }
 
+// ---- Exit app (main menu only) ----
+function openAppExitConfirm() {
+  document.getElementById('appExitConfirm').style.display = 'flex';
+}
+function confirmAppExitNo() {
+  document.getElementById('appExitConfirm').style.display = 'none';
+}
+function confirmAppExitYes() {
+  const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (plugin && plugin.exitApp) { plugin.exitApp(); return; }
+  // no native App plugin (e.g. this browser preview) - nothing meaningful to
+  // do, so just close the confirmation instead of leaving it stuck open
+  document.getElementById('appExitConfirm').style.display = 'none';
+}
+
 // ---- In-match pause menu (Resume / Settings / Exit Match) ----
 let pauseMenuScene = null;
 let pauseMenuOnExit = null;
@@ -1897,10 +2109,13 @@ function hideAllMenus() {
   document.getElementById('private-select').style.display = 'none';
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('matchmaking-screen').style.display = 'none';
-  // the gear is a fixed, always-on-top element that lives outside #mode-select
-  // (see .settings-gear), so hiding mode-select alone doesn't hide it - every
-  // screen this clears is main-menu-only, so it should go with them
+  document.getElementById('leaderboard-screen').style.display = 'none';
+  // the gear (and exit button) are fixed, always-on-top elements that live
+  // outside #mode-select (see .settings-gear/.exit-app-btn), so hiding
+  // mode-select alone doesn't hide them - every screen this clears is
+  // main-menu-only, so they should go with it
   document.querySelector('.settings-gear').style.display = 'none';
+  document.querySelector('.exit-app-btn').style.display = 'none';
 }
 
 // Settings and Profile overlay ON TOP of mode-select (blurred behind them)
@@ -1927,7 +2142,173 @@ function openPrivateMenu() {
 function closePrivateMenu() {
   hideAllMenus();
   document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
+}
+
+// ---- Leaderboard ----
+let lbCountdownTimer = null;
+
+function openLeaderboard() {
+  hideAllMenus();
+  document.getElementById('leaderboard-screen').style.display = 'flex';
+  document.getElementById('lbTimerText').textContent = '--';
+  document.getElementById('lbPodium').innerHTML = '';
+  document.getElementById('lbListRows').innerHTML = '<div class="lb-empty-msg">Loading…</div>';
+  ensureSocket(() => {
+    socket.emit('getLeaderboard', { userId: PROFILE_USER_ID }, (res) => {
+      if (!res || !res.ok) {
+        document.getElementById('lbListRows').innerHTML = '<div class="lb-empty-msg">Couldn\'t load the leaderboard.</div>';
+        return;
+      }
+      renderLeaderboard(res);
+    });
+  });
+}
+
+function closeLeaderboard() {
+  if (lbCountdownTimer) { clearInterval(lbCountdownTimer); lbCountdownTimer = null; }
+  hideAllMenus();
+  document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
+  document.getElementById('mode-select').style.display = 'flex';
+}
+
+function showLeaderboardInfo() {
+  alert('Top 3 each week win a wreath frame around their avatar for the following week. Standings reset every week - the podium above shows LAST week\'s winners, the list below is this week\'s live standings.');
+}
+
+const LB_WREATH_GEOMETRY = {
+  1: { src: 'assets/lb_wreath_gold.png', left: 19.9, top: 21.9, size: 60.0 },
+  2: { src: 'assets/lb_wreath_silver.png', left: 20.1, top: 22.3, size: 60.1 },
+  3: { src: 'assets/lb_wreath_bronze.png', left: 21.2, top: 23.2, size: 57.6 },
+};
+const LB_PEDESTAL_SRC = { 1: 'assets/lb_pedestal_gold.png', 2: 'assets/lb_pedestal_silver.png', 3: 'assets/lb_pedestal_bronze.png' };
+const LB_MEDAL_SRC = { 1: 'assets/lb_medal_1.png', 2: 'assets/lb_medal_2.png', 3: 'assets/lb_medal_3.png' };
+
+function buildPodiumColumn(rank, entry) {
+  const geo = LB_WREATH_GEOMETRY[rank];
+  const col = document.createElement('div');
+  col.className = 'lb-podium-col rank-' + rank;
+
+  const wreath = document.createElement('div');
+  wreath.className = 'lb-wreath';
+  const frame = document.createElement('img');
+  frame.className = 'lb-wreath-frame';
+  frame.src = geo.src;
+  frame.alt = '';
+  const avatar = document.createElement('img');
+  avatar.className = 'lb-wreath-avatar';
+  avatar.src = avatarSrc(entry ? entry.avatar : 'avatar_preset_01');
+  avatar.alt = '';
+  avatar.style.left = geo.left + '%';
+  avatar.style.top = geo.top + '%';
+  avatar.style.width = geo.size + '%';
+  avatar.style.height = geo.size + '%';
+  wreath.appendChild(frame);
+  wreath.appendChild(avatar);
+
+  const pedestal = document.createElement('div');
+  pedestal.className = 'lb-pedestal';
+  const pedImg = document.createElement('img');
+  pedImg.src = LB_PEDESTAL_SRC[rank];
+  pedImg.alt = '';
+  const name = document.createElement('div');
+  name.className = 'lb-ped-name';
+  name.textContent = entry ? entry.name : '—';
+  const score = document.createElement('div');
+  score.className = 'lb-ped-score';
+  score.textContent = entry ? entry.goals.toLocaleString() : '0';
+  pedestal.appendChild(pedImg);
+  pedestal.appendChild(name);
+  pedestal.appendChild(score);
+
+  col.appendChild(wreath);
+  col.appendChild(pedestal);
+  return col;
+}
+
+function buildLeaderboardRow(entry, isMe) {
+  const row = document.createElement('div');
+  row.className = 'lb-row' + (isMe ? ' me' : '');
+
+  const rankEl = document.createElement('div');
+  rankEl.className = 'lb-row-rank';
+  if (entry.rank && LB_MEDAL_SRC[entry.rank]) {
+    const medal = document.createElement('img');
+    medal.src = LB_MEDAL_SRC[entry.rank];
+    medal.alt = '';
+    rankEl.appendChild(medal);
+  } else {
+    rankEl.textContent = entry.rank ? ('#' + entry.rank) : '-';
+  }
+
+  const avatar = document.createElement('img');
+  avatar.className = 'lb-row-avatar';
+  avatar.src = avatarSrc(entry.avatar);
+  avatar.alt = '';
+
+  const name = document.createElement('div');
+  name.className = 'lb-row-name';
+  name.textContent = entry.name + (isMe ? ' (you)' : '');
+
+  const goals = document.createElement('div');
+  goals.className = 'lb-row-goals';
+  const ball = document.createElement('img');
+  ball.src = 'assets/lb_ball_icon.png';
+  ball.alt = '';
+  const goalsNum = document.createElement('span');
+  goalsNum.textContent = entry.goals.toLocaleString();
+  goals.appendChild(ball);
+  goals.appendChild(goalsNum);
+
+  row.appendChild(rankEl);
+  row.appendChild(avatar);
+  row.appendChild(name);
+  row.appendChild(goals);
+  return row;
+}
+
+function renderLeaderboard(data) {
+  const podiumEl = document.getElementById('lbPodium');
+  podiumEl.innerHTML = '';
+  [1, 2, 3].forEach((rank) => {
+    const entry = data.lastWeekWinners.find((w) => w.rank === rank) || null;
+    podiumEl.appendChild(buildPodiumColumn(rank, entry));
+  });
+
+  const rowsEl = document.getElementById('lbListRows');
+  rowsEl.innerHTML = '';
+  if (!data.top.length) {
+    rowsEl.innerHTML = '<div class="lb-empty-msg">No goals scored yet this week - be the first!</div>';
+  } else {
+    data.top.forEach((entry) => {
+      rowsEl.appendChild(buildLeaderboardRow(entry, !!(data.me && data.me.userId === entry.userId)));
+    });
+    // pin the caller's own row at the bottom too if they're not already
+    // visible in the top 10, so they can always see where they stand
+    if (data.me && data.me.rank !== null && !data.top.some((e) => e.userId === data.me.userId)) {
+      rowsEl.appendChild(buildLeaderboardRow(data.me, true));
+    }
+  }
+
+  if (lbCountdownTimer) clearInterval(lbCountdownTimer);
+  const updateTimer = () => {
+    const msLeft = Math.max(0, data.weekEndsAt - Date.now());
+    document.getElementById('lbTimerText').textContent = formatCountdown(msLeft);
+  };
+  updateTimer();
+  lbCountdownTimer = setInterval(updateTimer, 1000);
+}
+
+function formatCountdown(ms) {
+  const totalMin = Math.floor(ms / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  if (days > 0) return days + 'D ' + hours + 'H ' + mins + 'M';
+  if (hours > 0) return hours + 'H ' + mins + 'M';
+  return mins + 'M';
 }
 
 function showPrivateError(msg) {
@@ -2263,6 +2644,7 @@ function startOnlineMatch() {
   document.getElementById('stadium-bg').style.display = 'none';
   document.getElementById('decor-layer').style.display = 'none';
   document.querySelector('.settings-gear').style.display = 'none';
+  document.querySelector('.exit-app-btn').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
   gameInstance = new Phaser.Game(onlineConfig);
   // crowd ambience starts alongside readyForKickoff (see matchStarted handler),
@@ -2276,6 +2658,7 @@ function leavePrivateRoom() {
   roomCode = null; mySlot = null; isHost = false;
   hideAllMenus();
   document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
 }
 
@@ -2290,6 +2673,7 @@ function exitOnlineMatch() {
   document.getElementById('stadium-bg').style.display = 'block';
   document.getElementById('decor-layer').style.display = 'block';
   document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
 }
 </script>

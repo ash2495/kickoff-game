@@ -9,7 +9,7 @@
 const crypto = require('crypto');
 const { ObjectId } = require('mongodb');
 const { OAuth2Client } = require('google-auth-library');
-const { getUsers } = require('./db');
+const { getUsers, getMeta } = require('./db');
 
 const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID;
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -191,9 +191,114 @@ async function incrementStats(userId, { played = 0, won = 0, goals = 0 } = {}) {
   if (played) inc.matchesPlayed = played;
   if (won) inc.matchesWon = won;
   if (goals) inc.goalsScored = goals;
-  if (Object.keys(inc).length === 0) return;
   const users = getUsers();
-  await users.updateOne({ _id: new ObjectId(userId) }, { $inc: inc });
+  if (Object.keys(inc).length > 0) {
+    await users.updateOne({ _id: new ObjectId(userId) }, { $inc: inc });
+  }
+  if (goals) {
+    // make sure last week's winners get snapshotted BEFORE this write can
+    // roll this user's own weeklyGoals over into the new week and erase
+    // their contribution to the week that just ended
+    await ensureWeekRollover();
+    const currentWeekId = getWeekId();
+    // aggregation-pipeline update: atomically reset-then-add in one op if
+    // the stored weekId is stale, otherwise just add - avoids a separate
+    // read-modify-write race between concurrent goals for the same scorer
+    await users.updateOne({ _id: new ObjectId(userId) }, [{
+      $set: {
+        weeklyGoals: {
+          $cond: [
+            { $eq: ['$weeklyGoals.weekId', currentWeekId] },
+            { weekId: currentWeekId, count: { $add: [{ $ifNull: ['$weeklyGoals.count', 0] }, goals] } },
+            { weekId: currentWeekId, count: goals },
+          ],
+        },
+      },
+    }]);
+  }
 }
 
-module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats };
+// ---- Weekly leaderboard ----
+// week boundaries are a fixed 7-day cycle from an arbitrary Monday epoch,
+// not a calendar ISO week - avoids calendar/timezone edge cases, all that
+// matters is every server process agrees on the same boundaries
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const WEEK_EPOCH = Date.UTC(2024, 0, 1);
+
+function getWeekId(date = new Date()) {
+  return Math.floor((date.getTime() - WEEK_EPOCH) / WEEK_MS);
+}
+function weekEndsAt(weekId) {
+  return WEEK_EPOCH + (weekId + 1) * WEEK_MS;
+}
+
+// if the week has rolled over since the last time anyone checked, snapshot
+// the top 3 from the week that just ended into the meta doc before anything
+// else can reset their weeklyGoals counters for the new week. Cheap no-op
+// read on every other call. Not perfectly race-free if literally nobody
+// scores or opens the leaderboard for multiple whole weeks in a row (the
+// in-between week's data is only ever kept in each user's own doc, not a
+// full history), but for an actively-played game this is a fine tradeoff.
+async function ensureWeekRollover() {
+  const currentWeekId = getWeekId();
+  const meta = getMeta();
+  const doc = await meta.findOne({ _id: 'leaderboard' });
+  if (!doc) {
+    await meta.updateOne(
+      { _id: 'leaderboard' },
+      { $set: { lastSnapshotWeekId: currentWeekId, lastWeekWinners: [] } },
+      { upsert: true }
+    );
+    return [];
+  }
+  if (doc.lastSnapshotWeekId >= currentWeekId) return doc.lastWeekWinners || [];
+
+  const users = getUsers();
+  const top3 = await users.find({ 'weeklyGoals.weekId': doc.lastSnapshotWeekId, 'weeklyGoals.count': { $gt: 0 } })
+    .sort({ 'weeklyGoals.count': -1 })
+    .limit(3)
+    .toArray();
+  const winners = top3.map((u, i) => ({
+    userId: u._id.toString(), name: u.name, avatar: u.avatar, goals: u.weeklyGoals.count, rank: i + 1,
+  }));
+  await meta.updateOne(
+    { _id: 'leaderboard' },
+    { $set: { lastSnapshotWeekId: currentWeekId, lastWeekWinners: winners } }
+  );
+  return winners;
+}
+
+// top 10 for the CURRENT (still live) week, the requesting user's own rank
+// even if outside the top 10, and last week's frozen top-3 winners for the
+// podium (see ensureWeekRollover)
+async function getLeaderboard(userId) {
+  const lastWeekWinners = await ensureWeekRollover();
+  const currentWeekId = getWeekId();
+  const users = getUsers();
+  const active = await users.find({ 'weeklyGoals.weekId': currentWeekId })
+    .sort({ 'weeklyGoals.count': -1 })
+    .limit(50)
+    .toArray();
+
+  const top = active.slice(0, 10).map((u, i) => ({
+    userId: u._id.toString(), name: u.name, avatar: u.avatar, goals: u.weeklyGoals.count, rank: i + 1,
+  }));
+
+  let me = null;
+  if (typeof userId === 'string' && ObjectId.isValid(userId)) {
+    const idx = active.findIndex((u) => u._id.toString() === userId);
+    if (idx >= 0) {
+      me = { userId, name: active[idx].name, avatar: active[idx].avatar, goals: active[idx].weeklyGoals.count, rank: idx + 1 };
+    } else {
+      const doc = await users.findOne({ _id: new ObjectId(userId) });
+      if (doc) {
+        const goals = (doc.weeklyGoals && doc.weeklyGoals.weekId === currentWeekId) ? doc.weeklyGoals.count : 0;
+        me = { userId, name: doc.name, avatar: doc.avatar, goals, rank: null };
+      }
+    }
+  }
+
+  return { ok: true, top, me, lastWeekWinners, weekEndsAt: weekEndsAt(currentWeekId) };
+}
+
+module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard };
