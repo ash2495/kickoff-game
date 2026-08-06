@@ -199,15 +199,20 @@
     border: none; padding: 0; cursor: pointer;
     background: center / 100% 100% no-repeat; background-image: url('assets/lb_info_btn.png');
   }
+  /* sits in the gap between the podium and the list panel (see markup
+     order), small margins on both sides rather than a fixed position so it
+     naturally centers in that gap regardless of how tall either neighbor
+     ends up being */
   #leaderboard-screen .lb-timer-pill {
     flex: 0 0 auto; position: relative;
-    height: clamp(24px, 5vh, 38px); width: clamp(120px, 22vw, 200px);
+    height: clamp(18px, 3.6vh, 28px); width: clamp(90px, 15vw, 150px);
     background: center / 100% 100% no-repeat; background-image: url('assets/lb_timer_pill.png');
     display: flex; align-items: center; justify-content: flex-end;
-    padding-right: 12%; box-sizing: border-box; margin-bottom: clamp(4px, 1.2vh, 10px);
+    padding-right: 12%; box-sizing: border-box;
+    margin: clamp(3px, 0.8vh, 8px) auto;
   }
   #leaderboard-screen .lb-timer-pill span {
-    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(8px, 1.8vh, 13px); color: #ffcb3d;
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(7px, 1.5vh, 11px); color: #ffcb3d;
   }
   #leaderboard-screen .lb-last-week-label {
     flex: 0 0 auto; font-family: 'Orbitron', sans-serif; font-weight: 800; letter-spacing: 1.5px;
@@ -230,21 +235,36 @@
   #leaderboard-screen .lb-podium-col.rank-1 { order: 2; }
   #leaderboard-screen .lb-podium-col.rank-2 { order: 1; }
   #leaderboard-screen .lb-podium-col.rank-3 { order: 3; }
+  /* aspect-ratio set explicitly (per rank - the 3 wreath images aren't
+     identically proportioned) rather than relying on the child img's
+     intrinsic size to shrink-wrap this container via flexbox - that left
+     the container's actual width ambiguous, which was throwing off the
+     avatar's %-based position/size against it (visible as a gap/misalign
+     between the avatar and the wreath's hole) */
   #leaderboard-screen .lb-wreath {
-    position: relative; height: clamp(36px, 7vh, 64px); width: auto;
-    margin-bottom: clamp(-8px, -0.9vh, -4px); z-index: 1;
+    position: relative; height: clamp(46px, 10vh, 90px); width: auto;
+    aspect-ratio: 1093 / 1086;
+    margin-bottom: clamp(-8px, -0.9vh, -6px); z-index: 1;
   }
-  #leaderboard-screen .lb-podium-col.rank-1 .lb-wreath { height: clamp(40px, 8vh, 72px); }
-  #leaderboard-screen .lb-wreath .lb-wreath-frame { display: block; height: 100%; width: auto; }
+  #leaderboard-screen .lb-podium-col.rank-1 .lb-wreath { height: clamp(52px, 11.5vh, 100px); aspect-ratio: 1093 / 1086; }
+  #leaderboard-screen .lb-podium-col.rank-2 .lb-wreath { aspect-ratio: 1067 / 1112; }
+  #leaderboard-screen .lb-podium-col.rank-3 .lb-wreath { aspect-ratio: 1088 / 1068; }
+  /* frame needs an explicit stacking position ABOVE the avatar - an
+     absolutely-positioned element (the avatar) paints above a static one
+     (the frame) by default regardless of DOM order, so without this the
+     avatar was covering the crown/ball instead of sitting behind them */
+  #leaderboard-screen .lb-wreath .lb-wreath-frame {
+    position: relative; z-index: 2; display: block; height: 100%; width: auto;
+  }
   #leaderboard-screen .lb-wreath .lb-wreath-avatar {
-    position: absolute; border-radius: 50%; object-fit: cover; background: #0e1a2b;
+    position: absolute; z-index: 1; border-radius: 50%; object-fit: cover; background: #0e1a2b;
   }
   /* pedestal art is spliced (top border + base, tall blank middle removed)
      to read as a compact card instead of a tall plaque */
   #leaderboard-screen .lb-pedestal {
-    position: relative; height: clamp(34px, 7vh, 62px); width: auto;
+    position: relative; height: clamp(42px, 9vh, 80px); width: auto;
   }
-  #leaderboard-screen .lb-podium-col.rank-1 .lb-pedestal { height: clamp(38px, 8vh, 70px); aspect-ratio: 873 / 558; }
+  #leaderboard-screen .lb-podium-col.rank-1 .lb-pedestal { height: clamp(46px, 10vh, 90px); aspect-ratio: 873 / 558; }
   #leaderboard-screen .lb-podium-col.rank-2 .lb-pedestal { aspect-ratio: 891 / 546; }
   #leaderboard-screen .lb-podium-col.rank-3 .lb-pedestal { aspect-ratio: 992 / 470; }
   #leaderboard-screen .lb-pedestal img { display: block; height: 100%; width: auto; }
@@ -259,10 +279,9 @@
     text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
     font-size: clamp(7px, 1.7vh, 13px); text-shadow: 0 1px 2px rgba(0,0,0,0.7);
   }
-  #leaderboard-screen .lb-wreath.empty, #leaderboard-screen .lb-pedestal.empty { opacity: 0.35; }
   /* plain CSS panel, no gold-bordered art, per the reference */
   #leaderboard-screen .lb-list-panel {
-    position: relative; flex: 1 1 auto; min-height: 0; width: 100%; max-width: 900px;
+    position: relative; flex: 1 1 auto; min-height: 0; width: 92%; max-width: 620px;
     background: rgba(10, 16, 28, 0.55); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
     display: flex; flex-direction: column;
     padding: clamp(8px, 2.2vh, 20px) clamp(10px, 2.6vw, 26px);
@@ -1159,9 +1178,9 @@
     <img class="lb-title-img" src="assets/lb_title_banner.png" alt="Leaderboard" />
     <button class="lb-info-btn" onclick="SFX.click(); showLeaderboardInfo()" aria-label="Info"></button>
   </div>
-  <div class="lb-timer-pill"><span id="lbTimerText">--</span></div>
   <div class="lb-last-week-label">LAST WEEK WINNERS</div>
   <div class="lb-podium" id="lbPodium"></div>
+  <div class="lb-timer-pill"><span id="lbTimerText">--</span></div>
   <div class="lb-list-panel">
     <div class="lb-list-header">
       <span class="lb-col-rank">RANK</span>
@@ -2212,9 +2231,7 @@ function buildPodiumColumn(rank, entry) {
   col.className = 'lb-podium-col rank-' + rank;
 
   const wreath = document.createElement('div');
-  // no winner for this rank yet (e.g. the first week ever) - dim it rather
-  // than showing a random default avatar looking like a real winner
-  wreath.className = 'lb-wreath' + (entry ? '' : ' empty');
+  wreath.className = 'lb-wreath';
   const frame = document.createElement('img');
   frame.className = 'lb-wreath-frame';
   frame.src = geo.src;
@@ -2231,7 +2248,7 @@ function buildPodiumColumn(rank, entry) {
   wreath.appendChild(avatar);
 
   const pedestal = document.createElement('div');
-  pedestal.className = 'lb-pedestal' + (entry ? '' : ' empty');
+  pedestal.className = 'lb-pedestal';
   const pedImg = document.createElement('img');
   pedImg.src = LB_PEDESTAL_SRC[rank];
   pedImg.alt = '';
