@@ -934,7 +934,7 @@ io.on('connection', (socket) => {
     cb(await profile.getStats(data && data.userId));
   });
 
-  // current week's live top 10 + the caller's own rank, last week's frozen
+  // current week's live top 50 + the caller's own rank, last week's frozen
   // top-3 winners for the podium, and when the current week ends
   socket.on('getLeaderboard', async (data, cb) => {
     if (typeof cb !== 'function') return;

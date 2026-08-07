@@ -268,8 +268,8 @@ async function ensureWeekRollover() {
   return winners;
 }
 
-// top 10 for the CURRENT (still live) week, the requesting user's own rank
-// even if outside the top 10, and last week's frozen top-3 winners for the
+// top 50 for the CURRENT (still live) week, the requesting user's own rank
+// even if outside the top 50, and last week's frozen top-3 winners for the
 // podium (see ensureWeekRollover)
 async function getLeaderboard(userId) {
   const lastWeekWinners = await ensureWeekRollover();
@@ -280,7 +280,7 @@ async function getLeaderboard(userId) {
     .limit(50)
     .toArray();
 
-  const top = active.slice(0, 10).map((u, i) => ({
+  const top = active.slice(0, 50).map((u, i) => ({
     userId: u._id.toString(), name: u.name, avatar: u.avatar, goals: u.weeklyGoals.count, rank: i + 1,
   }));
 
