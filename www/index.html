@@ -322,8 +322,9 @@
      on top of the existing highlighted-row art, so the caller's own row
      is unmistakable at a glance */
   #leaderboard-screen .lb-row.me {
-    background-image: linear-gradient(rgba(255, 224, 110, 0.16), rgba(255, 224, 110, 0.16)),
+    background-image: linear-gradient(rgba(255, 224, 110, 0.4), rgba(255, 224, 110, 0.4)),
                        url('assets/lb_row_highlight.png');
+    background-blend-mode: screen, normal;
   }
   #leaderboard-screen .lb-row-rank {
     flex: 0 0 auto; width: 15%; display: flex; align-items: center;
@@ -1512,6 +1513,7 @@ function guestLogin() {
       cacheProfile(res);
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('mode-select').style.display = 'flex';
+      SFX.menuMusic.start();
     });
   }, onConnectFail);
 }
@@ -1672,7 +1674,45 @@ const SFX = (function() {
     crowdSession = { src, gain };
   }
 
+  // menu background music (assets/menu_music.mp3) - loops everywhere OUTSIDE
+  // a live match (main menu, settings, private/quick match lobby, match-end
+  // screen), handing off to crowdAmbience once kickoff is actually revealed
+  function menuGain() { return 0.22 * (typeof MUSIC_VOLUME === 'number' ? MUSIC_VOLUME : 1); }
+  let menuBuffer = null;
+  let menuWantsToPlay = false;
+  fetch('assets/menu_music.mp3')
+    .then(r => r.arrayBuffer())
+    .then(data => ensureCtx().decodeAudioData(data))
+    .then(decoded => {
+      menuBuffer = decoded;
+      if (menuWantsToPlay) startMenuLoop();
+    })
+    .catch(() => {});
+
+  let menuSession = null; // { src, gain } while the menu music loop is live
+  function startMenuLoop() {
+    if (menuSession || !menuBuffer) return;
+    const c = ensureCtx();
+    const src = c.createBufferSource();
+    src.buffer = menuBuffer;
+    src.loop = true;
+    const gain = c.createGain();
+    gain.gain.value = menuGain();
+    src.connect(gain).connect(c.destination);
+    src.start(c.currentTime);
+    menuSession = { src, gain };
+  }
+
   return {
+    // mobile/WebView autoplay policy keeps a freshly-created AudioContext
+    // suspended until a real user gesture resumes it - called from a
+    // page-wide first-tap listener (see unlockAudioAutoplay below) so menu
+    // music, which starts automatically at login with no gesture behind it,
+    // actually becomes audible instead of silently sitting suspended
+    unlock() {
+      ensureCtx();
+      if (!kickoffRevealed) this.menuMusic.start();
+    },
     click() {
       if (!on()) return;
       const c = ensureCtx();
@@ -1762,8 +1802,49 @@ const SFX = (function() {
         crowdSession.gain.gain.cancelScheduledValues(c.currentTime);
         crowdSession.gain.gain.setValueAtTime(crowdGain(), c.currentTime);
       }
+    },
+    menuMusic: {
+      start() {
+        if (!musicOn()) return;
+        if (!menuBuffer) { menuWantsToPlay = true; return; }
+        startMenuLoop();
+      },
+      stop() {
+        menuWantsToPlay = false;
+        if (!menuSession) return;
+        const { src, gain } = menuSession;
+        const c = ensureCtx();
+        gain.gain.cancelScheduledValues(c.currentTime);
+        gain.gain.setValueAtTime(gain.gain.value, c.currentTime);
+        gain.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.4);
+        src.stop(c.currentTime + 0.45);
+        menuSession = null;
+      },
+      applyVolume() {
+        if (!menuSession) return;
+        const c = ensureCtx();
+        menuSession.gain.gain.cancelScheduledValues(c.currentTime);
+        menuSession.gain.gain.setValueAtTime(menuGain(), c.currentTime);
+      }
     }
   };
+})();
+
+// menu music auto-starts at login with no click behind it, but mobile
+// browsers/WebViews keep a brand-new AudioContext suspended until the
+// page has actually received a user gesture - so it silently sits ready
+// but inaudible until the player happens to tap something (e.g. Settings).
+// This listener unlocks it on the very first tap/click/key anywhere.
+(function () {
+  function unlockAudioAutoplay() {
+    document.removeEventListener('pointerdown', unlockAudioAutoplay, true);
+    document.removeEventListener('touchstart', unlockAudioAutoplay, true);
+    document.removeEventListener('keydown', unlockAudioAutoplay, true);
+    if (typeof SFX !== 'undefined') SFX.unlock();
+  }
+  document.addEventListener('pointerdown', unlockAudioAutoplay, true);
+  document.addEventListener('touchstart', unlockAudioAutoplay, true);
+  document.addEventListener('keydown', unlockAudioAutoplay, true);
 })();
 
 function toggleSFX() {
@@ -1781,14 +1862,20 @@ function toggleMusic() {
   btn.classList.toggle('on', MUSIC_ENABLED);
   // gated on kickoffRevealed (not just gameInstance) so toggling Music during
   // Quick Match's still-hidden reveal curtain can't start the ambience early
-  if (MUSIC_ENABLED) { if (kickoffRevealed) SFX.crowdAmbience.start(); }
-  else SFX.crowdAmbience.stop();
+  if (MUSIC_ENABLED) {
+    if (kickoffRevealed) SFX.crowdAmbience.start();
+    else SFX.menuMusic.start();
+  } else {
+    SFX.crowdAmbience.stop();
+    SFX.menuMusic.stop();
+  }
 }
 
 function setMusicVolume(value) {
   MUSIC_VOLUME = Math.min(1, Math.max(0, Number(value) / 100));
   localStorage.setItem('kickoffDuelMusicVolume', String(Math.round(MUSIC_VOLUME * 100)));
   SFX.crowdAmbience.applyVolume();
+  SFX.menuMusic.applyVolume();
 }
 
 function toggleVibration() {
@@ -2704,6 +2791,7 @@ function startOnlineMatch() {
   document.getElementById('decor-layer').style.display = 'none';
   document.querySelector('.settings-gear').style.display = 'none';
   document.querySelector('.exit-app-btn').style.display = 'none';
+  SFX.menuMusic.stop();
   document.getElementById('game-container').style.display = 'flex';
   gameInstance = new Phaser.Game(onlineConfig);
   // crowd ambience starts alongside readyForKickoff (see matchStarted handler),
@@ -2734,6 +2822,7 @@ function exitOnlineMatch() {
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
+  SFX.menuMusic.start();
 }
 </script>
 <script>
