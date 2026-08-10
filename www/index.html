@@ -154,26 +154,32 @@
   #mode-select .mode-btn img { width: 100%; display: block; }
   #mode-select .mode-btn:active { transform: scale(0.96) translateY(2px); }
 
-  /* absolutely positioned like .profile-pill/.pixel-banner rather than a
-     normal flex sibling of .content - #mode-select is flex ROW, so a plain
-     sibling would sit beside .content instead of below it. .content's own
-     3vh bottom margin was already left as breathing room for exactly this
-     kind of addition (see its own comment). A flex row so more icon
-     buttons can just be added alongside the leaderboard one later. */
-  #mode-select .bottom-panel {
-    position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom));
-    transform: translateX(-50%); z-index: 2;
-    height: clamp(44px, 8vh, 64px); width: min(90vw, 640px);
-    background: center / 100% 100% no-repeat;
-    background-image: url('assets/menu_bottom_panel.png');
-    display: flex; align-items: center; justify-content: center;
-    gap: clamp(8px, 1.6vh, 16px); box-sizing: border-box;
+  /* bottom-left corner icon, mirroring .shop-corner-btn's treatment - the
+     art itself already bakes in its own dark card + gold border + label,
+     so no extra wrapper chrome here (that was doubling up the border) */
+  .leaderboard-corner-btn {
+    position: absolute;
+    left: max(16px, env(safe-area-inset-left));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 2;
+    width: clamp(46px, 9vh, 64px); height: auto; aspect-ratio: 964 / 986;
+    border: none; padding: 0; background: none; cursor: pointer;
   }
-  #mode-select .bottom-panel-btn {
-    height: 76%; aspect-ratio: 1 / 1; border: none; background: center / 100% 100% no-repeat;
-    padding: 0; cursor: pointer; transition: transform 0.08s;
+  .leaderboard-corner-btn img { width: 100%; height: 100%; display: block; }
+  .leaderboard-corner-btn:active { transform: scale(0.94); }
+  /* bottom-right mirror of .leaderboard-corner-btn, same size/position
+     convention - no extra border chrome here since the art itself already
+     bakes in its own gold-bordered card (unlike the plain podium icon) */
+  .shop-corner-btn {
+    position: absolute;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 2;
+    width: clamp(46px, 9vh, 64px); height: auto; aspect-ratio: 642 / 691;
+    border: none; padding: 0; background: none; cursor: pointer;
   }
-  #mode-select .bottom-panel-btn:active { transform: scale(0.92); }
+  .shop-corner-btn img { width: 100%; height: 100%; display: block; }
+  .shop-corner-btn:active { transform: scale(0.94); }
 
   /* ---- Leaderboard screen ---- */
   #leaderboard-screen {
@@ -247,13 +253,17 @@
   #leaderboard-screen .lb-podium-col.rank-1 { width: clamp(68px, 15.5vh, 145px); order: 2; }
   #leaderboard-screen .lb-podium-col.rank-2 { order: 1; }
   #leaderboard-screen .lb-podium-col.rank-3 { order: 3; }
-  /* the podium's own avatar circle reuses the same reward-frame ring
-     (.avatar-frame-1/2/3, see the shared rule near .profile-pill) instead of
-     the old ornate wreath art - same round shape as every other avatar in
-     the app (matchmaking, profile pill, profile screen) */
+  /* wrap holds the layout footprint (width/margin) - the wreath overlay
+     (see applyAvatarFrame) is centered/scaled relative to THIS box and is
+     allowed to visually extend past it, so this must stay position:relative
+     with no overflow:hidden */
+  #leaderboard-screen .lb-podium-avatar-wrap {
+    position: relative; width: 70%; aspect-ratio: 1 / 1;
+    margin-bottom: clamp(6px, 1.2vh, 12px);
+  }
   #leaderboard-screen .lb-podium-avatar {
-    width: 70%; aspect-ratio: 1 / 1; border-radius: 50%; object-fit: cover;
-    background: #0e1a2b; margin-bottom: clamp(6px, 1.2vh, 12px);
+    width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+    background: #0e1a2b; display: block;
   }
   /* sized to match the wreath's width (100% of the shared column) instead
      of independently off height - independent sizing let the pedestal's
@@ -317,9 +327,16 @@
     font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: clamp(9px, 2vh, 15px); color: #cfd8e6;
   }
   #leaderboard-screen .lb-row-rank img { height: clamp(16px, 3.4vh, 26px); width: auto; display: block; }
+  /* wrap holds the layout footprint - see the podium's wrap/overlay
+     comment above for why this must stay position:relative, no overflow */
+  #leaderboard-screen .lb-row-avatar-wrap {
+    position: relative; flex: 0 0 auto;
+    width: clamp(20px, 4.2vh, 32px); height: clamp(20px, 4.2vh, 32px);
+  }
   #leaderboard-screen .lb-row-avatar {
-    flex: 0 0 auto; width: clamp(20px, 4.2vh, 32px); height: clamp(20px, 4.2vh, 32px);
+    width: 100%; height: 100%; display: block;
     border-radius: 50%; object-fit: cover; background: #0e1a2b; border: 2px solid rgba(255,255,255,0.25);
+    box-sizing: border-box;
   }
   #leaderboard-screen .lb-row-name {
     flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: clamp(9px, 2vh, 14px); color: #fff;
@@ -332,6 +349,63 @@
   #leaderboard-screen .lb-row-goals img { height: clamp(11px, 2.2vh, 16px); width: auto; display: block; }
   #leaderboard-screen .lb-empty-msg {
     flex: 0 0 auto; text-align: center; opacity: 0.6; font-size: clamp(10px, 1.8vh, 14px); padding: 10px 0;
+  }
+
+  /* info modal overlays ON TOP of leaderboard-screen (same pattern as
+     Settings/Profile overlaying mode-select) rather than replacing it -
+     the content panel image is much taller than a landscape phone
+     viewport, so (like #settings-panel) this scrolls from the top instead
+     of clipping when it doesn't fit, centering only when it does */
+  #leaderboard-info-screen {
+    position: fixed; inset: 0; z-index: 1000; display: none;
+    justify-content: center;
+    background: #05070c;
+    padding: clamp(6px, 2vh, 20px); box-sizing: border-box;
+    overflow-y: auto;
+  }
+  #leaderboard-info-screen .lbi-card {
+    margin: auto 0; width: 100%; max-width: 360px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #leaderboard-info-screen .lbi-header-wrap {
+    position: relative; width: 100%; margin-bottom: clamp(6px, 1.4vh, 14px);
+  }
+  #leaderboard-info-screen .lbi-header-img {
+    display: block; width: 100%; height: auto; aspect-ratio: 1996 / 295;
+  }
+  #leaderboard-info-screen .lbi-close-btn {
+    position: absolute; right: -10px; top: -14px;
+    width: clamp(26px, 6.5vw, 38px); height: auto; aspect-ratio: 841 / 771;
+    border: none; padding: 0; cursor: pointer;
+    background: center / 100% 100% no-repeat;
+    background-image: url('assets/lb_info_close_btn.png');
+  }
+  #leaderboard-info-screen .lbi-close-btn:active { transform: scale(0.92); }
+  #leaderboard-info-screen .lbi-panel-img {
+    display: block; width: 100%; height: auto; aspect-ratio: 1087 / 1346;
+    border-radius: 10px;
+  }
+
+  /* ---- Shop screen (shell only for now - category sidebar/item grid/
+     detail panel content lands as those assets arrive). The panel art
+     itself IS the full-screen background (edge to edge, non-uniform
+     stretch like every other full-bleed background in this app - see
+     asset-conventions), with the title as its own separate floating
+     header on top, not merged into the panel. ---- */
+  #shop-screen {
+    position: fixed; inset: 0; z-index: 960; display: none;
+    font-family: 'Rajdhani', sans-serif; color: white; box-sizing: border-box;
+    background: center / 100% 100% no-repeat;
+    background-image: url('assets/shop_panel.png');
+  }
+  /* the panel art reserves its own header band (~26% of its height) above
+     the bordered columns - sized/positioned to fill that band closely
+     instead of leaving a big empty gap between the title and the panel */
+  #shop-screen .shop-title-img {
+    position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%); z-index: 2;
+    height: clamp(50px, 20vh, 130px); width: auto; aspect-ratio: 1536 / 568;
+    border-radius: 8px;
   }
 
   .settings-gear {
@@ -376,17 +450,29 @@
   #appExitConfirm .aec-btn:active { transform: scale(0.96); }
   #appExitConfirm .aec-yes { left: 12.9%; width: 34.2%; }
   #appExitConfirm .aec-no { left: 52.6%; width: 34.4%; }
-  /* reward frame: top-3 finishers from last week keep a colored ring around
-     their avatar for the following week (see getFrameRank in profile.js) -
-     a box-shadow ring on whichever round element already renders the avatar
-     circle (never on an element inside an overflow:hidden ancestor, or the
-     ring gets clipped), so it drops onto every avatar circle already in the
-     app - profile pill, matchmaking, profile screen, leaderboard - without
-     a separate wrapper element or new art */
-  .avatar-frame-1, .avatar-frame-2, .avatar-frame-3 { border-radius: 50%; }
-  .avatar-frame-1 { box-shadow: 0 0 0 3px #ffd76a, 0 0 10px 2px rgba(255, 215, 106, 0.65); }
-  .avatar-frame-2 { box-shadow: 0 0 0 3px #d7dee6, 0 0 9px 2px rgba(215, 222, 230, 0.55); }
-  .avatar-frame-3 { box-shadow: 0 0 0 3px #e0995e, 0 0 9px 2px rgba(224, 153, 94, 0.55); }
+  /* reward frame: top-3 finishers from last week keep the actual wreath
+     art around their avatar for the following week (see getFrameRank in
+     profile.js) - overlaid as an extra <img>, absolutely centered and
+     scaled up from whatever round avatar element it's appended into (see
+     applyAvatarFrame/LB_WREATH_GEOMETRY), so the crown/leaf decorations
+     intentionally extend past the plain avatar circle. The container this
+     gets appended into must be position:relative (or absolute/fixed) and
+     must NOT have overflow:hidden, or the overlay gets clipped. */
+  /* !important throughout: this element lives inside containers that
+     already have their own generic "X img { width/height/border-radius/
+     object-fit/border }" rule (.profile-pill img, .mm-slot img,
+     .avatar-picker img) - those descendant selectors outrank this single
+     class on specificity alone, so without !important they'd silently
+     force the frame art into the same tiny bordered circle as the avatar */
+  .avatar-frame-overlay {
+    position: absolute !important; left: 50% !important; top: 50% !important;
+    width: calc(100% * 100 / var(--hole-pct, 60)) !important; height: auto !important;
+    max-width: none !important;
+    transform: translate(calc(var(--center-x, 50) * -1%), calc(var(--center-y, 50) * -1%)) !important;
+    border-radius: 0 !important; border: none !important; background: none !important;
+    object-fit: fill !important; box-sizing: content-box !important;
+    pointer-events: none !important; z-index: 5 !important;
+  }
   .profile-pill {
     /* absolute (not fixed) + nested inside #mode-select (see markup) so it's
        only ever visible on the main menu, never on other screens layered on
@@ -401,6 +487,7 @@
     border-radius: 6px; padding: 5px 16px 5px 5px;
     cursor: pointer; max-width: 200px;
   }
+  .pill-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
   .profile-pill img {
     width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
     border: 2px solid #e9c873; flex-shrink: 0;
@@ -578,9 +665,10 @@
   }
   .mm-player { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .mm-slot {
+    position: relative;
     width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     border: 2px dashed rgba(255,255,255,0.3); background: rgba(255,255,255,0.04);
-    font-size: 24px; opacity: 1; transform: scale(1); overflow: hidden;
+    font-size: 24px; opacity: 1; transform: scale(1);
     animation: mmSearchPulse 1.6s ease-in-out infinite;
   }
   .mm-slot img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
@@ -777,9 +865,9 @@
     width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 8px;
     background: rgba(255,255,255,0.08); border: 2px solid rgba(255,203,61,0.4);
     display: flex; align-items: center; justify-content: center; font-size: 26px;
-    overflow: hidden; position: relative;
+    position: relative;
   }
-  .avatar-picker img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-picker img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
   .preset-avatar-grid {
     display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
     margin-bottom: 8px;
@@ -1151,8 +1239,14 @@
   <div class="pixel-banner left"><img src="assets/menu_banner_left.png" alt="" /></div>
   <div class="pixel-banner right"><img src="assets/menu_banner_right.png" alt="" /></div>
   <button class="profile-pill" onclick="SFX.click(); openProfile()">
-    <img id="mainMenuAvatarImg" alt="Profile" />
+    <span class="pill-avatar-wrap"><img id="mainMenuAvatarImg" alt="Profile" /></span>
     <span id="mainMenuNameLabel"></span>
+  </button>
+  <button class="leaderboard-corner-btn" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard">
+    <img src="assets/menu_leaderboard_icon.png" alt="" />
+  </button>
+  <button class="shop-corner-btn" onclick="SFX.click(); openShop()" aria-label="Shop">
+    <img src="assets/menu_shop_icon.png" alt="" />
   </button>
   <div class="content">
     <div class="title-block">
@@ -1183,9 +1277,6 @@
       <button class="mode-btn" onclick="SFX.click(); openPrivateMenu()"><img src="assets/menu_private_match_btn.png" alt="Private Match" /></button>
     </div>
   </div>
-  <div class="bottom-panel">
-    <button class="bottom-panel-btn" style="background-image: url('assets/menu_leaderboard_icon.png')" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard"></button>
-  </div>
 </div>
 
 <div id="leaderboard-screen">
@@ -1205,6 +1296,21 @@
     </div>
     <div class="lb-list-rows" id="lbListRows"></div>
   </div>
+</div>
+
+<div id="leaderboard-info-screen">
+  <div class="lbi-card">
+    <div class="lbi-header-wrap">
+      <img class="lbi-header-img" src="assets/lb_info_header.png" alt="Leaderboard Info" />
+      <button class="lbi-close-btn" onclick="SFX.click(); closeLeaderboardInfo()" aria-label="Close"></button>
+    </div>
+    <img class="lbi-panel-img" src="assets/lb_info_panel.png" alt="Top 3 weekly frame rewards: gold, silver, bronze frame. Leaderboard rewards reset every week. Rules: earn points by scoring goals and winning matches, climb the ranks, weekly reset distributes new rewards." />
+  </div>
+</div>
+
+<div id="shop-screen">
+  <button class="back-circle-btn" onclick="SFX.click(); closeShop()"><span class="chevron-left"></span></button>
+  <img class="shop-title-img" src="assets/shop_text.png" alt="Shop" />
 </div>
 
 <div id="private-select">
@@ -1457,13 +1563,37 @@ let PROFILE_HAS_GOOGLE = localStorage.getItem('kickoffDuelHasGoogle') === '1';
 // server round-trip completes
 let PROFILE_FRAME_RANK = Number(localStorage.getItem('kickoffDuelFrameRank')) || null;
 
-// applies/removes the reward-frame ring (see getFrameRank in profile.js) on
-// any round avatar element - always target the round CONTAINER, not an img
-// nested inside an overflow:hidden circle, or the ring gets clipped
-function applyAvatarFrame(el, rank) {
-  if (!el) return;
-  el.classList.remove('avatar-frame-1', 'avatar-frame-2', 'avatar-frame-3');
-  if (rank === 1 || rank === 2 || rank === 3) el.classList.add('avatar-frame-' + rank);
+// per-rank wreath art + the geometry needed to center it over an existing
+// plain avatar circle: holePct is how much of the wreath's own width the
+// avatar hole occupies (see the old podium-fitting work), centerX/centerY
+// is where that hole's center sits as a % of the wreath's box - derived
+// once from the wreath PNGs themselves and reused everywhere a frame shows
+const LB_WREATH_GEOMETRY = {
+  1: { src: 'assets/lb_wreath_gold.png',   ratio: 1093 / 1086, holePct: 60.0, centerX: 49.9,  centerY: 51.9 },
+  2: { src: 'assets/lb_wreath_silver.png', ratio: 1067 / 1112, holePct: 60.1, centerX: 50.15, centerY: 52.35 },
+  3: { src: 'assets/lb_wreath_bronze.png', ratio: 1088 / 1068, holePct: 57.6, centerX: 50.0,  centerY: 52.0 },
+};
+
+// overlays the actual reward-frame art (see getFrameRank in profile.js) on
+// top of an existing round avatar - `slotEl` must be position:relative (or
+// absolute/fixed), non-overflow-hidden, and directly wrap (or BE the direct
+// parent of) the plain avatar image, since the frame is centered/scaled
+// relative to slotEl's own box
+function applyAvatarFrame(slotEl, rank) {
+  if (!slotEl) return;
+  const existing = slotEl.querySelector('.avatar-frame-overlay');
+  if (existing) existing.remove();
+  if (rank !== 1 && rank !== 2 && rank !== 3) return;
+  const geo = LB_WREATH_GEOMETRY[rank];
+  const overlay = document.createElement('img');
+  overlay.className = 'avatar-frame-overlay';
+  overlay.src = geo.src;
+  overlay.alt = '';
+  overlay.style.aspectRatio = geo.ratio;
+  overlay.style.setProperty('--hole-pct', geo.holePct);
+  overlay.style.setProperty('--center-x', geo.centerX);
+  overlay.style.setProperty('--center-y', geo.centerY);
+  slotEl.appendChild(overlay);
 }
 
 // gate the main menu behind login only on first launch - once a profile is
@@ -2191,7 +2321,7 @@ function renderAvatarPreview(id) {
 function refreshMainMenuAvatar() {
   const img = document.getElementById('mainMenuAvatarImg');
   img.src = avatarSrc(currentAvatarId());
-  applyAvatarFrame(img, PROFILE_FRAME_RANK);
+  applyAvatarFrame(document.querySelector('.pill-avatar-wrap'), PROFILE_FRAME_RANK);
   document.getElementById('mainMenuNameLabel').textContent = PLAYER_NAME;
 }
 
@@ -2239,7 +2369,7 @@ function refreshProfileStats() {
       PROFILE_FRAME_RANK = res.frameRank || null;
       if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
       applyAvatarFrame(document.querySelector('.avatar-picker'), PROFILE_FRAME_RANK);
-      applyAvatarFrame(document.getElementById('mainMenuAvatarImg'), PROFILE_FRAME_RANK);
+      applyAvatarFrame(document.querySelector('.pill-avatar-wrap'), PROFILE_FRAME_RANK);
     });
   });
 }
@@ -2274,6 +2404,8 @@ function hideAllMenus() {
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('matchmaking-screen').style.display = 'none';
   document.getElementById('leaderboard-screen').style.display = 'none';
+  document.getElementById('leaderboard-info-screen').style.display = 'none';
+  document.getElementById('shop-screen').style.display = 'none';
   // the gear (and exit button) are fixed, always-on-top elements that live
   // outside #mode-select (see .settings-gear/.exit-app-btn), so hiding
   // mode-select alone doesn't hide them - every screen this clears is
@@ -2283,17 +2415,27 @@ function hideAllMenus() {
 }
 
 // Settings and Profile overlay ON TOP of mode-select (blurred behind them)
-// rather than hiding it like every other screen does, so the pill - though
-// nested inside mode-select and normally hidden along with it - needs an
-// explicit hide here too, otherwise it'd sit there faintly blurred instead
-// of being genuinely gone.
+// rather than hiding it like every other screen does, so the pill (and the
+// leaderboard/shop corner buttons, same layer/z-index) - though nested
+// inside mode-select and normally hidden along with it - need an explicit
+// hide here too, otherwise they'd sit there faintly blurred instead of
+// being genuinely gone.
 function hideProfilePill() {
   const pill = document.querySelector('.profile-pill');
   if (pill) pill.style.display = 'none';
+  const lbBtn = document.querySelector('.leaderboard-corner-btn');
+  if (lbBtn) lbBtn.style.display = 'none';
+  const shopBtn = document.querySelector('.shop-corner-btn');
+  if (shopBtn) shopBtn.style.display = 'none';
 }
 function showProfilePillIfOnMainMenu() {
+  const onMainMenu = document.getElementById('mode-select').style.display !== 'none';
   const pill = document.querySelector('.profile-pill');
-  if (pill && document.getElementById('mode-select').style.display !== 'none') pill.style.display = 'flex';
+  if (pill && onMainMenu) pill.style.display = 'flex';
+  const lbBtn = document.querySelector('.leaderboard-corner-btn');
+  if (lbBtn && onMainMenu) lbBtn.style.display = 'block';
+  const shopBtn = document.querySelector('.shop-corner-btn');
+  if (shopBtn && onMainMenu) shopBtn.style.display = 'block';
 }
 
 function openPrivateMenu() {
@@ -2339,7 +2481,24 @@ function closeLeaderboard() {
 }
 
 function showLeaderboardInfo() {
-  alert('Top 3 each week win a colored frame around their avatar for the following week. Standings reset every week - the podium above shows LAST week\'s winners, the list below is this week\'s live standings.');
+  document.getElementById('leaderboard-info-screen').style.display = 'flex';
+}
+
+function closeLeaderboardInfo() {
+  document.getElementById('leaderboard-info-screen').style.display = 'none';
+}
+
+// shell only for now - category sidebar/item grid/detail panel content
+// lands as those assets arrive (see the panel background art itself)
+function openShop() {
+  hideAllMenus();
+  document.getElementById('shop-screen').style.display = 'flex';
+}
+function closeShop() {
+  hideAllMenus();
+  document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
+  document.getElementById('mode-select').style.display = 'flex';
 }
 
 const LB_PEDESTAL_SRC = { 1: 'assets/lb_pedestal_gold.png', 2: 'assets/lb_pedestal_silver.png', 3: 'assets/lb_pedestal_bronze.png' };
@@ -2349,13 +2508,16 @@ function buildPodiumColumn(rank, entry) {
   const col = document.createElement('div');
   col.className = 'lb-podium-col rank-' + rank;
 
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'lb-podium-avatar-wrap';
   const avatar = document.createElement('img');
   avatar.className = 'lb-podium-avatar';
   avatar.src = avatarSrc(entry ? entry.avatar : 'avatar_preset_01');
   avatar.alt = '';
-  // only a REAL winner earns the ring - an empty slot (fewer than 3 people
+  avatarWrap.appendChild(avatar);
+  // only a REAL winner earns the frame - an empty slot (fewer than 3 people
   // scored last week) shows a plain placeholder avatar, no frame
-  if (entry) applyAvatarFrame(avatar, rank);
+  if (entry) applyAvatarFrame(avatarWrap, rank);
 
   const pedestal = document.createElement('div');
   pedestal.className = 'lb-pedestal';
@@ -2372,7 +2534,7 @@ function buildPodiumColumn(rank, entry) {
   pedestal.appendChild(name);
   pedestal.appendChild(score);
 
-  col.appendChild(avatar);
+  col.appendChild(avatarWrap);
   col.appendChild(pedestal);
   return col;
 }
@@ -2392,11 +2554,14 @@ function buildLeaderboardRow(entry, isMe) {
     rankEl.textContent = entry.rank ? ('#' + entry.rank) : '-';
   }
 
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'lb-row-avatar-wrap';
   const avatar = document.createElement('img');
   avatar.className = 'lb-row-avatar';
   avatar.src = avatarSrc(entry.avatar);
   avatar.alt = '';
-  applyAvatarFrame(avatar, entry.frameRank);
+  avatarWrap.appendChild(avatar);
+  applyAvatarFrame(avatarWrap, entry.frameRank);
 
   const name = document.createElement('div');
   name.className = 'lb-row-name';
@@ -2413,7 +2578,7 @@ function buildLeaderboardRow(entry, isMe) {
   goals.appendChild(goalsNum);
 
   row.appendChild(rankEl);
-  row.appendChild(avatar);
+  row.appendChild(avatarWrap);
   row.appendChild(name);
   row.appendChild(goals);
   return row;
