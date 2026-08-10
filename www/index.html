@@ -247,22 +247,13 @@
   #leaderboard-screen .lb-podium-col.rank-1 { width: clamp(68px, 15.5vh, 145px); order: 2; }
   #leaderboard-screen .lb-podium-col.rank-2 { order: 1; }
   #leaderboard-screen .lb-podium-col.rank-3 { order: 3; }
-  #leaderboard-screen .lb-wreath {
-    position: relative; width: 100%; height: auto;
-    aspect-ratio: 1093 / 1086;
-    margin-bottom: clamp(-14px, -1.4vh, -8px); z-index: 1;
-  }
-  #leaderboard-screen .lb-podium-col.rank-2 .lb-wreath { aspect-ratio: 1067 / 1112; }
-  #leaderboard-screen .lb-podium-col.rank-3 .lb-wreath { aspect-ratio: 1088 / 1068; }
-  /* frame needs an explicit stacking position ABOVE the avatar - an
-     absolutely-positioned element (the avatar) paints above a static one
-     (the frame) by default regardless of DOM order, so without this the
-     avatar was covering the crown/ball instead of sitting behind them */
-  #leaderboard-screen .lb-wreath .lb-wreath-frame {
-    position: relative; z-index: 2; display: block; width: 100%; height: auto;
-  }
-  #leaderboard-screen .lb-wreath .lb-wreath-avatar {
-    position: absolute; z-index: 1; border-radius: 50%; object-fit: cover; background: #0e1a2b;
+  /* the podium's own avatar circle reuses the same reward-frame ring
+     (.avatar-frame-1/2/3, see the shared rule near .profile-pill) instead of
+     the old ornate wreath art - same round shape as every other avatar in
+     the app (matchmaking, profile pill, profile screen) */
+  #leaderboard-screen .lb-podium-avatar {
+    width: 70%; aspect-ratio: 1 / 1; border-radius: 50%; object-fit: cover;
+    background: #0e1a2b; margin-bottom: clamp(6px, 1.2vh, 12px);
   }
   /* sized to match the wreath's width (100% of the shared column) instead
      of independently off height - independent sizing let the pedestal's
@@ -318,13 +309,8 @@
     display: flex; align-items: center;
     padding: 0 clamp(6px, 1.8vw, 16px); box-sizing: border-box; gap: clamp(6px, 1.6vw, 14px);
   }
-  /* a light yellow tint layered over the whole row (not just the avatar),
-     on top of the existing highlighted-row art, so the caller's own row
-     is unmistakable at a glance */
   #leaderboard-screen .lb-row.me {
-    background-image: linear-gradient(rgba(255, 224, 110, 0.4), rgba(255, 224, 110, 0.4)),
-                       url('assets/lb_row_highlight.png');
-    background-blend-mode: screen, normal;
+    background-image: url('assets/lb_row_highlight.png');
   }
   #leaderboard-screen .lb-row-rank {
     flex: 0 0 auto; width: 15%; display: flex; align-items: center;
@@ -390,6 +376,17 @@
   #appExitConfirm .aec-btn:active { transform: scale(0.96); }
   #appExitConfirm .aec-yes { left: 12.9%; width: 34.2%; }
   #appExitConfirm .aec-no { left: 52.6%; width: 34.4%; }
+  /* reward frame: top-3 finishers from last week keep a colored ring around
+     their avatar for the following week (see getFrameRank in profile.js) -
+     a box-shadow ring on whichever round element already renders the avatar
+     circle (never on an element inside an overflow:hidden ancestor, or the
+     ring gets clipped), so it drops onto every avatar circle already in the
+     app - profile pill, matchmaking, profile screen, leaderboard - without
+     a separate wrapper element or new art */
+  .avatar-frame-1, .avatar-frame-2, .avatar-frame-3 { border-radius: 50%; }
+  .avatar-frame-1 { box-shadow: 0 0 0 3px #ffd76a, 0 0 10px 2px rgba(255, 215, 106, 0.65); }
+  .avatar-frame-2 { box-shadow: 0 0 0 3px #d7dee6, 0 0 9px 2px rgba(215, 222, 230, 0.55); }
+  .avatar-frame-3 { box-shadow: 0 0 0 3px #e0995e, 0 0 9px 2px rgba(224, 153, 94, 0.55); }
   .profile-pill {
     /* absolute (not fixed) + nested inside #mode-select (see markup) so it's
        only ever visible on the main menu, never on other screens layered on
@@ -1454,6 +1451,20 @@ let PROFILE_AUTH_TOKEN = localStorage.getItem('kickoffDuelAuthToken') || null;
 let PROFILE_COUNTRY = localStorage.getItem('kickoffDuelProfileCountry') || null;
 let PROFILE_AVATAR = localStorage.getItem('kickoffDuelProfileAvatar') || null;
 let PROFILE_HAS_GOOGLE = localStorage.getItem('kickoffDuelHasGoogle') === '1';
+// 1/2/3 if this player finished top-3 last week (see getFrameRank server-
+// side), else null - cached like the rest of the profile so the frame shows
+// immediately from localStorage on a returning launch, before any
+// server round-trip completes
+let PROFILE_FRAME_RANK = Number(localStorage.getItem('kickoffDuelFrameRank')) || null;
+
+// applies/removes the reward-frame ring (see getFrameRank in profile.js) on
+// any round avatar element - always target the round CONTAINER, not an img
+// nested inside an overflow:hidden circle, or the ring gets clipped
+function applyAvatarFrame(el, rank) {
+  if (!el) return;
+  el.classList.remove('avatar-frame-1', 'avatar-frame-2', 'avatar-frame-3');
+  if (rank === 1 || rank === 2 || rank === 3) el.classList.add('avatar-frame-' + rank);
+}
 
 // gate the main menu behind login only on first launch - once a profile is
 // cached, skip straight to mode-select on every later launch. The
@@ -1481,12 +1492,14 @@ function cacheProfile(p) {
   PROFILE_COUNTRY = p.country || null;
   PROFILE_AVATAR = p.avatar || null;
   PROFILE_HAS_GOOGLE = !!p.hasGoogle;
+  PROFILE_FRAME_RANK = p.frameRank || null;
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
   localStorage.setItem('kickoffDuelUserId', PROFILE_USER_ID);
   if (p.authToken) localStorage.setItem('kickoffDuelAuthToken', p.authToken);
   if (PROFILE_COUNTRY) localStorage.setItem('kickoffDuelProfileCountry', PROFILE_COUNTRY); else localStorage.removeItem('kickoffDuelProfileCountry');
   if (PROFILE_AVATAR) localStorage.setItem('kickoffDuelProfileAvatar', PROFILE_AVATAR); else localStorage.removeItem('kickoffDuelProfileAvatar');
   localStorage.setItem('kickoffDuelHasGoogle', PROFILE_HAS_GOOGLE ? '1' : '0');
+  if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
   refreshMainMenuAvatar();
 }
 
@@ -2176,7 +2189,9 @@ function renderAvatarPreview(id) {
 }
 
 function refreshMainMenuAvatar() {
-  document.getElementById('mainMenuAvatarImg').src = avatarSrc(currentAvatarId());
+  const img = document.getElementById('mainMenuAvatarImg');
+  img.src = avatarSrc(currentAvatarId());
+  applyAvatarFrame(img, PROFILE_FRAME_RANK);
   document.getElementById('mainMenuNameLabel').textContent = PLAYER_NAME;
 }
 
@@ -2196,6 +2211,7 @@ function openProfile() {
   document.getElementById('profileCountrySelect').value = PROFILE_COUNTRY || '';
   const activeId = currentAvatarId();
   renderAvatarPreview(activeId);
+  applyAvatarFrame(document.querySelector('.avatar-picker'), PROFILE_FRAME_RANK);
   document.querySelectorAll('#presetAvatarGrid img').forEach((el) => {
     el.classList.toggle('selected', el.alt === `Avatar ${Number(activeId.slice(-2))}`);
   });
@@ -2220,6 +2236,10 @@ function refreshProfileStats() {
       document.getElementById('statMatchesWon').textContent = res.matchesWon;
       document.getElementById('statGoalsScored').textContent = res.goalsScored;
       document.getElementById('statWinRate').textContent = res.winRate + '%';
+      PROFILE_FRAME_RANK = res.frameRank || null;
+      if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
+      applyAvatarFrame(document.querySelector('.avatar-picker'), PROFILE_FRAME_RANK);
+      applyAvatarFrame(document.getElementById('mainMenuAvatarImg'), PROFILE_FRAME_RANK);
     });
   });
 }
@@ -2319,38 +2339,23 @@ function closeLeaderboard() {
 }
 
 function showLeaderboardInfo() {
-  alert('Top 3 each week win a wreath frame around their avatar for the following week. Standings reset every week - the podium above shows LAST week\'s winners, the list below is this week\'s live standings.');
+  alert('Top 3 each week win a colored frame around their avatar for the following week. Standings reset every week - the podium above shows LAST week\'s winners, the list below is this week\'s live standings.');
 }
 
-const LB_WREATH_GEOMETRY = {
-  1: { src: 'assets/lb_wreath_gold.png', left: 19.9, top: 21.9, size: 60.0 },
-  2: { src: 'assets/lb_wreath_silver.png', left: 20.1, top: 22.3, size: 60.1 },
-  3: { src: 'assets/lb_wreath_bronze.png', left: 21.2, top: 23.2, size: 57.6 },
-};
 const LB_PEDESTAL_SRC = { 1: 'assets/lb_pedestal_gold.png', 2: 'assets/lb_pedestal_silver.png', 3: 'assets/lb_pedestal_bronze.png' };
 const LB_MEDAL_SRC = { 1: 'assets/lb_medal_1.png', 2: 'assets/lb_medal_2.png', 3: 'assets/lb_medal_3.png' };
 
 function buildPodiumColumn(rank, entry) {
-  const geo = LB_WREATH_GEOMETRY[rank];
   const col = document.createElement('div');
   col.className = 'lb-podium-col rank-' + rank;
 
-  const wreath = document.createElement('div');
-  wreath.className = 'lb-wreath';
-  const frame = document.createElement('img');
-  frame.className = 'lb-wreath-frame';
-  frame.src = geo.src;
-  frame.alt = '';
   const avatar = document.createElement('img');
-  avatar.className = 'lb-wreath-avatar';
+  avatar.className = 'lb-podium-avatar';
   avatar.src = avatarSrc(entry ? entry.avatar : 'avatar_preset_01');
   avatar.alt = '';
-  avatar.style.left = geo.left + '%';
-  avatar.style.top = geo.top + '%';
-  avatar.style.width = geo.size + '%';
-  avatar.style.height = geo.size + '%';
-  wreath.appendChild(frame);
-  wreath.appendChild(avatar);
+  // only a REAL winner earns the ring - an empty slot (fewer than 3 people
+  // scored last week) shows a plain placeholder avatar, no frame
+  if (entry) applyAvatarFrame(avatar, rank);
 
   const pedestal = document.createElement('div');
   pedestal.className = 'lb-pedestal';
@@ -2367,7 +2372,7 @@ function buildPodiumColumn(rank, entry) {
   pedestal.appendChild(name);
   pedestal.appendChild(score);
 
-  col.appendChild(wreath);
+  col.appendChild(avatar);
   col.appendChild(pedestal);
   return col;
 }
@@ -2391,6 +2396,7 @@ function buildLeaderboardRow(entry, isMe) {
   avatar.className = 'lb-row-avatar';
   avatar.src = avatarSrc(entry.avatar);
   avatar.alt = '';
+  applyAvatarFrame(avatar, entry.frameRank);
 
   const name = document.createElement('div');
   name.className = 'lb-row-name';
@@ -2641,6 +2647,10 @@ function revealMmSlot(slot, name, delay) {
   // real opponent
   const avatarId = slot === mySlot ? currentAvatarId() : mmAvatarFor(name);
   circle.innerHTML = `<img src="${avatarSrc(avatarId)}" alt="" />`;
+  // only the local player's own slot can show a reward frame - opponents'
+  // real identity (and therefore their frame status) isn't sent over the
+  // wire, same reason their avatar above is a per-name placeholder, not real
+  applyAvatarFrame(circle, slot === mySlot ? PROFILE_FRAME_RANK : null);
   nameEl.textContent = name + (slot === mySlot ? ' (you)' : '');
   nameEl.classList.remove('searching');
   circle.style.setProperty('--mm-rot', (Math.random() * 30 - 15) + 'deg');

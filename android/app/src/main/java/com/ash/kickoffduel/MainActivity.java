@@ -11,6 +11,10 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         hideSystemBars();
+        // WebView's autoplay policy otherwise blocks the AudioContext (menu
+        // music) until a real tap occurs - not needed here since this is a
+        // packaged app, not a webpage a stranger could abuse with noisy autoplay
+        getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
     }
 
     @Override

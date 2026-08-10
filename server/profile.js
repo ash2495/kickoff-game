@@ -51,11 +51,12 @@ function verifyToken(userId, token) {
     crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
 }
 
-function toPublicProfile(doc) {
+async function toPublicProfile(doc) {
   const matchesPlayed = doc.matchesPlayed || 0;
   const matchesWon = doc.matchesWon || 0;
+  const userId = doc._id.toString();
   return {
-    userId: doc._id.toString(),
+    userId,
     name: doc.name,
     country: doc.country,
     avatar: doc.avatar,
@@ -64,6 +65,7 @@ function toPublicProfile(doc) {
     matchesWon,
     goalsScored: doc.goalsScored || 0,
     winRate: matchesPlayed > 0 ? Math.round((matchesWon / matchesPlayed) * 100) : 0,
+    frameRank: await getFrameRank(userId),
   };
 }
 
@@ -94,7 +96,7 @@ async function guestLogin(deviceId) {
     doc = { ...insert, _id: result.insertedId };
   }
 
-  return { ok: true, ...toPublicProfile(doc), authToken: issueToken(doc._id.toString()) };
+  return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
 
 async function googleLogin(idToken, deviceId) {
@@ -148,7 +150,7 @@ async function googleLogin(idToken, deviceId) {
     }
   }
 
-  return { ok: true, ...toPublicProfile(doc), authToken: issueToken(doc._id.toString()) };
+  return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
 
 async function updateProfile(userId, authToken, { name, country, avatar } = {}) {
@@ -171,7 +173,7 @@ async function updateProfile(userId, authToken, { name, country, avatar } = {}) 
   );
   if (!doc) return { ok: false, error: 'Profile not found.' };
 
-  return { ok: true, ...toPublicProfile(doc) };
+  return { ok: true, ...(await toPublicProfile(doc)) };
 }
 
 async function getStats(userId) {
@@ -179,7 +181,7 @@ async function getStats(userId) {
   const users = getUsers();
   const doc = await users.findOne({ _id: new ObjectId(userId) });
   if (!doc) return { ok: false, error: 'Profile not found.' };
-  return { ok: true, ...toPublicProfile(doc) };
+  return { ok: true, ...(await toPublicProfile(doc)) };
 }
 
 // called from server.js at match end (matchesPlayed/matchesWon for every
@@ -268,11 +270,24 @@ async function ensureWeekRollover() {
   return winners;
 }
 
+// current reward-frame rank (1/2/3) for a single user, or null - looked up
+// fresh from the same snapshot ensureWeekRollover maintains rather than
+// cached on the user doc, so it naturally disappears the moment the
+// snapshot rolls over with zero extra bookkeeping. Used to decorate this
+// user's avatar wherever it's rendered (profile pill, matchmaking, profile
+// screen) - see toPublicProfile above.
+async function getFrameRank(userId) {
+  const winners = await ensureWeekRollover();
+  const entry = winners.find((w) => w.userId === userId);
+  return entry ? entry.rank : null;
+}
+
 // top 50 for the CURRENT (still live) week, the requesting user's own rank
 // even if outside the top 50, and last week's frozen top-3 winners for the
 // podium (see ensureWeekRollover)
 async function getLeaderboard(userId) {
   const lastWeekWinners = await ensureWeekRollover();
+  const frameByUser = new Map(lastWeekWinners.map((w) => [w.userId, w.rank]));
   const currentWeekId = getWeekId();
   const users = getUsers();
   const active = await users.find({ 'weeklyGoals.weekId': currentWeekId })
@@ -282,18 +297,19 @@ async function getLeaderboard(userId) {
 
   const top = active.slice(0, 50).map((u, i) => ({
     userId: u._id.toString(), name: u.name, avatar: u.avatar, goals: u.weeklyGoals.count, rank: i + 1,
+    frameRank: frameByUser.get(u._id.toString()) || null,
   }));
 
   let me = null;
   if (typeof userId === 'string' && ObjectId.isValid(userId)) {
     const idx = active.findIndex((u) => u._id.toString() === userId);
     if (idx >= 0) {
-      me = { userId, name: active[idx].name, avatar: active[idx].avatar, goals: active[idx].weeklyGoals.count, rank: idx + 1 };
+      me = { userId, name: active[idx].name, avatar: active[idx].avatar, goals: active[idx].weeklyGoals.count, rank: idx + 1, frameRank: frameByUser.get(userId) || null };
     } else {
       const doc = await users.findOne({ _id: new ObjectId(userId) });
       if (doc) {
         const goals = (doc.weeklyGoals && doc.weeklyGoals.weekId === currentWeekId) ? doc.weeklyGoals.count : 0;
-        me = { userId, name: doc.name, avatar: doc.avatar, goals, rank: null };
+        me = { userId, name: doc.name, avatar: doc.avatar, goals, rank: null, frameRank: frameByUser.get(userId) || null };
       }
     }
   }
