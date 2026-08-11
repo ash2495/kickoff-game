@@ -138,6 +138,14 @@ function sanitizeName(name) {
   return trimmed || 'Player';
 }
 
+// cosmetic-only, client-supplied like name/avatar (no server-side gameplay
+// effect) - whitelist keeps it from being used to inject arbitrary values,
+// more IDs land here as more auras are added
+const AURA_IDS = ['fire'];
+function sanitizeAura(aura) {
+  return typeof aura === 'string' && AURA_IDS.includes(aura) ? aura : null;
+}
+
 function makeRoomCode() {
   let code;
   do {
@@ -146,7 +154,7 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId, hostAura) {
   const code = makeRoomCode();
   const size = sanitizeTeamSize(teamSize);
   const slots = getSlots(size);
@@ -156,7 +164,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
     entities[slot] = {
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
       team: slot[0], isBot: true, socketId: null, name: randomBotName(), userId: null,
-      difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
+      equippedAura: null, difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
@@ -192,6 +200,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
   entities.A1.socketId = hostSocketId;
   entities.A1.name = sanitizeName(hostName);
   entities.A1.userId = typeof hostUserId === 'string' ? hostUserId : null;
+  entities.A1.equippedAura = sanitizeAura(hostAura);
   rooms.set(code, room);
   return room;
 }
@@ -216,6 +225,16 @@ function emitLobby(room) {
     players[slot] = { connected: !room.entities[slot].isBot, name: room.entities[slot].name || 'Player' };
   });
   io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot, teamSize: room.teamSize, countdownEndsAt: room.matchmakeCountdownEndsAt || null });
+}
+
+// fired once per actual kick (not every tick) so clients can play the
+// kicker's equipped aura trail on the ball - only when there's actually an
+// aura to show (bots always carry equippedAura: null), so bot kicks (which
+// happen just as often as real ones) don't add pointless socket traffic
+function emitBallKicked(room, slot) {
+  const e = room.entities[slot];
+  if (!e || !e.equippedAura) return;
+  io.to(room.code).emit('ballKicked', { slot, aura: e.equippedAura });
 }
 
 function resetMatchState(room) {
@@ -420,6 +439,7 @@ function applyBotKick(room, slot, e, cfg) {
     room.ball.vy = Math.sin(aimAngle) * dribblePower;
   }
   room.ball.lastKickSlot = slot;
+  emitBallKicked(room, slot);
 }
 
 function updateBots(room, dt) {
@@ -732,7 +752,7 @@ io.on('connection', (socket) => {
     if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
     const matchDuration = Number(data && data.matchDuration) || 0;
     const hostUserId = typeof (data && data.userId) === 'string' ? data.userId : null;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, hostUserId);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, hostUserId, data && data.equippedAura);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
@@ -754,6 +774,7 @@ io.on('connection', (socket) => {
     room.entities[slot].socketId = socket.id;
     room.entities[slot].name = sanitizeName(data && data.name);
     room.entities[slot].userId = typeof (data && data.userId) === 'string' ? data.userId : null;
+    room.entities[slot].equippedAura = sanitizeAura(data && data.equippedAura);
     socket.join(code);
     socket.data.code = code;
     socket.data.slot = slot;
@@ -777,6 +798,7 @@ io.on('connection', (socket) => {
       existing.entities[slot].socketId = socket.id;
       existing.entities[slot].name = sanitizeName(data && data.name);
       existing.entities[slot].userId = typeof (data && data.userId) === 'string' ? data.userId : null;
+      existing.entities[slot].equippedAura = sanitizeAura(data && data.equippedAura);
       socket.join(existing.code);
       socket.data.code = existing.code;
       socket.data.slot = slot;
@@ -791,7 +813,7 @@ io.on('connection', (socket) => {
 
     const matchDuration = Number(data && data.matchDuration) || 0;
     const hostUserId = typeof (data && data.userId) === 'string' ? data.userId : null;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, hostUserId);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, hostUserId, data && data.equippedAura);
     room.isPublic = true;
     room.matchmakeCountdownEndsAt = Date.now() + QUICKMATCH_COUNTDOWN_MS;
     room.matchmakeTimer = setTimeout(() => {
@@ -897,6 +919,7 @@ io.on('connection', (socket) => {
       room.ball.vx = Math.cos(angle) * KICK_POWER;
       room.ball.vy = Math.sin(angle) * KICK_POWER;
       room.ball.lastKickSlot = socket.data.slot;
+      emitBallKicked(room, socket.data.slot);
     }
   });
 
@@ -923,6 +946,8 @@ io.on('connection', (socket) => {
       name: data && data.name,
       country: data && data.country,
       avatar: data && data.avatar,
+      equippedAura: data && data.equippedAura,
+      equippedPitch: data && data.equippedPitch,
     }));
   });
 

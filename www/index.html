@@ -407,6 +407,124 @@
     height: clamp(50px, 20vh, 130px); width: auto; aspect-ratio: 1536 / 568;
     border-radius: 8px;
   }
+  /* positioned to match the thin left column baked into the panel art
+     (measured at ~1.6%-13.9% width, ~26.4%-93.8% height of the panel
+     canvas) - height-driven buttons (not width-driven off the column),
+     same reasoning as everywhere else in this app: a short landscape
+     viewport has little vh to spare, so sizing off the column's own width
+     could overflow vertically with 4 stacked icons */
+  #shop-screen .shop-sidebar {
+    position: absolute; left: 1.6%; width: 12.3%;
+    top: 26.4%; bottom: 6.25%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(4px, 1.6vh, 14px); z-index: 2;
+  }
+  #shop-screen .shop-cat-btn {
+    height: clamp(24px, 13.5vh, 68px); width: auto; aspect-ratio: 1.06 / 1;
+    border: none; padding: 0; background: none; cursor: pointer;
+    transition: transform 0.08s, filter 0.15s, opacity 0.15s;
+    opacity: 0.6; filter: grayscale(45%);
+  }
+  #shop-screen .shop-cat-btn img { width: 100%; height: 100%; display: block; }
+  #shop-screen .shop-cat-btn.selected { opacity: 1; filter: none; transform: scale(1.05); }
+  #shop-screen .shop-cat-btn:active { transform: scale(0.92); }
+  /* middle column (measured ~15.4%-45.9% width) - item grid for whichever
+     category is selected in the sidebar */
+  #shop-screen .shop-grid {
+    position: absolute; left: 15.4%; width: 30.5%; top: 26.4%; bottom: 6.5%;
+    display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center;
+    gap: clamp(6px, 1.6vh, 16px); padding: clamp(8px, 2vh, 20px); box-sizing: border-box;
+    overflow-y: auto; z-index: 2;
+  }
+  #shop-screen .shop-item-card {
+    width: clamp(50px, 13vh, 100px); aspect-ratio: 1.06 / 1;
+    border: none; padding: 0; background: none; cursor: pointer;
+    transition: transform 0.08s, filter 0.15s;
+  }
+  #shop-screen .shop-item-card img { width: 100%; height: 100%; display: block; }
+  #shop-screen .shop-item-card:active { transform: scale(0.94); }
+  #shop-screen .shop-item-card.selected { filter: drop-shadow(0 0 8px #ffcb3d); }
+  #shop-screen .shop-empty-msg {
+    color: rgba(255,255,255,0.45); font-size: clamp(12px, 2.4vh, 18px);
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%; text-align: center;
+  }
+  /* right column (measured ~47.5%-98.3% width) - selected item's preview
+     + equip control */
+  #shop-screen .shop-detail {
+    position: absolute; left: 47.5%; width: 50.8%; top: 26.4%; bottom: 6.5%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.8vh, 18px); z-index: 2;
+  }
+  #shop-screen .shop-detail-name {
+    font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
+    font-size: clamp(16px, 3.6vh, 30px); letter-spacing: 1px;
+  }
+  #shop-screen .shop-detail-desc {
+    font-family: 'Rajdhani', sans-serif; font-weight: 600; color: #b9cbe6;
+    font-size: clamp(11px, 2vh, 15px); text-align: center; max-width: 320px;
+    line-height: 1.35; margin-top: clamp(-6px, -1vh, -2px);
+  }
+  /* extracted name+description art (see titleImg in SHOP_ITEMS) - replaces
+     .shop-detail-name/.shop-detail-desc when a theme has one */
+  #shop-screen .shop-detail-title-img {
+    width: clamp(220px, 46vh, 460px); height: auto;
+  }
+  #shop-screen .shop-detail-preview {
+    width: clamp(90px, 22vh, 180px); height: auto; aspect-ratio: 1 / 1;
+  }
+  /* pixel art frames rendered small then scaled up - keep hard edges */
+  #shop-screen .shop-detail-preview.pixel { image-rendering: pixelated; }
+  /* pitch thumbnails are already-rendered painterly art, much wider than
+     tall - a bigger, non-square box with normal smooth scaling */
+  #shop-screen .shop-detail-preview-wide {
+    width: clamp(160px, 40vh, 380px); aspect-ratio: auto;
+    border-radius: 10px;
+  }
+  #shop-screen .shop-equip-btn {
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: clamp(13px, 2.4vh, 18px);
+    padding: clamp(8px, 1.6vh, 14px) clamp(24px, 4vw, 44px);
+    border-radius: 10px; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #ffcb3d, #d9a316); color: #1a1a1a;
+    box-shadow: 0 4px 0 #a8790f; transition: transform 0.08s, box-shadow 0.08s;
+  }
+  #shop-screen .shop-equip-btn.equipped {
+    background: linear-gradient(135deg, #4caf50, #2e7d32); color: #fff;
+    box-shadow: 0 4px 0 #1b5e20;
+  }
+  #shop-screen .shop-equip-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8790f; }
+  #shop-screen .shop-equip-btn.equipped:active { box-shadow: 0 1px 0 #1b5e20; }
+  /* image-based equip button (the extracted gold pill art) - used for
+     pitches instead of the plain CSS-gradient .shop-equip-btn; text is
+     still ours (EQUIP/EQUIPPED), just laid on top of the art as a button
+     background so future themes can reuse the same asset */
+  #shop-screen .shop-equip-btn-img {
+    width: clamp(160px, 32vh, 300px); aspect-ratio: 979 / 187;
+    border: none; cursor: pointer; padding: 0;
+    background: center / 100% 100% no-repeat;
+    background-image: url('assets/shop_equip_btn.png');
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: clamp(13px, 2.4vh, 18px);
+    color: #1a1a1a; letter-spacing: 0.5px;
+    transition: transform 0.08s;
+  }
+  #shop-screen .shop-equip-btn-img.equipped { filter: hue-rotate(80deg) saturate(1.3); color: #0f2e12; }
+  #shop-screen .shop-equip-btn-img:active { transform: scale(0.96); }
+  #shop-screen .shop-detail-info {
+    display: flex; align-items: center; gap: clamp(6px, 1.2vw, 12px);
+    background: rgba(10, 16, 28, 0.6); border: 1px solid rgba(120, 170, 255, 0.35);
+    border-radius: 10px; padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 18px);
+    max-width: 340px;
+  }
+  #shop-screen .shop-detail-info .info-icon {
+    flex: 0 0 auto; width: clamp(16px, 3vh, 22px); height: clamp(16px, 3vh, 22px);
+    border-radius: 50%; border: 1.5px solid #6ab4ff; color: #6ab4ff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-size: clamp(9px, 1.8vh, 13px); font-weight: 800;
+  }
+  #shop-screen .shop-detail-info span {
+    font-family: 'Rajdhani', sans-serif; font-weight: 600; color: #b9cbe6;
+    font-size: clamp(9px, 1.7vh, 13px); text-align: left; line-height: 1.3;
+  }
 
   .settings-gear {
     position: fixed;
@@ -1311,6 +1429,14 @@
 <div id="shop-screen">
   <button class="back-circle-btn" onclick="SFX.click(); closeShop()"><span class="chevron-left"></span></button>
   <img class="shop-title-img" src="assets/shop_text.png" alt="Shop" />
+  <div class="shop-sidebar">
+    <button class="shop-cat-btn selected" data-cat="pitches" onclick="SFX.click(); selectShopCategory('pitches', this)"><img src="assets/shop_cat_pitches.png" alt="Pitches" /></button>
+    <button class="shop-cat-btn" data-cat="balls" onclick="SFX.click(); selectShopCategory('balls', this)"><img src="assets/shop_cat_balls.png" alt="Balls" /></button>
+    <button class="shop-cat-btn" data-cat="aura" onclick="SFX.click(); selectShopCategory('aura', this)"><img src="assets/shop_cat_aura.png" alt="Aura" /></button>
+    <button class="shop-cat-btn" data-cat="jersey" onclick="SFX.click(); selectShopCategory('jersey', this)"><img src="assets/shop_cat_jersey.png" alt="Jersey" /></button>
+  </div>
+  <div class="shop-grid" id="shopGrid"></div>
+  <div class="shop-detail" id="shopDetail"></div>
 </div>
 
 <div id="private-select">
@@ -1562,6 +1688,15 @@ let PROFILE_HAS_GOOGLE = localStorage.getItem('kickoffDuelHasGoogle') === '1';
 // immediately from localStorage on a returning launch, before any
 // server round-trip completes
 let PROFILE_FRAME_RANK = Number(localStorage.getItem('kickoffDuelFrameRank')) || null;
+// Shop → Aura selection (e.g. 'fire'), or null if none equipped - sent to
+// the server on match join (see createRoom/joinRoom/quickMatch emits) so
+// it can tell every client in the room to play the trail when this player
+// kicks the ball (see emitBallKicked server-side)
+let PROFILE_EQUIPPED_AURA = localStorage.getItem('kickoffDuelEquippedAura') || null;
+// Shop → Pitches selection (e.g. 'classic') - purely a local rendering
+// choice (never sent to opponents, unlike equippedAura), read by
+// OnlineScene.preload() to pick which field texture to load
+let PROFILE_EQUIPPED_PITCH = localStorage.getItem('kickoffDuelEquippedPitch') || null;
 
 // per-rank wreath art + the geometry needed to center it over an existing
 // plain avatar circle: holePct is how much of the wreath's own width the
@@ -1623,6 +1758,8 @@ function cacheProfile(p) {
   PROFILE_AVATAR = p.avatar || null;
   PROFILE_HAS_GOOGLE = !!p.hasGoogle;
   PROFILE_FRAME_RANK = p.frameRank || null;
+  PROFILE_EQUIPPED_AURA = p.equippedAura || null;
+  PROFILE_EQUIPPED_PITCH = p.equippedPitch || null;
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
   localStorage.setItem('kickoffDuelUserId', PROFILE_USER_ID);
   if (p.authToken) localStorage.setItem('kickoffDuelAuthToken', p.authToken);
@@ -1630,6 +1767,8 @@ function cacheProfile(p) {
   if (PROFILE_AVATAR) localStorage.setItem('kickoffDuelProfileAvatar', PROFILE_AVATAR); else localStorage.removeItem('kickoffDuelProfileAvatar');
   localStorage.setItem('kickoffDuelHasGoogle', PROFILE_HAS_GOOGLE ? '1' : '0');
   if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
+  if (PROFILE_EQUIPPED_AURA) localStorage.setItem('kickoffDuelEquippedAura', PROFILE_EQUIPPED_AURA); else localStorage.removeItem('kickoffDuelEquippedAura');
+  if (PROFILE_EQUIPPED_PITCH) localStorage.setItem('kickoffDuelEquippedPitch', PROFILE_EQUIPPED_PITCH); else localStorage.removeItem('kickoffDuelEquippedPitch');
   refreshMainMenuAvatar();
 }
 
@@ -2488,17 +2627,185 @@ function closeLeaderboardInfo() {
   document.getElementById('leaderboard-info-screen').style.display = 'none';
 }
 
-// shell only for now - category sidebar/item grid/detail panel content
-// lands as those assets arrive (see the panel background art itself)
+// per-category item list - empty categories just show "Coming soon" until
+// their art arrives (see the sidebar icons themselves)
+const SHOP_ITEMS = {
+  // ratio is each thumbnail's real aspect ratio, so wide landscape cards
+  // don't get squeezed into the square-ish default card shape. readyForEquip
+  // gates the Equip button - only pitches with real in-match field art
+  // (currently just classic, reusing the existing calibrated field texture)
+  // get one; the rest stay preview-only until that art arrives, same as
+  // every other still-empty shop category
+  // titleImg is the extracted name+description graphic shown in the detail
+  // panel instead of plain text (see renderShopDetail) - beach doesn't have
+  // one yet, so it still falls back to the plain-text name/description path
+  pitches: [
+    {
+      id: 'classic', name: 'Classic', icon: 'assets/pitch_classic.png', ratio: 2.0296, readyForEquip: true,
+      titleImg: 'assets/pitch_title_classic.png', titleRatio: 5.3624,
+      previewImg: 'assets/field_stadium.jpg', previewRatio: 1.5,
+    },
+    {
+      id: 'beach', name: 'Beach', icon: 'assets/pitch_beach.png', ratio: 2.0323, readyForEquip: true,
+      description: 'Sunny vibes, sandy pitch and good times!',
+      previewImg: 'assets/field_beach.jpg', previewRatio: 1.5,
+    },
+    {
+      id: 'rainy', name: 'Rainy', icon: 'assets/pitch_rainy.png', ratio: 2.2404, readyForEquip: true,
+      titleImg: 'assets/pitch_title_rainy.png', titleRatio: 4.7028,
+      previewImg: 'assets/field_rainy.jpg', previewRatio: 1.5,
+    },
+    {
+      id: 'winter', name: 'Winter', icon: 'assets/pitch_winter.png', ratio: 2.2278, readyForEquip: true,
+      titleImg: 'assets/pitch_title_winter.png', titleRatio: 4.7358,
+      previewImg: 'assets/field_winter.jpg', previewRatio: 1.5,
+    },
+    {
+      id: 'volcano', name: 'Volcano', icon: 'assets/pitch_volcano.png', ratio: 2.5167, readyForEquip: true,
+      titleImg: 'assets/pitch_title_volcano.png', titleRatio: 4.208,
+      previewImg: 'assets/field_volcano.jpg', previewRatio: 1.5,
+    },
+    {
+      id: 'halloween', name: 'Halloween', icon: 'assets/pitch_halloween.png', ratio: 2.51, readyForEquip: true,
+      titleImg: 'assets/pitch_title_halloween.png', titleRatio: 4.4495,
+      previewImg: 'assets/field_halloween.jpg', previewRatio: 1.3333,
+    },
+  ],
+  balls: [],
+  aura: [{ id: 'fire', name: 'Fire Aura', icon: 'assets/shop_cat_aura.png', ratio: 1, animFrames: 24 }],
+  jersey: [],
+};
+
 function openShop() {
   hideAllMenus();
   document.getElementById('shop-screen').style.display = 'flex';
+  renderShopGrid('pitches');
 }
 function closeShop() {
+  stopShopAuraPreview();
   hideAllMenus();
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
+}
+
+function selectShopCategory(cat, btn) {
+  document.querySelectorAll('#shop-screen .shop-cat-btn').forEach((b) => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  renderShopGrid(cat);
+}
+
+function renderShopGrid(cat) {
+  const items = SHOP_ITEMS[cat] || [];
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  if (!items.length) {
+    grid.innerHTML = '<div class="shop-empty-msg">Coming soon</div>';
+    renderShopDetail(null);
+    return;
+  }
+  items.forEach((item, i) => {
+    const card = document.createElement('button');
+    card.className = 'shop-item-card' + (i === 0 ? ' selected' : '');
+    card.style.aspectRatio = item.ratio || 1.06;
+    card.innerHTML = `<img src="${item.icon}" alt="${item.name}" />`;
+    card.onclick = () => {
+      SFX.click();
+      grid.querySelectorAll('.shop-item-card').forEach((c) => c.classList.remove('selected'));
+      card.classList.add('selected');
+      renderShopDetail(item);
+    };
+    grid.appendChild(card);
+  });
+  renderShopDetail(items[0]);
+}
+
+let shopAuraPreviewTimer = null;
+function stopShopAuraPreview() {
+  if (shopAuraPreviewTimer) { clearInterval(shopAuraPreviewTimer); shopAuraPreviewTimer = null; }
+}
+
+function renderShopDetail(item) {
+  stopShopAuraPreview();
+  const detail = document.getElementById('shopDetail');
+  if (!item) { detail.innerHTML = ''; return; }
+
+  if (item.animFrames) {
+    const equipped = PROFILE_EQUIPPED_AURA === item.id;
+    detail.innerHTML = `
+      <div class="shop-detail-name">${item.name}</div>
+      <img class="shop-detail-preview pixel" id="shopAuraPreviewImg" src="assets/fire_aura_frames/frame_01.png" alt="${item.name} preview" />
+      <button class="shop-equip-btn${equipped ? ' equipped' : ''}" id="shopEquipBtn">${equipped ? 'EQUIPPED' : 'EQUIP'}</button>
+    `;
+    document.getElementById('shopEquipBtn').onclick = () => { SFX.click(); toggleEquipAura(item.id); };
+    // loops the full ignite → burn → decay sequence for preview purposes
+    // only - in an actual match this only ever plays once, triggered by a
+    // kick (see playBallAura in OnlineScene)
+    const img = document.getElementById('shopAuraPreviewImg');
+    let frame = 1;
+    shopAuraPreviewTimer = setInterval(() => {
+      frame = frame >= item.animFrames ? 1 : frame + 1;
+      img.src = `assets/fire_aura_frames/frame_${String(frame).padStart(2, '0')}.png`;
+    }, 55);
+    return;
+  }
+
+  // static preview - only pitches with real in-match art get an Equip
+  // button (see readyForEquip in SHOP_ITEMS); the rest stay preview-only.
+  // previewImg (the full clean field texture, same art used in-match) is
+  // used when available instead of stretching up the small grid thumbnail
+  const equipped = item.readyForEquip && PROFILE_EQUIPPED_PITCH === item.id;
+  const previewSrc = item.previewImg || item.icon;
+  const previewRatio = item.previewImg ? (item.previewRatio || 1) : (item.ratio || 1);
+  // titleImg (extracted name+description art) replaces the plain-text
+  // name/description pair when a theme has one - beach doesn't yet, so it
+  // still falls back to plain text
+  const titleHtml = item.titleImg
+    ? `<img class="shop-detail-title-img" src="${item.titleImg}" style="aspect-ratio:${item.titleRatio || 4}" alt="${item.name}" />`
+    : `<div class="shop-detail-name">${item.name}</div>${item.description ? `<div class="shop-detail-desc">${item.description}</div>` : ''}`;
+  detail.innerHTML = `
+    ${titleHtml}
+    <img class="shop-detail-preview shop-detail-preview-wide" src="${previewSrc}" style="aspect-ratio:${previewRatio}" alt="${item.name} preview" />
+    ${item.readyForEquip ? `<button class="shop-equip-btn-img${equipped ? ' equipped' : ''}" id="shopEquipBtn">${equipped ? 'EQUIPPED' : 'EQUIP'}</button>` : ''}
+    ${item.readyForEquip ? `<div class="shop-detail-info"><span class="info-icon">i</span><span>Changing pitch theme will only be visible to you.</span></div>` : ''}
+  `;
+  if (item.readyForEquip) {
+    document.getElementById('shopEquipBtn').onclick = () => { SFX.click(); toggleEquipPitch(item.id); };
+  }
+}
+
+function toggleEquipAura(auraId) {
+  const next = PROFILE_EQUIPPED_AURA === auraId ? null : auraId; // tap again to unequip
+  PROFILE_EQUIPPED_AURA = next;
+  if (next) localStorage.setItem('kickoffDuelEquippedAura', next); else localStorage.removeItem('kickoffDuelEquippedAura');
+  const btn = document.getElementById('shopEquipBtn');
+  if (btn) {
+    btn.textContent = next ? 'EQUIPPED' : 'EQUIP';
+    btn.classList.toggle('equipped', !!next);
+  }
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) return;
+  ensureSocket(() => {
+    socket.emit('updateProfile', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN, equippedAura: next }, (res) => {
+      if (res && res.ok) cacheProfile(res);
+    });
+  });
+}
+
+function toggleEquipPitch(pitchId) {
+  const next = PROFILE_EQUIPPED_PITCH === pitchId ? null : pitchId; // tap again to unequip
+  PROFILE_EQUIPPED_PITCH = next;
+  if (next) localStorage.setItem('kickoffDuelEquippedPitch', next); else localStorage.removeItem('kickoffDuelEquippedPitch');
+  const btn = document.getElementById('shopEquipBtn');
+  if (btn) {
+    btn.textContent = next ? 'EQUIPPED' : 'EQUIP';
+    btn.classList.toggle('equipped', !!next);
+  }
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) return;
+  ensureSocket(() => {
+    socket.emit('updateProfile', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN, equippedPitch: next }, (res) => {
+      if (res && res.ok) cacheProfile(res);
+    });
+  });
 }
 
 const LB_PEDESTAL_SRC = { 1: 'assets/lb_pedestal_gold.png', 2: 'assets/lb_pedestal_silver.png', 3: 'assets/lb_pedestal_bronze.png' };
@@ -2697,7 +3004,7 @@ function createPrivateRoom() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, userId: PROFILE_USER_ID }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
@@ -2716,7 +3023,7 @@ function joinPrivateRoom() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('joinRoom', { code, name: PLAYER_NAME, userId: PROFILE_USER_ID }, (res) => {
+    socket.emit('joinRoom', { code, name: PLAYER_NAME, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not join room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -2737,7 +3044,7 @@ function quickMatch() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, userId: PROFILE_USER_ID }, (res) => {
+    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not find a match.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -3080,17 +3387,35 @@ const TEAM_COLORS = {
   B: { fill: 0xff4757, stroke: 0xffb3ba }
 };
 
+// Shop → Pitches: which field texture to load for a given equipped pitch.
+// Self-only cosmetic (see PROFILE_EQUIPPED_PITCH) - only 'classic' has real
+// in-match art so far, reusing the existing calibrated field_stadium.jpg;
+// anything else (including no selection) falls back to it too until more
+// pitch art lands and gets its own goal/six-yard-box calibration
+const PITCH_TEXTURE_SRC = {
+  classic: 'assets/field_stadium.jpg',
+  beach: 'assets/field_beach.jpg',
+  rainy: 'assets/field_rainy.jpg',
+  winter: 'assets/field_winter.jpg',
+  volcano: 'assets/field_volcano.jpg',
+  halloween: 'assets/field_halloween.jpg',
+};
+function currentFieldTextureSrc() {
+  return PITCH_TEXTURE_SRC[PROFILE_EQUIPPED_PITCH] || PITCH_TEXTURE_SRC.classic;
+}
+
 class OnlineScene extends Phaser.Scene {
   constructor() { super('online'); }
 
   preload() {
-    this.load.image('fieldTexture', 'assets/field_stadium.jpg');
+    this.load.image('fieldTexture', currentFieldTextureSrc());
     this.load.image('ballTexture', 'assets/ball.png');
     this.load.image('pauseIcon', 'assets/pause_icon.png');
     this.load.image('tagBlue', 'assets/tag_blue.png');
     this.load.image('tagRed', 'assets/tag_red.png');
     this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
     this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    this.load.spritesheet('fireAuraFrames', 'assets/fire_aura_sheet.png', { frameWidth: 256, frameHeight: 256 });
   }
 
   create() {
@@ -3143,6 +3468,26 @@ class OnlineScene extends Phaser.Scene {
     // decided by whoever created the room, not known up front here.
     this.entitySprites = {};
 
+    // ---- Ball reward-cosmetic aura (fire trail on kick, from Shop → Aura) ----
+    // plays once per kick, only when the server says the kicker actually has
+    // one equipped (see emitBallKicked in server.js, which no-ops otherwise)
+    // - added to the display list BEFORE the ball so it renders behind it.
+    // origin/scale are derived from where the art's own baked-in ball sits
+    // within each 256x256 frame (measured at (91,191), ~130px diameter) so
+    // it lines up with the real 32px ball sprite, which renders on top and
+    // hides the aura's own ball art, leaving just the flame visible
+    this.anims.create({
+      key: 'fireAuraBurn',
+      frames: this.anims.generateFrameNumbers('fireAuraFrames', { start: 0, end: 23 }),
+      frameRate: 20,
+      repeat: 0,
+    });
+    this.ballAura = this.add.sprite(W/2, H/2, 'fireAuraFrames', 0);
+    this.ballAura.setOrigin(91 / 256, 191 / 256);
+    this.ballAura.setScale(32 / 130);
+    this.ballAura.setVisible(false);
+    this.ballAura.on('animationcomplete', () => this.ballAura.setVisible(false));
+
     // ---- Ball ----
     const ballCircle = this.add.image(W/2, H/2, 'ballTexture');
     const ballShadow = this.add.ellipse(W/2, H/2+18, 22, 8, 0x000000, 0.3);
@@ -3178,6 +3523,10 @@ class OnlineScene extends Phaser.Scene {
     if (typeof socket !== 'undefined' && socket) {
       socket.off('state');
       socket.on('state', (data) => this.applyServerState(data));
+      socket.off('ballKicked');
+      socket.on('ballKicked', (data) => {
+        if (data && data.aura === 'fire') this.playBallAura();
+      });
     }
 
     // skip this for Quick Match while its reveal curtain is still up - the
@@ -3444,8 +3793,27 @@ class OnlineScene extends Phaser.Scene {
     this.ball.shadow.setPosition(this.ball.x, this.ball.y+18);
     const rolled = Phaser.Math.Distance.Between(this.ball.x, this.ball.y, this.ball.prevX, this.ball.prevY);
     this.ball.spinAngle += rolled / 16;
+    if (this.ballAura.visible) {
+      this.ballAura.setPosition(this.ball.x, this.ball.y);
+      // only reorient while actually moving - otherwise a momentarily
+      // stationary ball (e.g. right after a soft dribble) would snap the
+      // trail to a meaningless angle computed from a near-zero delta
+      if (rolled > 0.5) {
+        const moveAngle = Math.atan2(this.ball.y - this.ball.prevY, this.ball.x - this.ball.prevX);
+        // +0.9114 rad corrects for the art's own baked-in flame direction
+        // (~-52° up-and-right), measured from the source sprite sheet
+        this.ballAura.setRotation(moveAngle + 0.9114);
+      }
+    }
     this.ball.prevX = this.ball.x; this.ball.prevY = this.ball.y;
     this.ball.circle.setRotation(this.ball.spinAngle);
+  }
+
+  playBallAura() {
+    if (!this.ballAura) return;
+    this.ballAura.setPosition(this.ball.x, this.ball.y);
+    this.ballAura.setVisible(true);
+    this.ballAura.play('fireAuraBurn');
   }
 }
 

@@ -39,6 +39,26 @@ function sanitizeAvatar(avatar) {
   return avatar;
 }
 
+// Shop cosmetic (ball fire trail on kick) - free to equip for now, no
+// currency/unlock gating. More IDs land here as more auras are added.
+const AURA_IDS = ['fire'];
+function sanitizeAura(aura) {
+  if (aura === null) return null;
+  if (typeof aura !== 'string') return undefined; // undefined = "leave unchanged"
+  return AURA_IDS.includes(aura) ? aura : undefined;
+}
+
+// Shop cosmetic (pitch/stadium skin) - purely a local rendering choice for
+// whoever equips it (never sent to opponents, unlike equippedAura), so no
+// room/match plumbing needed - just persisted here and read back by the
+// client that owns it. More IDs land here as more pitch art is ready.
+const PITCH_IDS = ['classic'];
+function sanitizePitch(pitch) {
+  if (pitch === null) return null;
+  if (typeof pitch !== 'string') return undefined; // undefined = "leave unchanged"
+  return PITCH_IDS.includes(pitch) ? pitch : undefined;
+}
+
 function issueToken(userId) {
   return crypto.createHmac('sha256', SESSION_SECRET).update(userId).digest('hex');
 }
@@ -60,6 +80,8 @@ async function toPublicProfile(doc) {
     name: doc.name,
     country: doc.country,
     avatar: doc.avatar,
+    equippedAura: doc.equippedAura || null,
+    equippedPitch: doc.equippedPitch || null,
     hasGoogle: !!doc.googleId,
     matchesPlayed,
     matchesWon,
@@ -153,7 +175,7 @@ async function googleLogin(idToken, deviceId) {
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
 
-async function updateProfile(userId, authToken, { name, country, avatar } = {}) {
+async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch } = {}) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
 
@@ -163,6 +185,14 @@ async function updateProfile(userId, authToken, { name, country, avatar } = {}) 
   if (avatar !== undefined) {
     const cleanAvatar = sanitizeAvatar(avatar);
     if (cleanAvatar !== undefined) set.avatar = cleanAvatar;
+  }
+  if (equippedAura !== undefined) {
+    const cleanAura = sanitizeAura(equippedAura);
+    if (cleanAura !== undefined) set.equippedAura = cleanAura;
+  }
+  if (equippedPitch !== undefined) {
+    const cleanPitch = sanitizePitch(equippedPitch);
+    if (cleanPitch !== undefined) set.equippedPitch = cleanPitch;
   }
 
   const users = getUsers();
