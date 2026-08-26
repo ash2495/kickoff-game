@@ -55,6 +55,21 @@ const BALL_MAX_SPEED = 600;
 const BALL_DRAG = 0.96; // per-tick velocity multiplier
 const KICK_RANGE = 90;
 const KICK_POWER = 520;
+// Loose-dribble ball control: how close a player's body has to be to steer
+// the ball along with them while running (tighter than KICK_RANGE, which is
+// deliberately generous for tapping to kick) - see applyDribbleControl.
+const DRIBBLE_RADIUS = PLAYER_R + BALL_R + 10;
+// ball speed above which it's "in flight" (a pass/shot just struck) rather
+// than something a nearby player can pick up and carry - keeps a kick from
+// being instantly re-captured by the kicker's own dribble control
+const DRIBBLE_MAX_CONTROL_SPEED = 260;
+// how hard the ball's velocity is pulled toward the carrier's each tick -
+// low on purpose so the ball has real lag/trail behind the carrier's own
+// movement (a loose, bouncy dribble feel) rather than gluing to their feet
+const DRIBBLE_BLEND = 0.12;
+// carried ball trails very slightly slower than the carrier, so it drifts a
+// touch behind on the run instead of tracking their speed exactly
+const DRIBBLE_SPEED_FACTOR = 0.92;
 const TICK_MS = 50; // 20Hz simulation + broadcast rate
 const GOAL_RESET_DELAY_MS = 900;
 
@@ -435,11 +450,17 @@ function chooseBotKick(room, slot) {
     return { type: 'shoot' };
   }
   if (bestPassTarget) return { type: 'pass', target: bestPassTarget };
-  return { type: 'dribble' };
+  // no clear pass or shot - hold off kicking entirely and let
+  // applyDribbleControl carry the ball along as the bot keeps running,
+  // same as a human dribbling, rather than tapping it forward itself
+  return null;
 }
 
+// returns true only when a real pass/shoot kick was struck, so the caller
+// knows whether to spend this bot's kick cooldown
 function applyBotKick(room, slot, e, cfg) {
   const decision = chooseBotKick(room, slot);
+  if (!decision) return false;
   const wobble = (Math.random() - 0.5) * cfg.wobble;
 
   if (decision.type === 'pass') {
@@ -454,22 +475,15 @@ function applyBotKick(room, slot, e, cfg) {
     const aimAngle = Math.atan2(targetY - e.y, targetX - e.x) + wobble * 0.5;
     room.ball.vx = Math.cos(aimAngle) * passPower;
     room.ball.vy = Math.sin(aimAngle) * passPower;
-  } else if (decision.type === 'shoot') {
+  } else {
     const goalX = e.team === 'A' ? FIELD.w - 20 : 20;
     const aimAngle = Math.atan2(FIELD.h / 2 - e.y, goalX - e.x) + wobble;
     room.ball.vx = Math.cos(aimAngle) * KICK_POWER;
     room.ball.vy = Math.sin(aimAngle) * KICK_POWER;
-  } else {
-    // dribble: nudge the ball forward upfield at a controlled pace rather
-    // than a full-power blast, like advancing it through midfield
-    const goalX = e.team === 'A' ? FIELD.w - 20 : 20;
-    const aimAngle = Math.atan2(FIELD.h / 2 - e.y, goalX - e.x) + wobble * 1.3;
-    const dribblePower = KICK_POWER * 0.45;
-    room.ball.vx = Math.cos(aimAngle) * dribblePower;
-    room.ball.vy = Math.sin(aimAngle) * dribblePower;
   }
   room.ball.lastKickSlot = slot;
   emitBallKicked(room, slot);
+  return true;
 }
 
 function updateBots(room, dt) {
@@ -513,11 +527,38 @@ function updateBots(room, dt) {
     clampToPitch(e);
 
     const realDist = Math.hypot(room.ball.x - e.x, room.ball.y - e.y);
+    // only a real pass/shoot decision consumes the cooldown - advancing the
+    // ball the rest of the time is just applyDribbleControl steering it
+    // along as the bot runs, same as a human dribbling
     if (!room.resetting && realDist < KICK_RANGE && now - bs.lastKick > cfg.kickCooldownMs) {
-      bs.lastKick = now;
-      applyBotKick(room, slot, e, cfg);
+      if (applyBotKick(room, slot, e, cfg)) bs.lastKick = now;
     }
   });
+}
+
+// Loose-dribble ball control: whichever player's body is closest within
+// DRIBBLE_RADIUS steers the ball's velocity toward their own each tick
+// (scaled down and blended gradually so it trails behind rather than
+// gluing to their feet). Possession isn't tracked as separate state - it's
+// just "nearest player right now", recomputed fresh every tick - so a
+// defender who gets closer than the current carrier naturally takes it over
+// on their very next tick with no extra steal logic needed. Only engages
+// below DRIBBLE_MAX_CONTROL_SPEED so it never fights an in-flight pass/shot;
+// that has to slow down (or be closely received) before anyone can carry it.
+function applyDribbleControl(room) {
+  const b = room.ball;
+  if (Math.hypot(b.vx, b.vy) > DRIBBLE_MAX_CONTROL_SPEED) return;
+
+  let carrier = null, carrierDist = DRIBBLE_RADIUS;
+  room.slots.forEach((slot) => {
+    const e = room.entities[slot];
+    const dist = Math.hypot(b.x - e.x, b.y - e.y);
+    if (dist < carrierDist) { carrierDist = dist; carrier = e; }
+  });
+  if (!carrier) return;
+
+  b.vx += (carrier.vx * DRIBBLE_SPEED_FACTOR - b.vx) * DRIBBLE_BLEND;
+  b.vy += (carrier.vy * DRIBBLE_SPEED_FACTOR - b.vy) * DRIBBLE_BLEND;
 }
 
 function updateBall(room, dt) {
@@ -693,6 +734,7 @@ function tick(room) {
   if (!room.resetting) {
     updateBots(room, dt);
     updatePlayers(room, dt);
+    applyDribbleControl(room);
     updateBall(room, dt);
     resolveCollisions(room);
     checkGoals(room);
