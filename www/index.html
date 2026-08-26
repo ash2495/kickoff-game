@@ -3473,6 +3473,69 @@ const TEAM_COLORS = {
   B: { fill: 0xff4757, stroke: 0xffb3ba }
 };
 
+// ---- Dev-only HUD edit mode ----
+// Lets a static (non-gameplay-driven) HUD element be dragged around on
+// screen to find its new position, without touching code until you're happy
+// with the layout. Toggle with ?uiedit=1 in the URL (persists via
+// localStorage across reloads/matches until turned off with ?uiedit=0) -
+// never enabled for real players, purely a layout aid while iterating.
+// Only covers fixed HUD chrome (scoreboard text, room label, pause button,
+// corner hint text) - gameplay entities (players/ball/nametags) are
+// repositioned every frame from server state, so dragging them wouldn't stick.
+(function() {
+  const params = new URLSearchParams(location.search);
+  if (params.has('uiedit')) localStorage.setItem('uiEditMode', params.get('uiedit'));
+})();
+const UI_EDIT_MODE = localStorage.getItem('uiEditMode') === '1';
+
+function registerEditableUI(scene, name, obj) {
+  if (!UI_EDIT_MODE) return;
+  if (!scene.__editableUI) scene.__editableUI = [];
+  // the full-half-screen joystick/kick zones are added on top of every HUD
+  // element in the display list and swallow pointer input across the whole
+  // screen (the same reason createPauseButton needs its own high depth) -
+  // without this, none of these elements would ever receive a drag
+  obj.setDepth(4000);
+  obj.setInteractive({ draggable: true, useHandCursor: true });
+  scene.input.setDraggable(obj);
+  scene.__editableUI.push({ name, obj });
+}
+
+function setupUIEditMode(scene) {
+  if (!UI_EDIT_MODE) return;
+  const W = scene.scale.width, H = scene.scale.height;
+
+  const readout = scene.add.text(W / 2, H - 8, 'UI EDIT MODE - drag any highlighted element', {
+    fontFamily: 'Rajdhani', fontSize: '14px', color: '#ffcb3d',
+  }).setOrigin(0.5, 1).setPadding(6).setDepth(5000).setBackgroundColor('#000000cc');
+
+  (scene.__editableUI || []).forEach(({ obj }) => {
+    scene.add.rectangle(obj.x, obj.y, 10, 10, 0xffcb3d, 0.9).setDepth(4999);
+  });
+
+  scene.input.on('drag', (pointer, obj, dragX, dragY) => {
+    obj.x = Math.round(dragX);
+    obj.y = Math.round(dragY);
+    const entry = (scene.__editableUI || []).find((e) => e.obj === obj);
+    if (entry) readout.setText(entry.name + ': (' + obj.x + ', ' + obj.y + ')');
+  });
+
+  const copyBtn = scene.add.text(8, H - 8, '📋 COPY LAYOUT', {
+    fontFamily: 'Rajdhani', fontSize: '14px', color: '#ffffff',
+  }).setOrigin(0, 1).setPadding(6).setBackgroundColor('#1c2a3fee').setDepth(5000).setInteractive({ useHandCursor: true });
+  copyBtn.on('pointerdown', () => {
+    const layout = {};
+    (scene.__editableUI || []).forEach(({ name, obj }) => { layout[name] = { x: Math.round(obj.x), y: Math.round(obj.y) }; });
+    const json = JSON.stringify(layout, null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(json).then(() => readout.setText('Copied layout to clipboard!'));
+    } else {
+      console.log(json);
+      readout.setText('Logged layout to console (clipboard unavailable)');
+    }
+  });
+}
+
 // Shop → Pitches: which field texture to load for a given equipped pitch.
 // Self-only cosmetic (see PROFILE_EQUIPPED_PITCH) - only 'classic' has real
 // in-match art so far, reusing the existing calibrated field_stadium.jpg;
@@ -3648,9 +3711,13 @@ class OnlineScene extends Phaser.Scene {
     this.roomText = this.add.text(14, 14, 'ROOM ' + (roomCode || ''), {
       fontFamily: 'Rajdhani', fontSize: '15px', color: '#ffffff', fontStyle:'700'
     }).setAlpha(0.55);
+    registerEditableUI(this, 'scoreText', this.scoreText);
+    registerEditableUI(this, 'timerText', this.timerText);
+    registerEditableUI(this, 'roomText', this.roomText);
 
     // ---- Pause button (mid-match) ----
-    createPauseButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
+    const pauseBtn = createPauseButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
+    registerEditableUI(this, 'pauseButton', pauseBtn);
 
     // ---- Controls: reuse the same full-half-screen joystick + kick zone pattern ----
     this.setupOnlineJoystick();
@@ -3670,6 +3737,8 @@ class OnlineScene extends Phaser.Scene {
     // scene mounts immediately behind it (see startOnlineMatch), and the
     // reveal's own countdown already plays a whistle right before "GO!"
     if (typeof SFX !== 'undefined' && !(isQuickMatchFlow && !kickoffRevealed)) { SFX.whistle(false); vibrate(25); }
+
+    setupUIEditMode(this);
   }
 
   setupOnlineJoystick() {
@@ -3682,7 +3751,8 @@ class OnlineScene extends Phaser.Scene {
 
     this.onlineJoystick = { baseX: 0, baseY: 0, baseR, active: false, vec: {x:0,y:0}, pointerId: null };
 
-    this.add.text(28, H-28, '🕹️ MOVE ANYWHERE', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(0,1).setAlpha(0.22);
+    const moveHint = this.add.text(28, H-28, '🕹️ MOVE ANYWHERE', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(0,1).setAlpha(0.22);
+    registerEditableUI(this, 'moveAnywhereText', moveHint);
 
     const zone = this.add.zone(0, 0, W/2, H).setOrigin(0,0).setInteractive();
     const js = this.onlineJoystick;
@@ -3705,7 +3775,8 @@ class OnlineScene extends Phaser.Scene {
 
   setupOnlineKickZone() {
     const W = this.scale.width, H = this.scale.height;
-    this.add.text(W-28, H-28, 'TAP ANYWHERE TO KICK ⚽', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(1,1).setAlpha(0.22);
+    const kickHint = this.add.text(W-28, H-28, 'TAP ANYWHERE TO KICK ⚽', {fontFamily:'Rajdhani', fontSize:'16px', color:'#ffffff'}).setOrigin(1,1).setAlpha(0.22);
+    registerEditableUI(this, 'kickAnywhereText', kickHint);
     const zone = this.add.zone(W/2, 0, W/2, H).setOrigin(0,0).setInteractive();
     zone.on('pointerdown', (p) => {
       const r = this.add.circle(p.x, p.y, 26, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
