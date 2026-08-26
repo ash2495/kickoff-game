@@ -77,6 +77,16 @@ const GOAL_RESET_DELAY_MS = 900;
 // auto-starting with bots filling whatever's still empty
 const QUICKMATCH_COUNTDOWN_MS = 15000;
 
+// Bet Match: the only stake amounts the client can request - anything else
+// is rejected server-side (see the 'betMatch' handler). The server is the
+// counterparty (a house-backed payout), not a real pot between the two
+// teams' stakes - this is what lets a Bet Match still fill empty slots with
+// bots exactly like Quick Match, with no need to find real staking opponents.
+const BET_STAKE_TIERS = [100, 500, 1000, 2500];
+// total returned to each winning real player = their own stake * this - net
+// profit is stake * (BET_WIN_MULTIPLIER - 1), so 2 means "double your stake"
+const BET_WIN_MULTIPLIER = 2;
+
 // Safety net for the kickoff-ready handshake below: if a client never signals
 // readyForKickoff (crashed, backgrounded, dropped message), don't freeze the
 // match forever - let it go live on its own after this long.
@@ -186,7 +196,7 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId, hostAura, hostJersey) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId, hostAura, hostJersey, betStake) {
   const code = makeRoomCode();
   const size = sanitizeTeamSize(teamSize);
   const slots = getSlots(size);
@@ -222,6 +232,13 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
     isPublic: false,
     matchmakeTimer: null,
     matchmakeCountdownEndsAt: null,
+    // Bet Match fields - 0/false for every other room. Stake has already
+    // been deducted from each real player by the time they're in this room
+    // (see the 'betMatch' handler) - this is just what to refund/pay out
+    // when the match resolves (see endMatch) or someone leaves early
+    // (see handleLeave).
+    isBetMatch: !!betStake,
+    betStake: betStake > 0 ? betStake : 0,
     // kickoff-ready handshake fields - populated for real by resetMatchState()
     // once a match actually begins
     kickoffLive: false,
@@ -242,12 +259,15 @@ function findOpenSlot(room) {
   return room.joinOrder.find((slot) => room.entities[slot].isBot);
 }
 
-// Quick Match: find an already-waiting public room with the right team size
-// and at least one open slot, so a new quickmatch player joins real people
-// instead of always spinning up their own room
-function findOpenPublicRoom(teamSize) {
+// Quick Match / Bet Match: find an already-waiting public room with the
+// right team size (and, for a Bet Match, the same stake tier) and at least
+// one open slot, so a new matchmaking player joins real people instead of
+// always spinning up their own room. betStake=0 matches a normal Quick
+// Match room; a real stake only ever matches another room at that exact tier.
+function findOpenPublicRoom(teamSize, betStake) {
+  const stake = betStake > 0 ? betStake : 0;
   for (const room of rooms.values()) {
-    if (room.isPublic && !room.started && room.teamSize === teamSize && findOpenSlot(room)) return room;
+    if (room.isPublic && !room.started && room.teamSize === teamSize && room.betStake === stake && findOpenSlot(room)) return room;
   }
   return undefined;
 }
@@ -708,6 +728,17 @@ function endMatch(room) {
     const e = room.entities[slot];
     if (e.isBot || !e.userId) return;
     profile.incrementStats(e.userId, { played: 1, won: e.team === winner ? 1 : 0 }).catch(() => {});
+    if (room.isBetMatch) {
+      // house-backed payout, not a real pot between the two teams' stakes -
+      // a draw refunds everyone's own stake; a win credits stake *
+      // BET_WIN_MULTIPLIER to every real player on the winning team (the
+      // same amount each, since everyone in the room staked the same tier -
+      // this is what "the winner's reward is split among the team" reduces
+      // to when stakes are uniform); a loss forfeits the stake already
+      // deducted at bet time, so there's nothing further to do for it here
+      if (winner === null) profile.creditCoins(e.userId, room.betStake).catch(() => {});
+      else if (e.team === winner) profile.creditCoins(e.userId, room.betStake * BET_WIN_MULTIPLIER).catch(() => {});
+    }
   });
 }
 
@@ -788,6 +819,13 @@ function handleLeave(socket) {
   const room = rooms.get(code);
   if (!room) return;
   const e = room.entities[slot];
+  // leaving a Bet Match before kickoff (still in the lobby/matchmaking wait)
+  // refunds the stake in full - it's only actually "in play" (win it or
+  // forfeit it) once the match goes live, same as a mid-match disconnect
+  // after that point is a forfeit, not a bug
+  if (e && room.isBetMatch && !room.kickoffLive && e.userId) {
+    profile.creditCoins(e.userId, room.betStake).catch(() => {});
+  }
   if (e) { e.isBot = true; e.socketId = null; e.name = randomBotName(); e.difficulty = randomBotDifficulty(); }
 
   const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
@@ -901,6 +939,67 @@ io.on('connection', (socket) => {
     emitLobby(room);
   });
 
+  // Bet Match: same auto-matchmaking as Quick Match (join an already-waiting
+  // room at this exact stake tier, else create one with the same countdown/
+  // bot-fill behavior), except the stake is deducted up front and real
+  // money (well, coins) is riding on the result - see endMatch for the
+  // payout and handleLeave for the early-leave refund.
+  socket.on('betMatch', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
+    const stake = Number(data && data.stake);
+    if (!BET_STAKE_TIERS.includes(stake)) return cb({ ok: false, error: 'Invalid stake amount.' });
+    const userId = typeof (data && data.userId) === 'string' ? data.userId : null;
+    const authToken = data && data.authToken;
+    if (!userId) return cb({ ok: false, error: 'Sign in to play a Bet Match.' });
+
+    const deduction = await profile.deductCoins(userId, authToken, stake);
+    if (!deduction.ok) return cb({ ok: false, error: deduction.error });
+    // re-check after the await - the socket could have joined something
+    // else, or disconnected, while the deduction round-trip was in flight
+    if (alreadyInRoom(socket)) {
+      profile.creditCoins(userId, stake).catch(() => {});
+      return cb({ ok: false, error: 'Already in a match.' });
+    }
+
+    const teamSize = sanitizeTeamSize(data && data.teamSize);
+    const existing = findOpenPublicRoom(teamSize, stake);
+
+    if (existing) {
+      const slot = findOpenSlot(existing);
+      existing.entities[slot].isBot = false;
+      existing.entities[slot].socketId = socket.id;
+      existing.entities[slot].name = sanitizeName(data && data.name);
+      existing.entities[slot].userId = userId;
+      existing.entities[slot].equippedAura = sanitizeAura(data && data.equippedAura);
+      existing.entities[slot].equippedJersey = sanitizeJersey(data && data.equippedJersey);
+      socket.join(existing.code);
+      socket.data.code = existing.code;
+      socket.data.slot = slot;
+      cb({ ok: true, code: existing.code, slot, isHost: slot === existing.hostSlot, stake, coins: deduction.coins });
+      if (!findOpenSlot(existing)) {
+        beginMatch(existing);
+      } else {
+        emitLobby(existing);
+      }
+      return;
+    }
+
+    const matchDuration = Number(data && data.matchDuration) || 0;
+    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, userId, data && data.equippedAura, data && data.equippedJersey, stake);
+    room.isPublic = true;
+    room.matchmakeCountdownEndsAt = Date.now() + QUICKMATCH_COUNTDOWN_MS;
+    room.matchmakeTimer = setTimeout(() => {
+      if (rooms.get(room.code) !== room) return;
+      beginMatch(room);
+    }, QUICKMATCH_COUNTDOWN_MS);
+    socket.join(room.code);
+    socket.data.code = room.code;
+    socket.data.slot = 'A1';
+    cb({ ok: true, code: room.code, slot: 'A1', isHost: true, stake, coins: deduction.coins });
+    emitLobby(room);
+  });
+
   socket.on('setName', (data) => {
     const code = data && data.code;
     const room = rooms.get(code);
@@ -957,6 +1056,10 @@ io.on('connection', (socket) => {
     const code = data && data.code;
     const room = rooms.get(code);
     if (!room || socket.data.code !== code || socket.data.slot !== room.hostSlot) return;
+    // a Bet Match's stakes were already settled by endMatch - replaying for
+    // free isn't offered client-side (see isQuickMatchFlow), but guard the
+    // socket event itself too in case a client sends it anyway
+    if (room.isBetMatch) return;
     beginMatch(room);
   });
 

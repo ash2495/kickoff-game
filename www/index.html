@@ -133,6 +133,10 @@
   #mode-select .settings-row, #mode-select .mode-buttons {
     display: flex; gap: 5%; justify-content: center; align-items: flex-end;
   }
+  /* 3 buttons (was 2) needs to wrap gracefully on narrower landscape phones
+     rather than overflowing - the 2 pre-rendered art buttons + the CSS one
+     all share the same 220px width so a wrapped 2nd row still lines up */
+  #mode-select .mode-buttons { flex-wrap: wrap; row-gap: 14px; }
   #mode-select .setting-group { display: flex; flex-direction: column; align-items: center; gap: 7px; }
   #mode-select .duration-label {
     font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 1px;
@@ -167,6 +171,18 @@
   }
   #mode-select .mode-btn img { width: 100%; display: block; }
   #mode-select .mode-btn:active { transform: scale(0.96) translateY(2px); }
+  /* the other two mode buttons are pre-rendered art (menu_quick_match_btn.png
+     etc.) - this one is CSS-styled instead using the same dark-card/gold-
+     border/Press-Start-2P language as .profile-pill/.duration-chip so it
+     still reads as "this game's UI" without needing a matching PNG asset */
+  #mode-select .mode-btn-bet {
+    aspect-ratio: 674 / 271; display: flex; align-items: center; justify-content: center;
+    background: #0e1a2b; border: 3px solid #e9c873 !important;
+    box-shadow: 0 0 0 3px #1a1008, 0 6px 14px rgba(0,0,0,0.5);
+    border-radius: 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 13px; color: #ffcb3d;
+    text-shadow: 0 2px 0 #1a1008; letter-spacing: 0.5px; gap: 6px;
+  }
 
   /* bottom-left corner icon, mirroring .shop-corner-btn's treatment - the
      art itself already bakes in its own dark card + gold border + label,
@@ -597,6 +613,23 @@
     color: #fff; letter-spacing: 0.3px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 0 #1a1008;
   }
+  /* top-right mirror of .profile-pill (top-left) - same dark/gold pixel-card
+     chrome, just a static balance readout rather than a tappable button */
+  .coin-pill {
+    position: absolute;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    z-index: 3;
+    display: flex; align-items: center; gap: 8px;
+    background: #0e1a2b; border: 3px solid #e9c873;
+    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
+    border-radius: 6px; padding: 7px 16px;
+  }
+  .coin-pill-icon { font-size: 18px; line-height: 1; filter: drop-shadow(0 2px 0 #1a1008); }
+  .coin-pill span:last-child {
+    font-family: 'Press Start 2P', monospace; font-size: 13px;
+    color: #ffcb3d; letter-spacing: 0.5px; text-shadow: 0 2px 0 #1a1008;
+  }
 
   #settings-panel, #match-end, #profile-screen {
     background: rgba(6,10,18,0.6);
@@ -607,12 +640,47 @@
   /* ---- Private Match: Create/Join + Lobby screens (single layer, no
      frosted card, split into side-by-side panels so everything fits the
      landscape viewport without scrolling) ---- */
-  #private-select, #lobby-screen {
+  #private-select, #lobby-screen, #bet-select-screen {
     position: fixed; inset: 0; z-index: 900; display: none;
     flex-direction: column; align-items: center; justify-content: center;
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px; box-sizing: border-box;
     overflow: hidden;
     background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
+  }
+  /* ---- Bet Match: stake-tier picker, shown before matchmaking starts ---- */
+  .bet-title {
+    font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: 3px;
+    color: #ffcb3d; text-shadow: 0 3px 0 #1a1008; text-transform: uppercase;
+  }
+  .bet-subtitle {
+    font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #cfd8e6;
+    margin-top: 6px; letter-spacing: 0.5px;
+  }
+  .bet-balance {
+    display: flex; align-items: center; gap: 8px; margin-top: 18px;
+    background: #0e1a2b; border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
+    border-radius: 6px; padding: 8px 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px; color: #fff;
+  }
+  .bet-balance span { color: #ffcb3d; }
+  .bet-tiers {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;
+    margin-top: 28px; max-width: 560px;
+  }
+  .bet-tier-btn {
+    font-family: 'Press Start 2P', monospace; font-size: 15px; color: #eafff0;
+    background: #16233a; border: 3px solid #7a6a45; border-radius: 8px;
+    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
+    padding: 18px 22px; cursor: pointer; width: 120px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .bet-tier-btn .bet-tier-icon { font-size: 22px; }
+  .bet-tier-btn:active { transform: scale(0.95); }
+  .bet-tier-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .bet-tier-btn:not(:disabled):hover { border-color: #e9c873; }
+  #betSelectError {
+    margin-top: 18px; color: #ff6b6b; font-family: 'Rajdhani', sans-serif;
+    font-weight: 700; font-size: 14px; min-height: 18px; text-align: center;
   }
   .back-circle-btn {
     position: absolute;
@@ -1028,6 +1096,17 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   #match-end .me-actions { position: relative; z-index: 1; width: 100%; max-width: 280px; }
+  /* Bet Match payout/forfeit line - only populated (and shown) when the
+     match that just ended was a Bet Match, see onOnlineMatchEnd */
+  .me-bet-result {
+    position: relative; z-index: 1; display: none;
+    font-family: 'Press Start 2P', monospace; font-size: 13px;
+    background: #0e1a2b; border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
+    border-radius: 6px; padding: 10px 18px; margin-bottom: 18px;
+  }
+  .me-bet-result.win { color: #6fe085; }
+  .me-bet-result.lose { color: #ff6b6b; }
+  .me-bet-result.draw { color: #ffcb3d; }
 
   #meDrawView, #meOutcomeView {
     display: none; flex-direction: column; align-items: center;
@@ -1342,6 +1421,10 @@
     <span class="pill-avatar-wrap"><img id="mainMenuAvatarImg" alt="Profile" /></span>
     <span id="mainMenuNameLabel"></span>
   </button>
+  <div class="coin-pill" aria-label="Coin balance">
+    <span class="coin-pill-icon">🪙</span>
+    <span id="coinPillAmount">0</span>
+  </div>
   <button class="leaderboard-corner-btn" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard">
     <img src="assets/menu_leaderboard_icon.png" alt="" />
   </button>
@@ -1375,6 +1458,7 @@
     <div class="mode-buttons">
       <button class="mode-btn" onclick="SFX.click(); quickMatch()"><img src="assets/menu_quick_match_btn.png" alt="Quick Match" /></button>
       <button class="mode-btn" onclick="SFX.click(); openPrivateMenu()"><img src="assets/menu_private_match_btn.png" alt="Private Match" /></button>
+      <button class="mode-btn mode-btn-bet" onclick="SFX.click(); openBetSelect()">🪙 BET MATCH</button>
     </div>
   </div>
 </div>
@@ -1419,6 +1503,15 @@
   </div>
   <div class="shop-grid" id="shopGrid"></div>
   <div class="shop-detail" id="shopDetail"></div>
+</div>
+
+<div id="bet-select-screen">
+  <button class="back-circle-btn" onclick="SFX.click(); closeBetSelect()"><span class="chevron-left"></span></button>
+  <div class="bet-title">🪙 Bet Match</div>
+  <div class="bet-subtitle">Pick your stake - win the match, double it. Lose, and it's gone.</div>
+  <div class="bet-balance">BALANCE: <span id="betBalanceAmount">0</span> 🪙</div>
+  <div class="bet-tiers" id="betTiers"></div>
+  <div id="betSelectError"></div>
 </div>
 
 <div id="private-select">
@@ -1490,6 +1583,7 @@
     <div class="me-ribbon" id="matchEndTitle">FULL TIME</div>
     <div id="matchEndWinner"></div>
     <div id="matchEndScore"></div>
+    <div id="meBetResultDraw" class="me-bet-result"></div>
     <div class="me-actions">
       <button id="matchEndRematchBtn" class="done-btn" onclick="SFX.click(); restartOnlineMatch()">🔁 REMATCH</button>
       <button id="matchEndMenuBtn" class="done-btn neutral" style="margin-top:10px;" onclick="SFX.click(); exitOnlineMatch()">🏠 MAIN MENU</button>
@@ -1512,6 +1606,7 @@
         <div class="me-jersey me-jersey-b"></div>
       </div>
     </div>
+    <div id="meBetResult" class="me-bet-result"></div>
     <div class="me-actions-img">
       <button class="me-btn-img" id="meBtnMenu" onclick="SFX.click(); exitOnlineMatch()" aria-label="Main Menu"></button>
       <button class="me-btn-img" id="meBtnAgain" onclick="SFX.click(); restartOnlineMatch()" aria-label="Play Again"></button>
@@ -1665,6 +1760,11 @@ let PROFILE_AUTH_TOKEN = localStorage.getItem('kickoffDuelAuthToken') || null;
 let PROFILE_COUNTRY = localStorage.getItem('kickoffDuelProfileCountry') || null;
 let PROFILE_AVATAR = localStorage.getItem('kickoffDuelProfileAvatar') || null;
 let PROFILE_HAS_GOOGLE = localStorage.getItem('kickoffDuelHasGoogle') === '1';
+// Bet Match balance - authoritative value lives server-side (see
+// server/profile.js's coins field); this is just a cached display value,
+// refreshed on login and after every Bet Match result (see cacheProfile,
+// refreshProfileStats, and onOnlineMatchEnd's bet-result handling)
+let PROFILE_COINS = Number(localStorage.getItem('kickoffDuelCoins')) || 0;
 // 1/2/3 if this player finished top-3 last week (see getFrameRank server-
 // side), else null - cached like the rest of the profile so the frame shows
 // immediately from localStorage on a returning launch, before any
@@ -1755,6 +1855,7 @@ function cacheProfile(p) {
   PROFILE_EQUIPPED_PITCH = p.equippedPitch || null;
   PROFILE_EQUIPPED_BALL = p.equippedBall || null;
   PROFILE_EQUIPPED_JERSEY = p.equippedJersey || null;
+  setCoins(typeof p.coins === 'number' ? p.coins : PROFILE_COINS);
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
   localStorage.setItem('kickoffDuelUserId', PROFILE_USER_ID);
   if (p.authToken) localStorage.setItem('kickoffDuelAuthToken', p.authToken);
@@ -1767,6 +1868,28 @@ function cacheProfile(p) {
   if (PROFILE_EQUIPPED_BALL) localStorage.setItem('kickoffDuelEquippedBall', PROFILE_EQUIPPED_BALL); else localStorage.removeItem('kickoffDuelEquippedBall');
   if (PROFILE_EQUIPPED_JERSEY) localStorage.setItem('kickoffDuelEquippedJersey', PROFILE_EQUIPPED_JERSEY); else localStorage.removeItem('kickoffDuelEquippedJersey');
   refreshMainMenuAvatar();
+}
+
+// updates the cached balance, persists it, and repaints the lobby coin pill
+// (the pill itself only lives in the DOM once #mode-select is in the page,
+// but this is safe to call before that - the querySelector just no-ops)
+function setCoins(amount) {
+  PROFILE_COINS = Math.max(0, Math.round(amount) || 0);
+  localStorage.setItem('kickoffDuelCoins', String(PROFILE_COINS));
+  const el = document.getElementById('coinPillAmount');
+  if (el) el.textContent = PROFILE_COINS.toLocaleString();
+}
+
+// lighter-weight than refreshProfileStats() - just the balance, no stat
+// fields to reset/repaint - used after a Bet Match resolves so the lobby's
+// coin pill is accurate the moment the player lands back on the main menu
+function refreshCoins() {
+  if (!PROFILE_USER_ID) return;
+  ensureSocket(() => {
+    socket.emit('getProfileStats', { userId: PROFILE_USER_ID }, (res) => {
+      if (res && res.ok && typeof res.coins === 'number') setCoins(res.coins);
+    });
+  });
 }
 
 function guestLogin() {
@@ -2215,6 +2338,24 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   const outcome = myScore > oppScore ? 'victory' : (myScore < oppScore ? 'defeat' : 'draw');
   const matchEnd = document.getElementById('match-end');
 
+  // Bet Match payout/forfeit line - net change only (the server already
+  // did the real deduct/credit; this is purely a "what just happened to
+  // your balance" readout). currentBetStake is 0 for every non-bet match.
+  const betResultDraw = document.getElementById('meBetResultDraw');
+  const betResultOutcome = document.getElementById('meBetResult');
+  if (currentBetStake > 0) {
+    let text, cls;
+    if (outcome === 'draw') { text = `REFUNDED ${currentBetStake.toLocaleString()} 🪙`; cls = 'draw'; }
+    else if (outcome === 'victory') { text = `+${currentBetStake.toLocaleString()} 🪙 WON`; cls = 'win'; }
+    else { text = `-${currentBetStake.toLocaleString()} 🪙 LOST`; cls = 'lose'; }
+    [betResultDraw, betResultOutcome].forEach((el) => { el.textContent = text; el.className = 'me-bet-result ' + cls; el.style.display = 'block'; });
+    refreshCoins();
+    currentBetStake = 0;
+  } else {
+    betResultDraw.style.display = 'none';
+    betResultOutcome.style.display = 'none';
+  }
+
   if (outcome === 'draw') {
     outcomeView.style.display = 'none';
     document.getElementById('matchEndWinner').textContent = winnerLabel;
@@ -2502,6 +2643,7 @@ function refreshProfileStats() {
       document.getElementById('statMatchesWon').textContent = res.matchesWon;
       document.getElementById('statGoalsScored').textContent = res.goalsScored;
       document.getElementById('statWinRate').textContent = res.winRate + '%';
+      if (typeof res.coins === 'number') setCoins(res.coins);
       PROFILE_FRAME_RANK = res.frameRank || null;
       if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
       applyAvatarFrame(document.querySelector('.avatar-picker'), PROFILE_FRAME_RANK);
@@ -2536,6 +2678,7 @@ function saveProfile() {
 
 function hideAllMenus() {
   document.getElementById('mode-select').style.display = 'none';
+  document.getElementById('bet-select-screen').style.display = 'none';
   document.getElementById('private-select').style.display = 'none';
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('matchmaking-screen').style.display = 'none';
@@ -2586,6 +2729,72 @@ function closePrivateMenu() {
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
+}
+
+// ---- Bet Match ----
+// kept in sync with server.js's own BET_STAKE_TIERS - the server is the
+// real source of truth (any other value is rejected there), this is just
+// what tier buttons to draw
+const BET_STAKE_TIERS = [100, 500, 1000, 2500];
+let currentBetStake = 0; // >0 for the lifetime of a Bet Match room (see betMatch/exitOnlineMatch)
+
+function renderBetTiers() {
+  const container = document.getElementById('betTiers');
+  container.innerHTML = '';
+  BET_STAKE_TIERS.forEach((stake) => {
+    const btn = document.createElement('button');
+    btn.className = 'bet-tier-btn';
+    btn.disabled = PROFILE_COINS < stake;
+    btn.innerHTML = `<span class="bet-tier-icon">🪙</span>${stake.toLocaleString()}`;
+    btn.onclick = () => { SFX.click(); startBetMatch(stake); };
+    container.appendChild(btn);
+  });
+}
+
+function openBetSelect() {
+  hideAllMenus();
+  document.getElementById('betSelectError').textContent = '';
+  document.getElementById('betBalanceAmount').textContent = PROFILE_COINS.toLocaleString();
+  renderBetTiers();
+  document.getElementById('bet-select-screen').style.display = 'flex';
+}
+
+function closeBetSelect() {
+  hideAllMenus();
+  document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
+  document.getElementById('mode-select').style.display = 'flex';
+}
+
+// same auto-matchmaking flow as quickMatch() (see its own comment), except
+// the stake is deducted server-side before the room is joined - see the
+// 'betMatch' handler in server.js for the payout/refund rules
+function startBetMatch(stake) {
+  if (!PROFILE_USER_ID) { document.getElementById('betSelectError').textContent = 'Sign in to play a Bet Match.'; return; }
+  if (joinRequestInFlight) return;
+  joinRequestInFlight = true;
+  ensureSocket(() => {
+    socket.emit('betMatch', {
+      stake, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION,
+      userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN,
+      equippedAura: PROFILE_EQUIPPED_AURA, equippedJersey: PROFILE_EQUIPPED_JERSEY,
+    }, (res) => {
+      joinRequestInFlight = false;
+      if (!res || !res.ok) { document.getElementById('betSelectError').textContent = (res && res.error) || 'Could not start a Bet Match.'; return; }
+      roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
+      isQuickMatchFlow = true;
+      currentBetStake = stake;
+      if (typeof res.coins === 'number') setCoins(res.coins);
+      mmShownSlots = new Set();
+      document.getElementById('mmTeamA').innerHTML = '';
+      document.getElementById('mmTeamB').innerHTML = '';
+      document.getElementById('mmCountdownOverlay').style.display = 'none';
+      document.querySelector('#matchmaking-screen .mm-status').style.display = 'block';
+      document.querySelector('#matchmaking-screen .back-circle-btn').style.display = '';
+      hideAllMenus();
+      document.getElementById('matchmaking-screen').style.display = 'flex';
+    });
+  }, () => { joinRequestInFlight = false; });
 }
 
 // ---- Leaderboard ----
@@ -3343,6 +3552,10 @@ function exitOnlineMatch() {
   if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false; isQuickMatchFlow = false;
+  // a mid-match leave (currentBetStake still >0 here means onOnlineMatchEnd
+  // never fired) forfeits server-side same as any other loss - just clear
+  // the local flag so it can't leak into a later, unrelated match's result
+  currentBetStake = 0;
   document.getElementById('match-end').style.display = 'none';
   document.getElementById('game-container').style.display = 'none';
   document.getElementById('stadium-bg').style.display = 'block';
@@ -3351,6 +3564,7 @@ function exitOnlineMatch() {
   document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
   SFX.menuMusic.start();
+  refreshCoins();
 }
 </script>
 <script>

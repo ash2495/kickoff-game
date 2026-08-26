@@ -19,6 +19,11 @@ const googleClient = GOOGLE_WEB_CLIENT_ID ? new OAuth2Client(GOOGLE_WEB_CLIENT_I
 // selected by ID - no user-uploaded images, so no image data to validate or store
 const AVATAR_PRESET_COUNT = 6;
 
+// one-time bonus granted only when a user doc is first created (guest or
+// Google, whichever happens first) - never re-granted on later logins, since
+// it's only ever set on the `insert` object below, not on an existing doc
+const SIGNUP_BONUS_COINS = 10000;
+
 function sanitizeName(name) {
   if (typeof name !== 'string') return 'Player';
   const trimmed = name.trim().slice(0, 16);
@@ -113,6 +118,7 @@ async function toPublicProfile(doc) {
     goalsScored: doc.goalsScored || 0,
     winRate: matchesPlayed > 0 ? Math.round((matchesWon / matchesPlayed) * 100) : 0,
     frameRank: await getFrameRank(userId),
+    coins: doc.coins || 0,
   };
 }
 
@@ -138,6 +144,7 @@ async function guestLogin(deviceId) {
       avatar: null,
       createdAt: now,
       lastSeenAt: now,
+      coins: SIGNUP_BONUS_COINS,
     };
     const result = await users.insertOne(insert);
     doc = { ...insert, _id: result.insertedId };
@@ -191,6 +198,7 @@ async function googleLogin(idToken, deviceId) {
         avatar: null,
         createdAt: now,
         lastSeenAt: now,
+        coins: SIGNUP_BONUS_COINS,
       };
       const result = await users.insertOne(insert);
       doc = { ...insert, _id: result.insertedId };
@@ -245,6 +253,36 @@ async function getStats(userId) {
   const doc = await users.findOne({ _id: new ObjectId(userId) });
   if (!doc) return { ok: false, error: 'Profile not found.' };
   return { ok: true, ...(await toPublicProfile(doc)) };
+}
+
+// Bet Match stake handling - deductCoins is the only place real currency
+// actually leaves an account, so unlike incrementStats (server-trusted,
+// no client request behind it) this requires the same authToken check as
+// updateProfile. The filter's `coins: {$gte: amount}` makes the deduction
+// atomic against a double-spend (e.g. spamming the bet button before the
+// first ack returns) - if the balance is too low the findOneAndUpdate
+// simply matches nothing rather than a separate read-then-write race.
+async function deductCoins(userId, authToken, amount) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
+  if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
+  if (!Number.isInteger(amount) || amount <= 0) return { ok: false, error: 'Invalid amount.' };
+  const users = getUsers();
+  const doc = await users.findOneAndUpdate(
+    { _id: new ObjectId(userId), coins: { $gte: amount } },
+    { $inc: { coins: -amount } },
+    { returnDocument: 'after' }
+  );
+  if (!doc) return { ok: false, error: 'Not enough coins.' };
+  return { ok: true, coins: doc.coins };
+}
+
+// credits (stake refund on a draw/early leave, or a Bet Match win payout) -
+// server-initiated from room state server.js already trusts (the same
+// e.userId incrementStats uses), so no token check needed here
+async function creditCoins(userId, amount) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId) || !Number.isInteger(amount) || amount <= 0) return;
+  const users = getUsers();
+  await users.updateOne({ _id: new ObjectId(userId) }, { $inc: { coins: amount } });
 }
 
 // called from server.js at match end (matchesPlayed/matchesWon for every
@@ -380,4 +418,4 @@ async function getLeaderboard(userId) {
   return { ok: true, top, me, lastWeekWinners, weekEndsAt: weekEndsAt(currentWeekId) };
 }
 
-module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard };
+module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins };
