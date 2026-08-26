@@ -3360,42 +3360,56 @@ function exitOnlineMatch() {
 // ============================================================
 
 const FIELD = { w: 1600, h: 800 };
-// character sprite sheet: 4 poses (front, frontleft, left, back) x 7 real
-// running-cycle frames each = 28 frames - right-side facings are just the
-// left-side poses mirrored (setFlipX), so no separate art is needed
-const CHAR_W = 43, CHAR_H = 68;
+// character sprite sheet: 3 poses (front, left, back) laid out as one
+// horizontal row of 58x68 frames - right-side facings are the left-side
+// poses mirrored (setFlipX) and frontleft aliases left, so no separate art
+// is needed for either. 58 wide (not 43, as an earlier generation was) so
+// the side-pose run frames - the widest, with both legs fully extended -
+// fit without clipping; every frame is centred on its own alpha centroid
+// with the feet on a shared per-pose ground line, so the character sits at
+// the same place in every frame regardless of the padding around it.
+const CHAR_W = 58, CHAR_H = 68;
 // smaller = legs cycle through more per pixel actually travelled, reading as
 // a snappier run instead of a glide/slide at the same movement speed
 const CHAR_STRIDE = 8; // px travelled per animation frame advance
 // [pose, flip] per 45-degree movement sector, starting at 0=right, going
-// clockwise in screen space - only 4 unique poses since right-side facings
-// are just the left-side art mirrored (setFlipX)
+// clockwise in screen space - only 3 unique poses in the art since
+// right-side facings are the left-side art mirrored (setFlipX) and
+// frontleft resolves to the same frame range as left
 const SECTOR_POSE = [
   ['left', true], ['frontleft', true], ['front', false], ['frontleft', false],
   ['left', false], ['back', false], ['back', false], ['back', true],
 ];
-// charBlue/charRed (default, no jersey equipped) keep the original uniform
-// 4-pose x 7-frame-each sheet. The 6 jerseys were regenerated as a single
-// consistent 3-row sheet (front/left/back, all sharing one true character
-// scale - a previous version spliced old front/back frames with a
-// separately-generated left pose, which came out at a visibly different
-// size when switching poses in-game) using one shared scale factor across
-// all 3 rows. Frame count per pose varies slightly by jersey (6 or 7,
-// whatever the source art actually had) rather than being forced uniform,
-// so each jersey has its own layout below. frontleft aliases left in every
-// layout (no separate art - right-side facings are the left-side poses
-// mirrored via setFlipX).
-const CHAR_LAYOUT_DEFAULT = {
-  front: { start: 0, count: 7 }, frontleft: { start: 7, count: 7 },
-  left: { start: 14, count: 7 }, back: { start: 21, count: 7 },
-};
+// Every body sheet (the two default team kits and all 6 jerseys) is one
+// horizontal row of front frames, then left, then back - all rendered from
+// the same source at one shared scale, so a player is exactly the same size
+// whichever texture they're wearing. Frame count per pose varies by sheet
+// (6 or 7, whatever the source art actually had) rather than being forced
+// uniform, so each sheet declares its own layout via charLayout() below.
+// frontleft aliases left everywhere (no separate art - right-side facings
+// are the left-side poses mirrored via setFlipX).
+//
+// Every frame in every pose range must be a distinct image: an earlier
+// generation of the jersey sheets had the right frame *count* but only one
+// unique picture per pose duplicated across it, which silently rendered as
+// a frozen character while the frame index cycled correctly. tools/
+// check-spritesheets.py asserts frame uniqueness for exactly this reason.
+function charLayout(front, left, back) {
+  return {
+    front: { start: 0, count: front },
+    frontleft: { start: front, count: left },
+    left: { start: front, count: left },
+    back: { start: front + left, count: back },
+  };
+}
+const CHAR_LAYOUT_DEFAULT = charLayout(7, 7, 7); // char_blue.png / char_red.png
 const JERSEY_LAYOUTS = {
-  golden: { front: {start:0,count:6}, frontleft: {start:6,count:6}, left: {start:6,count:6}, back: {start:12,count:6} },
-  sky: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
-  purple: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
-  tropical: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
-  frost: { front: {start:0,count:7}, frontleft: {start:7,count:7}, left: {start:7,count:7}, back: {start:14,count:7} },
-  royal: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
+  golden: charLayout(6, 6, 6),
+  sky: charLayout(6, 7, 7),
+  purple: charLayout(6, 7, 7),
+  tropical: charLayout(6, 7, 7),
+  frost: charLayout(7, 7, 7),
+  royal: charLayout(6, 7, 7),
 };
 
 // Shared, standard-sized pause button used by every mode - opens the
@@ -3506,9 +3520,10 @@ const AURA_TINTS = {
 };
 
 // real reskin, visible to everyone in the match (unlike pitch/ball, which
-// are self-only) - a full 28-frame run-cycle spritesheet per jersey,
-// matching charBlue/charRed's exact frame layout (4 poses x 7 stride
-// frames), so it drops in as a texture swap with no animation-code changes.
+// are self-only) - a full run-cycle spritesheet per jersey in the same
+// front/left/back layout as charBlue/charRed (see JERSEY_LAYOUTS for the
+// per-sheet frame counts), so it drops in as a texture swap with no
+// animation-code changes.
 // Team identity stays readable via the colored ring under each player
 // (unaffected by which texture the body uses).
 const JERSEY_CHAR_SRC = {
