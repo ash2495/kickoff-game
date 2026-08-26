@@ -32,6 +32,20 @@
     width: 100vw; height: 100vh;
     display: flex; align-items: center; justify-content: center;
   }
+  /* Phaser's FIT scale mode preserves the fixed 1600x800 (2:1) game canvas's
+     aspect ratio, letterboxing (empty bars) on any device that isn't
+     exactly 2:1 - which is most phones (19.5:9-21:9 in landscape, all
+     wider than 2:1). Forcing the actual <canvas> element to fill 100% of
+     its container overrides Phaser's own inline sizing, stretching the
+     fixed-resolution backing buffer non-uniformly to fill the screen
+     completely instead - a minor, generally imperceptible stretch (real
+     device ratios are within ~10-15% of 2:1) traded for zero empty bars.
+     No game-logic/coordinate changes needed since this is purely a CSS
+     presentation layer on top of the same 1600x800 buffer. */
+  #game-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
   #rotate-warning {
     position: fixed; inset: 0; color: white;
     background:
@@ -162,7 +176,7 @@
     left: max(16px, env(safe-area-inset-left));
     bottom: max(16px, env(safe-area-inset-bottom));
     z-index: 2;
-    width: clamp(46px, 9vh, 64px); height: auto; aspect-ratio: 964 / 986;
+    width: clamp(64px, 13vh, 92px); height: auto; aspect-ratio: 964 / 986;
     border: none; padding: 0; background: none; cursor: pointer;
   }
   .leaderboard-corner-btn img { width: 100%; height: 100%; display: block; }
@@ -175,7 +189,7 @@
     right: max(16px, env(safe-area-inset-right));
     bottom: max(16px, env(safe-area-inset-bottom));
     z-index: 2;
-    width: clamp(46px, 9vh, 64px); height: auto; aspect-ratio: 642 / 691;
+    width: clamp(64px, 13vh, 92px); height: auto; aspect-ratio: 642 / 691;
     border: none; padding: 0; background: none; cursor: pointer;
   }
   .shop-corner-btn img { width: 100%; height: 100%; display: block; }
@@ -398,29 +412,35 @@
     background: center / 100% 100% no-repeat;
     background-image: url('assets/shop_panel.png');
   }
-  /* the panel art reserves its own header band (~26% of its height) above
-     the bordered columns - sized/positioned to fill that band closely
-     instead of leaving a big empty gap between the title and the panel */
+  /* transparent wordmark (no more baked-in navy card - that was a solid
+     rectangle that didn't quite match the panel behind it, showing as a
+     visible seam) sized to sit just above the panel's own header band */
   #shop-screen .shop-title-img {
     position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%;
     transform: translateX(-50%); z-index: 2;
-    height: clamp(50px, 20vh, 130px); width: auto; aspect-ratio: 1536 / 568;
-    border-radius: 8px;
+    height: clamp(30px, 12vh, 83px); width: auto; aspect-ratio: 1071 / 344;
   }
   /* positioned to match the thin left column baked into the panel art
      (measured at ~1.6%-13.9% width, ~26.4%-93.8% height of the panel
-     canvas) - height-driven buttons (not width-driven off the column),
-     same reasoning as everywhere else in this app: a short landscape
-     viewport has little vh to spare, so sizing off the column's own width
-     could overflow vertically with 4 stacked icons */
+     canvas) - width-driven off the column itself (unlike the grid/detail
+     panels, this column is narrow enough on any device that filling its
+     width can't realistically blow the vertical budget the way a 30-50%
+     wide column could); overflow-y is a safety net regardless */
   #shop-screen .shop-sidebar {
     position: absolute; left: 1.6%; width: 12.3%;
-    top: 26.4%; bottom: 6.25%;
+    top: 18%; bottom: 6.25%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: clamp(4px, 1.6vh, 14px); z-index: 2;
+    gap: clamp(6px, 1.8vh, 16px); z-index: 2; overflow-y: auto;
   }
+  /* capped by BOTH the column's width (96%) and a safe height budget
+     (17.5vh) via min() - 4 stacked icons at full column width alone
+     overflowed the column's actual height on wide-but-short real devices,
+     forcing a scrollbar; whichever cap is smaller wins, so it always fits
+     without scrolling regardless of aspect ratio. 17.5vh is tuned to
+     nearly fill the sidebar's own height budget (see .shop-sidebar) with
+     4 icons + 3 gaps, so it isn't leaving unused space on either axis */
   #shop-screen .shop-cat-btn {
-    height: clamp(24px, 13.5vh, 68px); width: auto; aspect-ratio: 1.06 / 1;
+    width: min(96%, 17.5vh); height: auto; aspect-ratio: 1.06 / 1;
     border: none; padding: 0; background: none; cursor: pointer;
     transition: transform 0.08s, filter 0.15s, opacity 0.15s;
     opacity: 0.6; filter: grayscale(45%);
@@ -429,15 +449,18 @@
   #shop-screen .shop-cat-btn.selected { opacity: 1; filter: none; transform: scale(1.05); }
   #shop-screen .shop-cat-btn:active { transform: scale(0.92); }
   /* middle column (measured ~15.4%-45.9% width) - item grid for whichever
-     category is selected in the sidebar */
+     category is selected in the sidebar. Fixed 2-column grid (not
+     flex-wrap) so cards scale up to fill the panel width instead of
+     staying pinned to a small px cap - each card fills its own cell,
+     height following from its own aspect-ratio (set inline per item) */
   #shop-screen .shop-grid {
-    position: absolute; left: 15.4%; width: 30.5%; top: 26.4%; bottom: 6.5%;
-    display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center;
-    gap: clamp(6px, 1.6vh, 16px); padding: clamp(8px, 2vh, 20px); box-sizing: border-box;
+    position: absolute; left: 15.4%; width: 30.5%; top: 18%; bottom: 6.5%;
+    display: grid; grid-template-columns: repeat(2, 1fr); align-content: start;
+    gap: clamp(10px, 2.2vh, 22px); padding: clamp(8px, 2vh, 20px); box-sizing: border-box;
     overflow-y: auto; z-index: 2;
   }
   #shop-screen .shop-item-card {
-    width: clamp(50px, 13vh, 100px); aspect-ratio: 1.06 / 1;
+    width: 100%; aspect-ratio: 1.06 / 1;
     border: none; padding: 0; background: none; cursor: pointer;
     transition: transform 0.08s, filter 0.15s;
   }
@@ -452,54 +475,29 @@
   /* right column (measured ~47.5%-98.3% width) - selected item's preview
      + equip control */
   #shop-screen .shop-detail {
-    position: absolute; left: 47.5%; width: 50.8%; top: 26.4%; bottom: 6.5%;
+    position: absolute; left: 47.5%; width: 50.8%; top: 18%; bottom: 6.5%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: clamp(8px, 1.8vh, 18px); z-index: 2;
+    gap: clamp(8px, 1.8vh, 18px); z-index: 2; overflow: hidden;
   }
-  #shop-screen .shop-detail-name {
-    font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
-    font-size: clamp(16px, 3.6vh, 30px); letter-spacing: 1px;
+  /* self-framed "card" items (e.g. balls) - the image already IS the
+     complete panel content (title baked in), so it fills .shop-detail
+     completely edge to edge; object-fit:cover guarantees zero gap on any
+     side even where the card's own aspect ratio doesn't quite match the
+     panel's, at the cost of a small crop on whichever axis overflows */
+  #shop-screen .shop-detail-preview-full {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; border-radius: 14px;
   }
-  #shop-screen .shop-detail-desc {
-    font-family: 'Rajdhani', sans-serif; font-weight: 600; color: #b9cbe6;
-    font-size: clamp(11px, 2vh, 15px); text-align: center; max-width: 320px;
-    line-height: 1.35; margin-top: clamp(-6px, -1vh, -2px);
+  /* equip control floats on top of the full-bleed card instead of taking
+     its own row below it */
+  #shop-screen .shop-equip-btn-overlay {
+    position: absolute; left: 50%; bottom: 5%; transform: translateX(-50%);
+    z-index: 3;
   }
-  /* extracted name+description art (see titleImg in SHOP_ITEMS) - replaces
-     .shop-detail-name/.shop-detail-desc when a theme has one */
-  #shop-screen .shop-detail-title-img {
-    width: clamp(220px, 46vh, 460px); height: auto;
-  }
-  #shop-screen .shop-detail-preview {
-    width: clamp(90px, 22vh, 180px); height: auto; aspect-ratio: 1 / 1;
-  }
-  /* pixel art frames rendered small then scaled up - keep hard edges */
-  #shop-screen .shop-detail-preview.pixel { image-rendering: pixelated; }
-  /* pitch thumbnails are already-rendered painterly art, much wider than
-     tall - a bigger, non-square box with normal smooth scaling */
-  #shop-screen .shop-detail-preview-wide {
-    width: clamp(160px, 40vh, 380px); aspect-ratio: auto;
-    border-radius: 10px;
-  }
-  #shop-screen .shop-equip-btn {
-    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: clamp(13px, 2.4vh, 18px);
-    padding: clamp(8px, 1.6vh, 14px) clamp(24px, 4vw, 44px);
-    border-radius: 10px; border: none; cursor: pointer;
-    background: linear-gradient(135deg, #ffcb3d, #d9a316); color: #1a1a1a;
-    box-shadow: 0 4px 0 #a8790f; transition: transform 0.08s, box-shadow 0.08s;
-  }
-  #shop-screen .shop-equip-btn.equipped {
-    background: linear-gradient(135deg, #4caf50, #2e7d32); color: #fff;
-    box-shadow: 0 4px 0 #1b5e20;
-  }
-  #shop-screen .shop-equip-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8790f; }
-  #shop-screen .shop-equip-btn.equipped:active { box-shadow: 0 1px 0 #1b5e20; }
-  /* image-based equip button (the extracted gold pill art) - used for
-     pitches instead of the plain CSS-gradient .shop-equip-btn; text is
-     still ours (EQUIP/EQUIPPED), just laid on top of the art as a button
-     background so future themes can reuse the same asset */
+  /* image-based equip button (the extracted gold pill art), text laid on
+     top as a button background, shared by every cardPreview category */
   #shop-screen .shop-equip-btn-img {
-    width: clamp(160px, 32vh, 300px); aspect-ratio: 979 / 187;
+    width: clamp(80px, 16vh, 150px); max-width: 80%; aspect-ratio: 979 / 187;
     border: none; cursor: pointer; padding: 0;
     background: center / 100% 100% no-repeat;
     background-image: url('assets/shop_equip_btn.png');
@@ -509,22 +507,6 @@
   }
   #shop-screen .shop-equip-btn-img.equipped { filter: hue-rotate(80deg) saturate(1.3); color: #0f2e12; }
   #shop-screen .shop-equip-btn-img:active { transform: scale(0.96); }
-  #shop-screen .shop-detail-info {
-    display: flex; align-items: center; gap: clamp(6px, 1.2vw, 12px);
-    background: rgba(10, 16, 28, 0.6); border: 1px solid rgba(120, 170, 255, 0.35);
-    border-radius: 10px; padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 18px);
-    max-width: 340px;
-  }
-  #shop-screen .shop-detail-info .info-icon {
-    flex: 0 0 auto; width: clamp(16px, 3vh, 22px); height: clamp(16px, 3vh, 22px);
-    border-radius: 50%; border: 1.5px solid #6ab4ff; color: #6ab4ff;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Orbitron', sans-serif; font-size: clamp(9px, 1.8vh, 13px); font-weight: 800;
-  }
-  #shop-screen .shop-detail-info span {
-    font-family: 'Rajdhani', sans-serif; font-weight: 600; color: #b9cbe6;
-    font-size: clamp(9px, 1.7vh, 13px); text-align: left; line-height: 1.3;
-  }
 
   .settings-gear {
     position: fixed;
@@ -1697,6 +1679,17 @@ let PROFILE_EQUIPPED_AURA = localStorage.getItem('kickoffDuelEquippedAura') || n
 // choice (never sent to opponents, unlike equippedAura), read by
 // OnlineScene.preload() to pick which field texture to load
 let PROFILE_EQUIPPED_PITCH = localStorage.getItem('kickoffDuelEquippedPitch') || null;
+// Shop → Balls selection (e.g. 'beach') - persisted like equippedPitch for
+// now (self-only, not synced to the room); TODO once it's decided whether
+// a ball skin should be self-only or visible to everyone (it's a single
+// shared physics object, unlike a personal pitch/character skin, so this
+// needs the same kind of room-sync work equippedAura got, if it should be
+// seen by opponents too)
+let PROFILE_EQUIPPED_BALL = localStorage.getItem('kickoffDuelEquippedBall') || null;
+// Shop → Jersey selection (e.g. 'golden') - visible to everyone in the
+// match, not self-only (see JERSEY_CHAR_SRC) - sent to the server on
+// create/join/quickMatch and broadcast to the room via lobbyUpdate
+let PROFILE_EQUIPPED_JERSEY = localStorage.getItem('kickoffDuelEquippedJersey') || null;
 
 // per-rank wreath art + the geometry needed to center it over an existing
 // plain avatar circle: holePct is how much of the wreath's own width the
@@ -1760,6 +1753,8 @@ function cacheProfile(p) {
   PROFILE_FRAME_RANK = p.frameRank || null;
   PROFILE_EQUIPPED_AURA = p.equippedAura || null;
   PROFILE_EQUIPPED_PITCH = p.equippedPitch || null;
+  PROFILE_EQUIPPED_BALL = p.equippedBall || null;
+  PROFILE_EQUIPPED_JERSEY = p.equippedJersey || null;
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
   localStorage.setItem('kickoffDuelUserId', PROFILE_USER_ID);
   if (p.authToken) localStorage.setItem('kickoffDuelAuthToken', p.authToken);
@@ -1769,6 +1764,8 @@ function cacheProfile(p) {
   if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
   if (PROFILE_EQUIPPED_AURA) localStorage.setItem('kickoffDuelEquippedAura', PROFILE_EQUIPPED_AURA); else localStorage.removeItem('kickoffDuelEquippedAura');
   if (PROFILE_EQUIPPED_PITCH) localStorage.setItem('kickoffDuelEquippedPitch', PROFILE_EQUIPPED_PITCH); else localStorage.removeItem('kickoffDuelEquippedPitch');
+  if (PROFILE_EQUIPPED_BALL) localStorage.setItem('kickoffDuelEquippedBall', PROFILE_EQUIPPED_BALL); else localStorage.removeItem('kickoffDuelEquippedBall');
+  if (PROFILE_EQUIPPED_JERSEY) localStorage.setItem('kickoffDuelEquippedJersey', PROFILE_EQUIPPED_JERSEY); else localStorage.removeItem('kickoffDuelEquippedJersey');
   refreshMainMenuAvatar();
 }
 
@@ -2632,49 +2629,84 @@ function closeLeaderboardInfo() {
 const SHOP_ITEMS = {
   // ratio is each thumbnail's real aspect ratio, so wide landscape cards
   // don't get squeezed into the square-ish default card shape. readyForEquip
-  // gates the Equip button - only pitches with real in-match field art
-  // (currently just classic, reusing the existing calibrated field texture)
-  // get one; the rest stay preview-only until that art arrives, same as
-  // every other still-empty shop category
-  // titleImg is the extracted name+description graphic shown in the detail
-  // panel instead of plain text (see renderShopDetail) - beach doesn't have
-  // one yet, so it still falls back to the plain-text name/description path
+  // gates the Equip button.
+  // cardPreview + previewFit:'contain' - same self-framed-card pattern as
+  // balls/jersey/aura (title baked into the art itself), replacing the old
+  // separate titleImg + in-match-texture split that used to render here
   pitches: [
-    {
-      id: 'classic', name: 'Classic', icon: 'assets/pitch_classic.png', ratio: 2.0296, readyForEquip: true,
-      titleImg: 'assets/pitch_title_classic.png', titleRatio: 5.3624,
-      previewImg: 'assets/field_stadium.jpg', previewRatio: 1.5,
-    },
-    {
-      id: 'beach', name: 'Beach', icon: 'assets/pitch_beach.png', ratio: 2.0323, readyForEquip: true,
-      description: 'Sunny vibes, sandy pitch and good times!',
-      previewImg: 'assets/field_beach.jpg', previewRatio: 1.5,
-    },
-    {
-      id: 'rainy', name: 'Rainy', icon: 'assets/pitch_rainy.png', ratio: 2.2404, readyForEquip: true,
-      titleImg: 'assets/pitch_title_rainy.png', titleRatio: 4.7028,
-      previewImg: 'assets/field_rainy.jpg', previewRatio: 1.5,
-    },
-    {
-      id: 'winter', name: 'Winter', icon: 'assets/pitch_winter.png', ratio: 2.2278, readyForEquip: true,
-      titleImg: 'assets/pitch_title_winter.png', titleRatio: 4.7358,
-      previewImg: 'assets/field_winter.jpg', previewRatio: 1.5,
-    },
-    {
-      id: 'volcano', name: 'Volcano', icon: 'assets/pitch_volcano.png', ratio: 2.5167, readyForEquip: true,
-      titleImg: 'assets/pitch_title_volcano.png', titleRatio: 4.208,
-      previewImg: 'assets/field_volcano.jpg', previewRatio: 1.5,
-    },
-    {
-      id: 'halloween', name: 'Halloween', icon: 'assets/pitch_halloween.png', ratio: 2.51, readyForEquip: true,
-      titleImg: 'assets/pitch_title_halloween.png', titleRatio: 4.4495,
-      previewImg: 'assets/field_halloween.jpg', previewRatio: 1.3333,
-    },
+    { id: 'classic', name: 'Classic', icon: 'assets/pitch_classic.png', ratio: 2.0296, previewImg: 'assets/pitch_preview_classic.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'beach', name: 'Beach', icon: 'assets/pitch_beach.png', ratio: 2.0323, previewImg: 'assets/pitch_preview_beach.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'rainy', name: 'Rainy', icon: 'assets/pitch_rainy.png', ratio: 2.2404, previewImg: 'assets/pitch_preview_rainy.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'winter', name: 'Winter', icon: 'assets/pitch_winter.png', ratio: 2.2278, previewImg: 'assets/pitch_preview_winter.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'volcano', name: 'Volcano', icon: 'assets/pitch_volcano.png', ratio: 2.5167, previewImg: 'assets/pitch_preview_volcano.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'halloween', name: 'Halloween', icon: 'assets/pitch_halloween.png', ratio: 2.51, previewImg: 'assets/pitch_preview_halloween.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
   ],
-  balls: [],
-  aura: [{ id: 'fire', name: 'Fire Aura', icon: 'assets/shop_cat_aura.png', ratio: 1, animFrames: 24 }],
-  jersey: [],
+  // cardPreview items use a single self-framed image (title baked in) for
+  // the right panel instead of separate title/preview/info pieces - see
+  // the cardPreview branch in renderShopDetail. readyForEquip already
+  // toggles/persists locally (see toggleEquipBall) but nothing in-game
+  // reads it yet - see the TODO on PROFILE_EQUIPPED_BALL
+  // previewFit:'contain' - same reasoning as jersey/aura: the art has its
+  // own thin border frame drawn close to the raw edge, so object-fit:cover
+  // isn't safe across the real device aspect-ratio range
+  balls: [
+    { id: 'beach', name: 'Beach Ball', icon: 'assets/ball_grid_beach.png', ratio: 1.0209, previewImg: 'assets/ball_preview_beach.png', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'pumpkin', name: 'Pumpkin Ball', icon: 'assets/ball_grid_pumpkin.png', ratio: 1.0102, previewImg: 'assets/ball_preview_pumpkin.png', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'ice', name: 'Ice Ball', icon: 'assets/ball_grid_ice.png', ratio: 0.9776, previewImg: 'assets/ball_preview_ice.png', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'lava', name: 'Lava Ball', icon: 'assets/ball_grid_lava.png', ratio: 1.0273, previewImg: 'assets/ball_preview_lava.png', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'thunder', name: 'Thunder Ball', icon: 'assets/ball_grid_thunder.png', ratio: 1.0553, previewImg: 'assets/ball_preview_thunder.png', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'ghost', name: 'Ghost Ball', icon: 'assets/ball_grid_ghost.png', ratio: 1.0318, previewImg: 'assets/ball_preview_ghost.png', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+  ],
+  // cardPreview pattern (static self-framed card, same as balls/jersey) -
+  // in-game they all reuse a single shared flame sprite-sheet's
+  // animation/motion with a colored tint applied per aura (see
+  // AURA_TINTS) rather than bespoke per-color flame art, which would've
+  // meant hand-extracting a clean uniform frame grid from each raw
+  // multi-element reference sheet in the ball aura folder - the tint
+  // approach gets full color variety in-game today without that cost, at
+  // the expense of being an approximation rather than true bespoke
+  // colored flame art
+  // previewFit:'contain' - same reasoning as the jersey cards: the art has
+  // its own thin border frame drawn close to the raw edge, and the panel's
+  // aspect ratio varies too much across real devices for object-fit:cover
+  // to guarantee that border survives uncropped
+  aura: [
+    { id: 'golden', name: 'Golden Star', icon: 'assets/aura_grid_golden.png', ratio: 1.0374, previewImg: 'assets/aura_preview_golden.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'purple', name: 'Neon Purple', icon: 'assets/aura_grid_purple.png', ratio: 1.0436, previewImg: 'assets/aura_preview_purple.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'green', name: 'Toxic Green', icon: 'assets/aura_grid_green.png', ratio: 1.0393, previewImg: 'assets/aura_preview_green.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'teal', name: 'Cyber Teal', icon: 'assets/aura_grid_teal.png', ratio: 1.0349, previewImg: 'assets/aura_preview_teal.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'orange', name: 'Flare Orange', icon: 'assets/aura_grid_orange.png', ratio: 1.0436, previewImg: 'assets/aura_preview_orange.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'blue', name: 'Electric Blue', icon: 'assets/aura_grid_blue.png', ratio: 1.0370, previewImg: 'assets/aura_preview_blue.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+  ],
+  // cardPreview here too (mannequin-on-podium card, title baked in) - same
+  // pattern as balls. In-game this is a real reskin (see JERSEY_CHAR_SRC),
+  // not just a shop-only cosmetic - equipping actually swaps the character
+  // spritesheet, visible to every player in the match.
+  // previewFit:'contain' - these cards are perfectly square with the title
+  // flush against the top edge (zero safe margin), and the detail panel's
+  // own aspect ratio varies a lot by real device (much taller/narrower on
+  // typical 19.5:9-20:9 phones than in a desktop-browser test), so
+  // object-fit:cover's crop amount isn't a fixed/safe quantity - on a
+  // long-screen device it ate past the podium ring into the ball and the
+  // character's legs. contain shows the whole card on every device
+  // (letterboxed into the panel art on the sides) instead of ever cropping
+  // real content - unlike the ball cards, which have enough margin on all
+  // sides that cover's crop stays safe across the realistic device range
+  jersey: [
+    { id: 'golden', name: 'Golden Legacy', icon: 'assets/jersey_grid_golden.png', ratio: 1.0144, previewImg: 'assets/jersey_preview_golden.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'sky', name: 'Sky Checker', icon: 'assets/jersey_grid_sky.png', ratio: 0.9959, previewImg: 'assets/jersey_preview_sky.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'purple', name: 'Purple Pride', icon: 'assets/jersey_grid_purple.png', ratio: 1.0103, previewImg: 'assets/jersey_preview_purple.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'tropical', name: 'Tropical Rush', icon: 'assets/jersey_grid_tropical.png', ratio: 1.0379, previewImg: 'assets/jersey_preview_tropical.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'frost', name: 'Frost Strike', icon: 'assets/jersey_grid_frost.png', ratio: 1.0168, previewImg: 'assets/jersey_preview_frost.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+    { id: 'royal', name: 'Royal Gold', icon: 'assets/jersey_grid_royal.png', ratio: 1.0315, previewImg: 'assets/jersey_preview_royal.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
+  ],
 };
+// tags each cardPreview item with which equip system it uses (see
+// CARD_EQUIP_CONFIG) - simpler than repeating this on every entry above
+SHOP_ITEMS.pitches.forEach((i) => { i.cat = 'pitches'; });
+SHOP_ITEMS.balls.forEach((i) => { i.cat = 'balls'; });
+SHOP_ITEMS.jersey.forEach((i) => { i.cat = 'jersey'; });
+SHOP_ITEMS.aura.forEach((i) => { i.cat = 'aura'; });
 
 function openShop() {
   hideAllMenus();
@@ -2682,7 +2714,6 @@ function openShop() {
   renderShopGrid('pitches');
 }
 function closeShop() {
-  stopShopAuraPreview();
   hideAllMenus();
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
@@ -2720,57 +2751,24 @@ function renderShopGrid(cat) {
   renderShopDetail(items[0]);
 }
 
-let shopAuraPreviewTimer = null;
-function stopShopAuraPreview() {
-  if (shopAuraPreviewTimer) { clearInterval(shopAuraPreviewTimer); shopAuraPreviewTimer = null; }
-}
-
 function renderShopDetail(item) {
-  stopShopAuraPreview();
   const detail = document.getElementById('shopDetail');
   if (!item) { detail.innerHTML = ''; return; }
 
-  if (item.animFrames) {
-    const equipped = PROFILE_EQUIPPED_AURA === item.id;
+  if (item.cardPreview) {
+    // the art itself is a complete self-framed card (title baked in) -
+    // fills the ENTIRE right panel edge to edge (object-fit:cover, so no
+    // gap on any side even if the card's own aspect ratio doesn't exactly
+    // match the panel's), with just the equip control floating on top of
+    // it instead of stacked below
+    const equipCfg = CARD_EQUIP_CONFIG[item.cat];
+    const equipped = item.readyForEquip && equipCfg && equipCfg.get() === item.id;
+    const posStyle = item.previewFit ? ` style="object-fit:${item.previewFit}"` : '';
     detail.innerHTML = `
-      <div class="shop-detail-name">${item.name}</div>
-      <img class="shop-detail-preview pixel" id="shopAuraPreviewImg" src="assets/fire_aura_frames/frame_01.png" alt="${item.name} preview" />
-      <button class="shop-equip-btn${equipped ? ' equipped' : ''}" id="shopEquipBtn">${equipped ? 'EQUIPPED' : 'EQUIP'}</button>
+      <img class="shop-detail-preview-full" src="${item.previewImg}" alt="${item.name} preview"${posStyle} />
+      <button class="shop-equip-btn-img shop-equip-btn-overlay${equipped ? ' equipped' : ''}" id="shopEquipBtn">${equipped ? 'EQUIPPED' : 'EQUIP'}</button>
     `;
-    document.getElementById('shopEquipBtn').onclick = () => { SFX.click(); toggleEquipAura(item.id); };
-    // loops the full ignite → burn → decay sequence for preview purposes
-    // only - in an actual match this only ever plays once, triggered by a
-    // kick (see playBallAura in OnlineScene)
-    const img = document.getElementById('shopAuraPreviewImg');
-    let frame = 1;
-    shopAuraPreviewTimer = setInterval(() => {
-      frame = frame >= item.animFrames ? 1 : frame + 1;
-      img.src = `assets/fire_aura_frames/frame_${String(frame).padStart(2, '0')}.png`;
-    }, 55);
-    return;
-  }
-
-  // static preview - only pitches with real in-match art get an Equip
-  // button (see readyForEquip in SHOP_ITEMS); the rest stay preview-only.
-  // previewImg (the full clean field texture, same art used in-match) is
-  // used when available instead of stretching up the small grid thumbnail
-  const equipped = item.readyForEquip && PROFILE_EQUIPPED_PITCH === item.id;
-  const previewSrc = item.previewImg || item.icon;
-  const previewRatio = item.previewImg ? (item.previewRatio || 1) : (item.ratio || 1);
-  // titleImg (extracted name+description art) replaces the plain-text
-  // name/description pair when a theme has one - beach doesn't yet, so it
-  // still falls back to plain text
-  const titleHtml = item.titleImg
-    ? `<img class="shop-detail-title-img" src="${item.titleImg}" style="aspect-ratio:${item.titleRatio || 4}" alt="${item.name}" />`
-    : `<div class="shop-detail-name">${item.name}</div>${item.description ? `<div class="shop-detail-desc">${item.description}</div>` : ''}`;
-  detail.innerHTML = `
-    ${titleHtml}
-    <img class="shop-detail-preview shop-detail-preview-wide" src="${previewSrc}" style="aspect-ratio:${previewRatio}" alt="${item.name} preview" />
-    ${item.readyForEquip ? `<button class="shop-equip-btn-img${equipped ? ' equipped' : ''}" id="shopEquipBtn">${equipped ? 'EQUIPPED' : 'EQUIP'}</button>` : ''}
-    ${item.readyForEquip ? `<div class="shop-detail-info"><span class="info-icon">i</span><span>Changing pitch theme will only be visible to you.</span></div>` : ''}
-  `;
-  if (item.readyForEquip) {
-    document.getElementById('shopEquipBtn').onclick = () => { SFX.click(); toggleEquipPitch(item.id); };
+    document.getElementById('shopEquipBtn').onclick = () => { SFX.click(); equipCfg.toggle(item.id); };
   }
 }
 
@@ -2807,6 +2805,54 @@ function toggleEquipPitch(pitchId) {
     });
   });
 }
+
+// self-only for now, same as toggleEquipPitch - see the TODO on
+// PROFILE_EQUIPPED_BALL about whether this should sync to the room instead
+function toggleEquipBall(ballId) {
+  const next = PROFILE_EQUIPPED_BALL === ballId ? null : ballId; // tap again to unequip
+  PROFILE_EQUIPPED_BALL = next;
+  if (next) localStorage.setItem('kickoffDuelEquippedBall', next); else localStorage.removeItem('kickoffDuelEquippedBall');
+  const btn = document.getElementById('shopEquipBtn');
+  if (btn) {
+    btn.textContent = next ? 'EQUIPPED' : 'EQUIP';
+    btn.classList.toggle('equipped', !!next);
+  }
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) return;
+  ensureSocket(() => {
+    socket.emit('updateProfile', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN, equippedBall: next }, (res) => {
+      if (res && res.ok) cacheProfile(res);
+    });
+  });
+}
+
+// self-only, no in-game effect yet - see the cardPreview comment on
+// SHOP_ITEMS.jersey
+function toggleEquipJersey(jerseyId) {
+  const next = PROFILE_EQUIPPED_JERSEY === jerseyId ? null : jerseyId; // tap again to unequip
+  PROFILE_EQUIPPED_JERSEY = next;
+  if (next) localStorage.setItem('kickoffDuelEquippedJersey', next); else localStorage.removeItem('kickoffDuelEquippedJersey');
+  const btn = document.getElementById('shopEquipBtn');
+  if (btn) {
+    btn.textContent = next ? 'EQUIPPED' : 'EQUIP';
+    btn.classList.toggle('equipped', !!next);
+  }
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) return;
+  ensureSocket(() => {
+    socket.emit('updateProfile', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN, equippedJersey: next }, (res) => {
+      if (res && res.ok) cacheProfile(res);
+    });
+  });
+}
+
+// dispatch table for the cardPreview branch of renderShopDetail, which is
+// shared by multiple categories (balls, jersey) that each have their own
+// equipped-state variable/toggle function
+const CARD_EQUIP_CONFIG = {
+  pitches: { get: () => PROFILE_EQUIPPED_PITCH, toggle: toggleEquipPitch },
+  balls: { get: () => PROFILE_EQUIPPED_BALL, toggle: toggleEquipBall },
+  jersey: { get: () => PROFILE_EQUIPPED_JERSEY, toggle: toggleEquipJersey },
+  aura: { get: () => PROFILE_EQUIPPED_AURA, toggle: toggleEquipAura },
+};
 
 const LB_PEDESTAL_SRC = { 1: 'assets/lb_pedestal_gold.png', 2: 'assets/lb_pedestal_silver.png', 3: 'assets/lb_pedestal_bronze.png' };
 const LB_MEDAL_SRC = { 1: 'assets/lb_medal_1.png', 2: 'assets/lb_medal_2.png', 3: 'assets/lb_medal_3.png' };
@@ -3004,7 +3050,7 @@ function createPrivateRoom() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA }, (res) => {
+    socket.emit('createRoom', { matchDuration: MATCH_DURATION, name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA, equippedJersey: PROFILE_EQUIPPED_JERSEY }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not create room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = true;
@@ -3023,7 +3069,7 @@ function joinPrivateRoom() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('joinRoom', { code, name: PLAYER_NAME, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA }, (res) => {
+    socket.emit('joinRoom', { code, name: PLAYER_NAME, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA, equippedJersey: PROFILE_EQUIPPED_JERSEY }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not join room.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -3044,7 +3090,7 @@ function quickMatch() {
   if (joinRequestInFlight) return;
   joinRequestInFlight = true;
   ensureSocket(() => {
-    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA }, (res) => {
+    socket.emit('quickMatch', { name: PLAYER_NAME, teamSize: PRIVATE_TEAM_SIZE, matchDuration: MATCH_DURATION, userId: PROFILE_USER_ID, equippedAura: PROFILE_EQUIPPED_AURA, equippedJersey: PROFILE_EQUIPPED_JERSEY }, (res) => {
       joinRequestInFlight = false;
       if (!res || !res.ok) { showPrivateError((res && res.error) || 'Could not find a match.'); return; }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -3076,7 +3122,7 @@ function renderMatchmakingScreen(data) {
   const slots = Object.keys(data.players).sort();
   slots.forEach((slot) => {
     const p = data.players[slot];
-    lastLobbyPlayers[slot] = { connected: !!p.connected, name: p.name || 'Player' };
+    lastLobbyPlayers[slot] = { connected: !!p.connected, name: p.name || 'Player', jersey: p.jersey || null };
   });
 
   const teamAEl = document.getElementById('mmTeamA');
@@ -3200,7 +3246,7 @@ function renderLobby(data) {
   const slots = Object.keys(data.players).sort();
   slots.forEach((slot) => {
     const p = data.players[slot];
-    lastLobbyPlayers[slot] = { connected: !!p.connected, name: p.name || 'Player' };
+    lastLobbyPlayers[slot] = { connected: !!p.connected, name: p.name || 'Player', jersey: p.jersey || null };
   });
   const slotsEl = document.getElementById('lobbySlots');
   slotsEl.innerHTML = '';
@@ -3321,10 +3367,36 @@ const CHAR_W = 43, CHAR_H = 68;
 // smaller = legs cycle through more per pixel actually travelled, reading as
 // a snappier run instead of a glide/slide at the same movement speed
 const CHAR_STRIDE = 8; // px travelled per animation frame advance
-const CHAR_RUN_FRAMES = 7;
-// original front/frontleft/back poses restored; only "left" (the side-view
-// running pose, used for left/right movement) is the video-derived cycle
-const POSE_FRAME = { front: 0, frontleft: 7, left: 14, back: 21 };
+// [pose, flip] per 45-degree movement sector, starting at 0=right, going
+// clockwise in screen space - only 4 unique poses since right-side facings
+// are just the left-side art mirrored (setFlipX)
+const SECTOR_POSE = [
+  ['left', true], ['frontleft', true], ['front', false], ['frontleft', false],
+  ['left', false], ['back', false], ['back', false], ['back', true],
+];
+// charBlue/charRed (default, no jersey equipped) keep the original uniform
+// 4-pose x 7-frame-each sheet. The 6 jerseys were regenerated as a single
+// consistent 3-row sheet (front/left/back, all sharing one true character
+// scale - a previous version spliced old front/back frames with a
+// separately-generated left pose, which came out at a visibly different
+// size when switching poses in-game) using one shared scale factor across
+// all 3 rows. Frame count per pose varies slightly by jersey (6 or 7,
+// whatever the source art actually had) rather than being forced uniform,
+// so each jersey has its own layout below. frontleft aliases left in every
+// layout (no separate art - right-side facings are the left-side poses
+// mirrored via setFlipX).
+const CHAR_LAYOUT_DEFAULT = {
+  front: { start: 0, count: 7 }, frontleft: { start: 7, count: 7 },
+  left: { start: 14, count: 7 }, back: { start: 21, count: 7 },
+};
+const JERSEY_LAYOUTS = {
+  golden: { front: {start:0,count:6}, frontleft: {start:6,count:6}, left: {start:6,count:6}, back: {start:12,count:6} },
+  sky: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
+  purple: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
+  tropical: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
+  frost: { front: {start:0,count:7}, frontleft: {start:7,count:7}, left: {start:7,count:7}, back: {start:14,count:7} },
+  royal: { front: {start:0,count:6}, frontleft: {start:6,count:7}, left: {start:6,count:7}, back: {start:13,count:7} },
+};
 
 // Shared, standard-sized pause button used by every mode - opens the
 // Resume/Settings/Exit Match pause menu (a real tappable button, not just
@@ -3404,17 +3476,67 @@ function currentFieldTextureSrc() {
   return PITCH_TEXTURE_SRC[PROFILE_EQUIPPED_PITCH] || PITCH_TEXTURE_SRC.classic;
 }
 
+// ball skin - self-only, same as the pitch (never sent to opponents; each
+// client just renders their own equipped ball on the shared ball object).
+// real 32x32 sprite per skin, sized to match ball.png exactly since the
+// ball image is drawn at native size (no setDisplaySize) to line up with
+// the physics radius (BALL_R=16 server-side)
+const BALL_TEXTURE_SRC = {
+  beach: 'assets/ball_texture_beach.png',
+  pumpkin: 'assets/ball_texture_pumpkin.png',
+  ice: 'assets/ball_texture_ice.png',
+  lava: 'assets/ball_texture_lava.png',
+  thunder: 'assets/ball_texture_thunder.png',
+  ghost: 'assets/ball_texture_ghost.png',
+};
+function currentBallTextureSrc() {
+  return BALL_TEXTURE_SRC[PROFILE_EQUIPPED_BALL] || 'assets/ball.png';
+}
+
+// in-game recolor for the 6 auras (see the SHOP_ITEMS.aura comment) -
+// reuses one shared flame sprite-sheet/motion via Phaser's multiply tint
+// instead of bespoke per-color frame art
+const AURA_TINTS = {
+  golden: 0xffd23d,
+  purple: 0xb96bff,
+  green: 0x5dff4d,
+  teal: 0x2de8d0,
+  orange: 0xff7a1f,
+  blue: 0x3ba8ff,
+};
+
+// real reskin, visible to everyone in the match (unlike pitch/ball, which
+// are self-only) - a full 28-frame run-cycle spritesheet per jersey,
+// matching charBlue/charRed's exact frame layout (4 poses x 7 stride
+// frames), so it drops in as a texture swap with no animation-code changes.
+// Team identity stays readable via the colored ring under each player
+// (unaffected by which texture the body uses).
+const JERSEY_CHAR_SRC = {
+  golden: 'assets/char_jersey_golden.png',
+  sky: 'assets/char_jersey_sky.png',
+  purple: 'assets/char_jersey_purple.png',
+  tropical: 'assets/char_jersey_tropical.png',
+  frost: 'assets/char_jersey_frost.png',
+  royal: 'assets/char_jersey_royal.png',
+};
+
 class OnlineScene extends Phaser.Scene {
   constructor() { super('online'); }
 
   preload() {
     this.load.image('fieldTexture', currentFieldTextureSrc());
-    this.load.image('ballTexture', 'assets/ball.png');
+    this.load.image('ballTexture', currentBallTextureSrc());
     this.load.image('pauseIcon', 'assets/pause_icon.png');
     this.load.image('tagBlue', 'assets/tag_blue.png');
     this.load.image('tagRed', 'assets/tag_red.png');
     this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
     this.load.spritesheet('charRed', 'assets/char_red.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    // loaded unconditionally (not just for whichever jerseys are actually in
+    // this room) since they're small and any combination of opponents could
+    // have any jersey equipped
+    Object.keys(JERSEY_CHAR_SRC).forEach((id) => {
+      this.load.spritesheet('jerseyChar_' + id, JERSEY_CHAR_SRC[id], { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    });
     this.load.spritesheet('fireAuraFrames', 'assets/fire_aura_sheet.png', { frameWidth: 256, frameHeight: 256 });
   }
 
@@ -3525,7 +3647,7 @@ class OnlineScene extends Phaser.Scene {
       socket.on('state', (data) => this.applyServerState(data));
       socket.off('ballKicked');
       socket.on('ballKicked', (data) => {
-        if (data && data.aura === 'fire') this.playBallAura();
+        if (data && data.aura) this.playBallAura(data.aura);
       });
     }
 
@@ -3600,17 +3722,24 @@ class OnlineScene extends Phaser.Scene {
     if (this.entitySprites[slot]) return this.entitySprites[slot];
     const team = slot[0];
     const colors = TEAM_COLORS[team];
-    const circle = this.add.sprite(x, y, team === 'A' ? 'charBlue' : 'charRed', 0);
+    const info = lastLobbyPlayers[slot] || { connected: false, name: 'Bot' };
+    // jersey cosmetic is visible to everyone (unlike pitch/ball) - see
+    // JERSEY_CHAR_SRC; falls back to the plain team-color sprite when no
+    // jersey is equipped. Team identity stays readable via the ring below
+    // regardless of which body texture is showing.
+    const hasJersey = info.jersey && JERSEY_CHAR_SRC[info.jersey];
+    const texKey = hasJersey ? 'jerseyChar_' + info.jersey : (team === 'A' ? 'charBlue' : 'charRed');
+    const circle = this.add.sprite(x, y, texKey, 0);
     const shadow = this.add.ellipse(x, y+28, 34, 12, 0x000000, 0.3);
     const ring = this.add.ellipse(x, y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, colors.stroke, 0.55);
-    const info = lastLobbyPlayers[slot] || { connected: false, name: 'Bot' };
     // server always assigns a real name to bot slots too (random flavor name),
     // so we never need to hardcode "BOT" here anymore
     const labelText = info.name;
     const label = createNameTag(this, x, y-56, labelText, team);
     const sprite = {
       circle, shadow, ring, label, x, y, targetX: x, targetY: y,
-      prevX: x, prevY: y, kick: null, walkDist: 0, flip: false, pose: 'front',
+      kick: null, walkDist: 0, flip: false, pose: 'front', lastMoveAt: 0,
+      layout: hasJersey ? JERSEY_LAYOUTS[info.jersey] : CHAR_LAYOUT_DEFAULT,
     };
     this.entitySprites[slot] = sprite;
     return sprite;
@@ -3625,6 +3754,22 @@ class OnlineScene extends Phaser.Scene {
       const e = data.entities[slot];
       const sx = this.mirrorX(e.x), sy = e.y;
       const s = this.ensureEntitySprite(slot, sx, sy);
+      // drive the run-cycle off the real per-tick server movement rather
+      // than the client's rendered per-frame lerp delta - under real
+      // network jitter the interpolated position keeps re-converging
+      // toward a stale target between ticks, so a render-frame-based delta
+      // spends most frames under the walk threshold and the sprite looks
+      // frozen even while it's visibly sliding across the pitch
+      const dx = sx - s.targetX, dy = sy - s.targetY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.5) {
+        let deg = Math.atan2(dy, dx) * 180 / Math.PI;
+        if (deg < 0) deg += 360;
+        const sector = Math.round(deg / 45) % 8;
+        [s.pose, s.flip] = SECTOR_POSE[sector];
+        s.walkDist += dist;
+        s.lastMoveAt = this.time.now;
+      }
       s.targetX = sx;
       s.targetY = sy;
     });
@@ -3754,38 +3899,26 @@ class OnlineScene extends Phaser.Scene {
         if (Math.abs(Math.cos(s.kick.angle)) > 0.15) s.flip = Math.cos(s.kick.angle) > 0;
         s.circle.setFlipX(!!s.flip);
         s.circle.setScale(1 + ease * 0.35, 1 - ease * 0.22);
-        s.circle.setFrame(POSE_FRAME[s.pose]);
+        s.circle.setFrame(s.layout[s.pose].start);
       } else {
         s.circle.setScale(1, 1);
-        // no true velocity here (position is server-driven + locally
-        // interpolated), so approximate this frame's screen-space movement
-        // to drive facing: 8 directions bucketed from the movement angle,
-        // covered by only 4 unique poses since right-side facings are just
-        // the left-side art mirrored (setFlipX) - frozen on the last pose
-        // when standing still rather than snapping back to a default
-        const dx = s.x - s.prevX, dy = s.y - s.prevY;
-        const dist = Math.hypot(dx, dy);
-        // run-cycle: step through the real 7-frame running animation for the
-        // current pose every CHAR_STRIDE px travelled, frozen on that pose's
-        // neutral frame (0) when standing still
-        if (dist > 0.6) {
-          let deg = Math.atan2(dy, dx) * 180 / Math.PI;
-          if (deg < 0) deg += 360;
-          const sector = Math.round(deg / 45) % 8;
-          // [pose, flip] per 45-degree sector, starting at 0=right, going clockwise in screen space
-          const SECTOR_POSE = [
-            ['left', true], ['frontleft', true], ['front', false], ['frontleft', false],
-            ['left', false], ['back', false], ['back', false], ['back', true],
-          ];
-          [s.pose, s.flip] = SECTOR_POSE[sector];
-          s.walkDist += dist;
-          s.circle.setFrame(POSE_FRAME[s.pose] + (Math.floor(s.walkDist / CHAR_STRIDE) % CHAR_RUN_FRAMES));
+        // pose/walkDist are advanced in applyServerState from the real
+        // per-tick server movement, not from this render frame's lerp delta
+        // - under real network jitter the interpolated position keeps
+        // re-converging toward a stale target between ticks, so a
+        // render-frame-based delta spends most frames under the walk
+        // threshold and the sprite looks frozen even while it's visibly
+        // sliding across the pitch. A short grace window after the last
+        // real movement keeps the run-cycle from snapping to the neutral
+        // frame during normal gaps between server ticks.
+        const poseLayout = s.layout[s.pose];
+        if (time - s.lastMoveAt < 180) {
+          s.circle.setFrame(poseLayout.start + (Math.floor(s.walkDist / CHAR_STRIDE) % poseLayout.count));
         } else {
-          s.circle.setFrame(POSE_FRAME[s.pose]);
+          s.circle.setFrame(poseLayout.start);
         }
         s.circle.setFlipX(!!s.flip);
       }
-      s.prevX = s.x; s.prevY = s.y;
     });
     this.ball.x += (this.ball.targetX - this.ball.x) * lerp;
     this.ball.y += (this.ball.targetY - this.ball.y) * lerp;
@@ -3801,17 +3934,21 @@ class OnlineScene extends Phaser.Scene {
       if (rolled > 0.5) {
         const moveAngle = Math.atan2(this.ball.y - this.ball.prevY, this.ball.x - this.ball.prevX);
         // +0.9114 rad corrects for the art's own baked-in flame direction
-        // (~-52° up-and-right), measured from the source sprite sheet
-        this.ballAura.setRotation(moveAngle + 0.9114);
+        // (~-52° up-and-right), measured from the source sprite sheet; +π on
+        // top of that points the (now-corrected) flame the opposite way from
+        // travel, so it trails behind the ball like a comet tail instead of
+        // stretching out ahead of it in the direction of motion
+        this.ballAura.setRotation(moveAngle + 0.9114 + Math.PI);
       }
     }
     this.ball.prevX = this.ball.x; this.ball.prevY = this.ball.y;
     this.ball.circle.setRotation(this.ball.spinAngle);
   }
 
-  playBallAura() {
+  playBallAura(auraId) {
     if (!this.ballAura) return;
     this.ballAura.setPosition(this.ball.x, this.ball.y);
+    this.ballAura.setTint(AURA_TINTS[auraId] || 0xffffff);
     this.ballAura.setVisible(true);
     this.ballAura.play('fireAuraBurn');
   }

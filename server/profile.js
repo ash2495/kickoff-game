@@ -39,9 +39,9 @@ function sanitizeAvatar(avatar) {
   return avatar;
 }
 
-// Shop cosmetic (ball fire trail on kick) - free to equip for now, no
+// Shop cosmetic (ball trail on kick) - free to equip for now, no
 // currency/unlock gating. More IDs land here as more auras are added.
-const AURA_IDS = ['fire'];
+const AURA_IDS = ['golden', 'purple', 'green', 'teal', 'orange', 'blue'];
 function sanitizeAura(aura) {
   if (aura === null) return null;
   if (typeof aura !== 'string') return undefined; // undefined = "leave unchanged"
@@ -51,12 +51,35 @@ function sanitizeAura(aura) {
 // Shop cosmetic (pitch/stadium skin) - purely a local rendering choice for
 // whoever equips it (never sent to opponents, unlike equippedAura), so no
 // room/match plumbing needed - just persisted here and read back by the
-// client that owns it. More IDs land here as more pitch art is ready.
-const PITCH_IDS = ['classic'];
+// client that owns it.
+const PITCH_IDS = ['classic', 'beach', 'rainy', 'winter', 'volcano', 'halloween'];
 function sanitizePitch(pitch) {
   if (pitch === null) return null;
   if (typeof pitch !== 'string') return undefined; // undefined = "leave unchanged"
   return PITCH_IDS.includes(pitch) ? pitch : undefined;
+}
+
+// Shop cosmetic (ball skin) - persisted the same way as equippedPitch for
+// now. Unlike a pitch/character skin, the ball is a single object every
+// player in a match interacts with, so treating this as self-only (like
+// equippedPitch) rather than synced-to-everyone (like equippedAura) is a
+// real product question, not yet settled - see the client-side TODO on
+// PROFILE_EQUIPPED_BALL. Storing the choice here either way is harmless.
+const BALL_IDS = ['beach', 'pumpkin', 'ice', 'lava', 'thunder', 'ghost'];
+function sanitizeBall(ball) {
+  if (ball === null) return null;
+  if (typeof ball !== 'string') return undefined; // undefined = "leave unchanged"
+  return BALL_IDS.includes(ball) ? ball : undefined;
+}
+
+// Shop cosmetic (jersey skin) - visible to everyone in the match (unlike
+// equippedPitch/equippedBall, which are self-only) - a real character
+// reskin, see JERSEY_CHAR_SRC client-side.
+const JERSEY_IDS = ['golden', 'sky', 'purple', 'tropical', 'frost', 'royal'];
+function sanitizeJersey(jersey) {
+  if (jersey === null) return null;
+  if (typeof jersey !== 'string') return undefined; // undefined = "leave unchanged"
+  return JERSEY_IDS.includes(jersey) ? jersey : undefined;
 }
 
 function issueToken(userId) {
@@ -82,6 +105,8 @@ async function toPublicProfile(doc) {
     avatar: doc.avatar,
     equippedAura: doc.equippedAura || null,
     equippedPitch: doc.equippedPitch || null,
+    equippedBall: doc.equippedBall || null,
+    equippedJersey: doc.equippedJersey || null,
     hasGoogle: !!doc.googleId,
     matchesPlayed,
     matchesWon,
@@ -175,7 +200,7 @@ async function googleLogin(idToken, deviceId) {
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
 
-async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch } = {}) {
+async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch, equippedBall, equippedJersey } = {}) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
 
@@ -193,6 +218,14 @@ async function updateProfile(userId, authToken, { name, country, avatar, equippe
   if (equippedPitch !== undefined) {
     const cleanPitch = sanitizePitch(equippedPitch);
     if (cleanPitch !== undefined) set.equippedPitch = cleanPitch;
+  }
+  if (equippedBall !== undefined) {
+    const cleanBall = sanitizeBall(equippedBall);
+    if (cleanBall !== undefined) set.equippedBall = cleanBall;
+  }
+  if (equippedJersey !== undefined) {
+    const cleanJersey = sanitizeJersey(equippedJersey);
+    if (cleanJersey !== undefined) set.equippedJersey = cleanJersey;
   }
 
   const users = getUsers();

@@ -27,21 +27,29 @@ const PORT = process.env.PORT || 3000;
 
 // ---- Match constants (mirrors the geometry in www/index.html) ----
 const FIELD = { w: 1600, h: 800 };
-// x/y/w/h and GOAL_WIDTH are measured off the stadium field art's own
-// touchline/goal-mouth pixels (field_stadium.jpg, 1536x1024 - a no-net pitch
-// with a separately supplied net image composited into both goal mouths,
-// depth-limited by how much margin was available between the touchline and
-// the image edge), scaled into FIELD-space by the same per-axis stretch the
-// client applies to fit the art to the canvas
-const GOAL_WIDTH = 196;
-const PITCH = { x: 75, y: 125, w: 1438, h: 559 };
-// how far into the goal net (past PITCH's x bounds) the ball may travel
-// before hitting the net's actual back wall in the art - previously a flat
-// 2 / FIELD.w-2 let the ball sail into the crowd past the net entirely
-const NET_MIN_X = 8;
-const NET_MAX_X = 1592;
+// x/y/w/h and GOAL_WIDTH measured directly off the 6 pitch textures' own
+// touchline/goal-net pixels. Re-calibrated once more after finding the
+// earlier X measurement had used the goal's own BACK wall (net depth) as a
+// stand-in for the touchline, which is wrong - the true touchline runs
+// flush with the goal's FRONT/opening, not its back. Confirmed by direct
+// pixel measurement on all 6 (after per-pitch zoom/crop correction so they
+// share this exact position): touchlines at 10.15%/89.85% width,
+// 16.9%/83% height. Goal height (40%-60%) was unaffected by this mistake
+// and stays as before.
+const GOAL_WIDTH = 160; // 40%-60% of FIELD.h
+const PITCH = { x: 162, y: 135, w: 1276, h: 529 }; // 10.15%/89.85% width, 16.9%/83% height
 const PLAYER_R = 26;
 const BALL_R = 16;
+// how far into the goal net (past PITCH's x bounds) the ball's CENTER may
+// travel before hitting the net's actual back wall in the art. Pixel-
+// measured on the regenerated stadium art: the net's back wall sits right
+// at the touchline itself (PITCH.x/right), not further back into the
+// crowd - so this is PITCH.x adjusted by BALL_R (not PITCH.x directly),
+// since it's the ball's radius that must stop at the wall, not its center;
+// using PITCH.x directly here would let the near edge of the ball (center
+// - BALL_R) poke BALL_R past the wall into the crowd.
+const NET_MIN_X = PITCH.x + BALL_R;
+const NET_MAX_X = PITCH.x + PITCH.w - BALL_R;
 const PLAYER_SPEED = 260;
 const BALL_MAX_SPEED = 600;
 const BALL_DRAG = 0.96; // per-tick velocity multiplier
@@ -140,10 +148,19 @@ function sanitizeName(name) {
 
 // cosmetic-only, client-supplied like name/avatar (no server-side gameplay
 // effect) - whitelist keeps it from being used to inject arbitrary values,
-// more IDs land here as more auras are added
-const AURA_IDS = ['fire'];
+// more IDs land here as more auras are added. Kept in sync with profile.js's
+// own AURA_IDS (duplicated rather than imported since profile.js doesn't
+// export it, same reasoning as JERSEY_IDS below).
+const AURA_IDS = ['golden', 'purple', 'green', 'teal', 'orange', 'blue'];
 function sanitizeAura(aura) {
   return typeof aura === 'string' && AURA_IDS.includes(aura) ? aura : null;
+}
+
+// jersey is visible to every player in the room (unlike pitch/ball, which
+// are self-only and never leave the client) - see JERSEY_CHAR_SRC client-side
+const JERSEY_IDS = ['golden', 'sky', 'purple', 'tropical', 'frost', 'royal'];
+function sanitizeJersey(jersey) {
+  return typeof jersey === 'string' && JERSEY_IDS.includes(jersey) ? jersey : null;
 }
 
 function makeRoomCode() {
@@ -154,7 +171,7 @@ function makeRoomCode() {
   return code;
 }
 
-function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId, hostAura) {
+function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUserId, hostAura, hostJersey) {
   const code = makeRoomCode();
   const size = sanitizeTeamSize(teamSize);
   const slots = getSlots(size);
@@ -164,7 +181,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
     entities[slot] = {
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
       team: slot[0], isBot: true, socketId: null, name: randomBotName(), userId: null,
-      equippedAura: null, difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
+      equippedAura: null, equippedJersey: null, difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
     };
   });
   const room = {
@@ -201,6 +218,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
   entities.A1.name = sanitizeName(hostName);
   entities.A1.userId = typeof hostUserId === 'string' ? hostUserId : null;
   entities.A1.equippedAura = sanitizeAura(hostAura);
+  entities.A1.equippedJersey = sanitizeJersey(hostJersey);
   rooms.set(code, room);
   return room;
 }
@@ -222,7 +240,7 @@ function findOpenPublicRoom(teamSize) {
 function emitLobby(room) {
   const players = {};
   room.slots.forEach((slot) => {
-    players[slot] = { connected: !room.entities[slot].isBot, name: room.entities[slot].name || 'Player' };
+    players[slot] = { connected: !room.entities[slot].isBot, name: room.entities[slot].name || 'Player', jersey: room.entities[slot].equippedJersey || null };
   });
   io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot, teamSize: room.teamSize, countdownEndsAt: room.matchmakeCountdownEndsAt || null });
 }
@@ -304,14 +322,26 @@ function checkBallStall(room, now) {
 // below the entity's own y in screen space (see the +28 in ensureEntitySprite
 // in www/index.html) - clamping so the SHADOW lands on the touchline (not the
 // entity's y, which is the sprite's vertical center) means the feet actually
-// touch the line. Since the head sits above the feet, this naturally pushes
-// the head/body into the crowd at the top line while keeping the whole body
-// on-pitch at the bottom line - that asymmetry is correct, not a bug.
+// touch the line at the TOP, with the head/shoulders above the anchor
+// intentionally allowed to overlap the crowd there (the only side this is
+// acceptable on, by design).
 const SHADOW_OFFSET = 28;
+// CHAR_W/CHAR_H halves, mirroring www/index.html's sprite frame size - used
+// so the clamp keys off the sprite's own rendered edges (feet/sides), not
+// PLAYER_R (the physics collision radius, tuned for player-player/ball
+// collision feel, not visual fit) which left a visible gap from the true
+// touchline on the sides, and at the BOTTOM edge undershot the sprite's own
+// bottom edge (34px below anchor) by 6px versus SHADOW_OFFSET (28px),
+// letting the feet visually overflow into the crowd there too - both fixed
+// below so every side has the sprite's actual edge land exactly on the line,
+// with zero gap and zero overflow, except the top's intentional head/crowd
+// overlap.
+const SPRITE_HALF_W = 22;
+const SPRITE_HALF_H = 34;
 
 function clampToPitch(e) {
-  const minX = PITCH.x + PLAYER_R, maxX = PITCH.x + PITCH.w - PLAYER_R;
-  const minY = PITCH.y - SHADOW_OFFSET, maxY = PITCH.y + PITCH.h - SHADOW_OFFSET;
+  const minX = PITCH.x + SPRITE_HALF_W, maxX = PITCH.x + PITCH.w - SPRITE_HALF_W;
+  const minY = PITCH.y - SHADOW_OFFSET, maxY = PITCH.y + PITCH.h - SPRITE_HALF_H;
   e.x = clampNum(e.x, minX, maxX);
   e.y = clampNum(e.y, minY, maxY);
 }
@@ -752,7 +782,7 @@ io.on('connection', (socket) => {
     if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
     const matchDuration = Number(data && data.matchDuration) || 0;
     const hostUserId = typeof (data && data.userId) === 'string' ? data.userId : null;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, hostUserId, data && data.equippedAura);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, data && data.teamSize, hostUserId, data && data.equippedAura, data && data.equippedJersey);
     socket.join(room.code);
     socket.data.code = room.code;
     socket.data.slot = 'A1';
@@ -775,6 +805,7 @@ io.on('connection', (socket) => {
     room.entities[slot].name = sanitizeName(data && data.name);
     room.entities[slot].userId = typeof (data && data.userId) === 'string' ? data.userId : null;
     room.entities[slot].equippedAura = sanitizeAura(data && data.equippedAura);
+    room.entities[slot].equippedJersey = sanitizeJersey(data && data.equippedJersey);
     socket.join(code);
     socket.data.code = code;
     socket.data.slot = slot;
@@ -799,6 +830,7 @@ io.on('connection', (socket) => {
       existing.entities[slot].name = sanitizeName(data && data.name);
       existing.entities[slot].userId = typeof (data && data.userId) === 'string' ? data.userId : null;
       existing.entities[slot].equippedAura = sanitizeAura(data && data.equippedAura);
+      existing.entities[slot].equippedJersey = sanitizeJersey(data && data.equippedJersey);
       socket.join(existing.code);
       socket.data.code = existing.code;
       socket.data.slot = slot;
@@ -813,7 +845,7 @@ io.on('connection', (socket) => {
 
     const matchDuration = Number(data && data.matchDuration) || 0;
     const hostUserId = typeof (data && data.userId) === 'string' ? data.userId : null;
-    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, hostUserId, data && data.equippedAura);
+    const room = createRoomState(socket.id, matchDuration, data && data.name, teamSize, hostUserId, data && data.equippedAura, data && data.equippedJersey);
     room.isPublic = true;
     room.matchmakeCountdownEndsAt = Date.now() + QUICKMATCH_COUNTDOWN_MS;
     room.matchmakeTimer = setTimeout(() => {
@@ -948,6 +980,8 @@ io.on('connection', (socket) => {
       avatar: data && data.avatar,
       equippedAura: data && data.equippedAura,
       equippedPitch: data && data.equippedPitch,
+      equippedBall: data && data.equippedBall,
+      equippedJersey: data && data.equippedJersey,
     }));
   });
 
