@@ -84,8 +84,13 @@ const QUICKMATCH_COUNTDOWN_MS = 15000;
 // bots exactly like Quick Match, with no need to find real staking opponents.
 const BET_STAKE_TIERS = [500, 1000, 2500, 5000, 10000];
 // total returned to each winning real player = their own stake * this - net
-// profit is stake * (BET_WIN_MULTIPLIER - 1), so 2 means "double your stake"
-const BET_WIN_MULTIPLIER = 2;
+// profit is stake * (BET_WIN_MULTIPLIER - 1). Deliberately < 2: at exactly
+// 2 a win fully offsets what the loser forfeits, so coins just circulate
+// between players forever with nothing ever leaving the economy. At 1.8,
+// every match removes a bit of the total stake in play (a real house edge,
+// not just a wash) - meaningful scarcity, which is what makes a future
+// coin-purchase option (see the coin HUD's decorative "+") worth having.
+const BET_WIN_MULTIPLIER = 1.8;
 
 // Safety net for the kickoff-ready handshake below: if a client never signals
 // readyForKickoff (crashed, backgrounded, dropped message), don't freeze the
@@ -737,7 +742,10 @@ function endMatch(room) {
       // to when stakes are uniform); a loss forfeits the stake already
       // deducted at bet time, so there's nothing further to do for it here
       if (winner === null) profile.creditCoins(e.userId, room.betStake).catch(() => {});
-      else if (e.team === winner) profile.creditCoins(e.userId, room.betStake * BET_WIN_MULTIPLIER).catch(() => {});
+      // rounded defensively - creditCoins requires a clean integer, and a
+      // non-integer BET_WIN_MULTIPLIER (or a future stake tier that doesn't
+      // divide evenly) could otherwise land on a float like 899.9999999999999
+      else if (e.team === winner) profile.creditCoins(e.userId, Math.round(room.betStake * BET_WIN_MULTIPLIER)).catch(() => {});
     }
   });
 }

@@ -2426,8 +2426,10 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   const betResultOutcome = document.getElementById('meBetResult');
   if (currentBetStake > 0) {
     let text, cls;
+    // net profit on a win is stake * (BET_WIN_MULTIPLIER - 1), not the full
+    // stake - only equal to it when the multiplier happens to be exactly 2
     if (outcome === 'draw') { text = `REFUNDED ${currentBetStake.toLocaleString()} 🪙`; cls = 'draw'; }
-    else if (outcome === 'victory') { text = `+${currentBetStake.toLocaleString()} 🪙 WON`; cls = 'win'; }
+    else if (outcome === 'victory') { text = `+${Math.round(currentBetStake * (BET_WIN_MULTIPLIER - 1)).toLocaleString()} 🪙 WON`; cls = 'win'; }
     else { text = `-${currentBetStake.toLocaleString()} 🪙 LOST`; cls = 'lose'; }
     [betResultDraw, betResultOutcome].forEach((el) => { el.textContent = text; el.className = 'me-bet-result ' + cls; el.style.display = 'block'; });
     refreshCoins();
@@ -2820,7 +2822,7 @@ const BET_STAKE_TIERS = [500, 1000, 2500, 5000, 10000];
 // display-only mirror of the server's own BET_WIN_MULTIPLIER, purely so the
 // "win per player" readout matches the real payout rule - the server does
 // the actual crediting independently, this never controls real money
-const BET_WIN_MULTIPLIER = 2;
+const BET_WIN_MULTIPLIER = 1.8;
 let betStakeIndex = 0; // index into BET_STAKE_TIERS - what the stepper currently shows
 let currentBetStake = 0; // >0 for the lifetime of a Bet Match room (see betMatch/exitOnlineMatch)
 
@@ -2839,7 +2841,7 @@ function adjustBetStake(direction) {
 function updateBetDisplay() {
   const stake = BET_STAKE_TIERS[betStakeIndex];
   document.getElementById('betStakeAmount').textContent = stake.toLocaleString();
-  document.getElementById('betWinAmount').textContent = (stake * BET_WIN_MULTIPLIER).toLocaleString();
+  document.getElementById('betWinAmount').textContent = Math.round(stake * BET_WIN_MULTIPLIER).toLocaleString();
   document.getElementById('betMinusBtn').disabled = betStakeIndex === 0;
   document.getElementById('betPlusBtn').disabled = betStakeIndex === BET_STAKE_TIERS.length - 1;
   const startBtn = document.getElementById('betStartBtn');
