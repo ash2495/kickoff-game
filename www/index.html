@@ -613,22 +613,32 @@
     color: #fff; letter-spacing: 0.3px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 0 #1a1008;
   }
-  /* top-right mirror of .profile-pill (top-left) - same dark/gold pixel-card
-     chrome, just a static balance readout rather than a tappable button */
+  /* top-right mirror of .profile-pill (top-left) - coin_hud_bar.png already
+     bakes in the coin icon (left) and a "+" affordance (right, currently
+     decorative - no coin-purchase flow exists yet to wire it to), so this
+     is just the balance number positioned over the art's own blank navy
+     bar. Percentages below are measured directly off the 2172x724 source
+     art (dark-bar interior spans x 520-1680, y 240-460) - re-measure if
+     the art is ever swapped for a different layout.
+  */
   .coin-pill {
     position: absolute;
     top: max(16px, env(safe-area-inset-top));
-    right: max(16px, env(safe-area-inset-right));
+    /* sits left of .exit-app-btn + .settings-gear (46px + 8px gap each,
+       see their own right: formulas) so it never overlaps them */
+    right: calc(max(16px, env(safe-area-inset-right)) + 46px + 8px + 46px + 10px);
     z-index: 3;
-    display: flex; align-items: center; gap: 8px;
-    background: #0e1a2b; border: 3px solid #e9c873;
-    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
-    border-radius: 6px; padding: 7px 16px;
+    width: clamp(150px, 20vw, 210px);
+    aspect-ratio: 2172 / 724;
+    background: center / 100% 100% no-repeat url('assets/coin_hud_bar.png');
   }
-  .coin-pill-icon { font-size: 18px; line-height: 1; filter: drop-shadow(0 2px 0 #1a1008); }
-  .coin-pill span:last-child {
-    font-family: 'Press Start 2P', monospace; font-size: 13px;
+  .coin-pill-amount {
+    position: absolute;
+    left: 25.3%; right: 22.7%; top: 33.1%; bottom: 36.5%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace; font-size: clamp(9px, 1.4vw, 13px);
     color: #ffcb3d; letter-spacing: 0.5px; text-shadow: 0 2px 0 #1a1008;
+    overflow: hidden; white-space: nowrap;
   }
 
   #settings-panel, #match-end, #profile-screen {
@@ -1422,8 +1432,7 @@
     <span id="mainMenuNameLabel"></span>
   </button>
   <div class="coin-pill" aria-label="Coin balance">
-    <span class="coin-pill-icon">🪙</span>
-    <span id="coinPillAmount">0</span>
+    <span class="coin-pill-amount" id="coinPillAmount">0</span>
   </div>
   <button class="leaderboard-corner-btn" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard">
     <img src="assets/menu_leaderboard_icon.png" alt="" />
