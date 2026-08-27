@@ -111,8 +111,8 @@
   #mode-select .content {
     /* title-block is a normal flex child now (not absolutely positioned
        separately) so it always reserves its own space in the stack and can
-       never visually overlap settings-row/mode-buttons at short viewport
-       heights, regardless of how much room is left for auto-centering */
+       never visually overlap mode-buttons at short viewport heights,
+       regardless of how much room is left for auto-centering */
     position: relative; z-index: 2;
     display: flex; flex-direction: column; align-items: center;
     gap: 16px; text-align: center; width: 100%; max-width: 760px;
@@ -130,15 +130,13 @@
   #mode-select .title-block img {
     height: 17vh; max-height: 160px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.55));
   }
-  #mode-select .settings-row, #mode-select .mode-buttons {
+  #mode-select .settings-row, #mode-select .mode-buttons, #bet-select-screen .settings-row {
     display: flex; gap: 5%; justify-content: center; align-items: flex-end;
   }
-  /* 3 buttons (was 2) needs to wrap gracefully on narrower landscape phones
-     rather than overflowing - the 2 pre-rendered art buttons + the CSS one
-     all share the same 220px width so a wrapped 2nd row still lines up */
-  #mode-select .mode-buttons { flex-wrap: wrap; row-gap: 14px; }
-  #mode-select .setting-group { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-  #mode-select .duration-label {
+  #mode-select .setting-group, #bet-select-screen .setting-group {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+  }
+  #mode-select .duration-label, #bet-select-screen .duration-label {
     font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 1px;
     color: #ffcb3d; text-shadow: 0 2px 0 #1a1008; margin-bottom: 0;
   }
@@ -171,18 +169,6 @@
   }
   #mode-select .mode-btn img { width: 100%; display: block; }
   #mode-select .mode-btn:active { transform: scale(0.96) translateY(2px); }
-  /* the other two mode buttons are pre-rendered art (menu_quick_match_btn.png
-     etc.) - this one is CSS-styled instead using the same dark-card/gold-
-     border/Press-Start-2P language as .profile-pill/.duration-chip so it
-     still reads as "this game's UI" without needing a matching PNG asset */
-  #mode-select .mode-btn-bet {
-    aspect-ratio: 674 / 271; display: flex; align-items: center; justify-content: center;
-    background: #0e1a2b; border: 3px solid #e9c873 !important;
-    box-shadow: 0 0 0 3px #1a1008, 0 6px 14px rgba(0,0,0,0.5);
-    border-radius: 10px;
-    font-family: 'Press Start 2P', monospace; font-size: 13px; color: #ffcb3d;
-    text-shadow: 0 2px 0 #1a1008; letter-spacing: 0.5px; gap: 6px;
-  }
 
   /* bottom-left corner icon, mirroring .shop-corner-btn's treatment - the
      art itself already bakes in its own dark card + gold border + label,
@@ -628,7 +614,10 @@
        see their own right: formulas) so it never overlaps them */
     right: calc(max(16px, env(safe-area-inset-right)) + 46px + 8px + 46px + 10px);
     z-index: 3;
-    width: clamp(150px, 20vw, 210px);
+    /* same height as .settings-gear/.exit-app-btn (46px) rather than its
+       own independent size, so all three sit flush in the same row -
+       width follows from the art's fixed 3:1 aspect ratio */
+    height: 46px; width: auto;
     aspect-ratio: 2172 / 724;
     background: center / 100% 100% no-repeat url('assets/coin_hud_bar.png');
   }
@@ -636,8 +625,11 @@
     position: absolute;
     left: 25.3%; right: 22.7%; top: 33.1%; bottom: 36.5%;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Press Start 2P', monospace; font-size: clamp(9px, 1.4vw, 13px);
-    color: #ffcb3d; letter-spacing: 0.5px; text-shadow: 0 2px 0 #1a1008;
+    /* formatCoins() (see setCoins) never produces more than ~5 chars
+       ("9999", "10k", "999k", "1.2M", "999B"), so this stays legible at
+       the pill's now-fixed small size instead of shrinking further */
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: #ffcb3d; letter-spacing: 0.5px; text-shadow: 0 1px 0 #1a1008;
     overflow: hidden; white-space: nowrap;
   }
 
@@ -1460,30 +1452,9 @@
     <div class="title-block">
       <img src="assets/menu_logo_retrokick.png" alt="Retro Kick" />
     </div>
-    <div class="settings-row">
-      <div class="setting-group">
-        <div class="duration-label">MATCH LENGTH</div>
-        <div class="duration-chips">
-          <button class="duration-chip" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
-          <button class="duration-chip" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
-          <button class="duration-chip selected" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
-          <button class="duration-chip" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
-        </div>
-      </div>
-
-      <div class="setting-group">
-        <div class="duration-label">TEAM SIZE</div>
-        <div class="duration-chips">
-          <button class="duration-chip selected" onclick="SFX.click(); setPrivateTeamSize(2,this)">2 v 2</button>
-          <button class="duration-chip" onclick="SFX.click(); setPrivateTeamSize(3,this)">3 v 3</button>
-        </div>
-      </div>
-    </div>
-
     <div class="mode-buttons">
-      <button class="mode-btn" onclick="SFX.click(); quickMatch()"><img src="assets/menu_quick_match_btn.png" alt="Quick Match" /></button>
+      <button class="mode-btn" onclick="SFX.click(); openBetSelect()"><img src="assets/menu_quick_match_btn.png" alt="Quick Match" /></button>
       <button class="mode-btn" onclick="SFX.click(); openPrivateMenu()"><img src="assets/menu_private_match_btn.png" alt="Private Match" /></button>
-      <button class="mode-btn mode-btn-bet" onclick="SFX.click(); openBetSelect()">🪙 BET MATCH</button>
     </div>
   </div>
 </div>
@@ -1535,9 +1506,23 @@
   <div class="coin-pill" aria-label="Coin balance"><span class="coin-pill-amount">0</span></div>
   <div class="bet-panel-group">
     <img class="bet-title-img" src="assets/bet_title_banner.png" alt="Bet Screen" />
-    <div class="duration-chips">
-      <button class="duration-chip selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
-      <button class="duration-chip" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+    <div class="settings-row">
+      <div class="setting-group">
+        <div class="duration-label">MATCH LENGTH</div>
+        <div class="duration-chips">
+          <button class="duration-chip" data-duration="60" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
+          <button class="duration-chip" data-duration="120" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
+          <button class="duration-chip selected" data-duration="180" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
+          <button class="duration-chip" data-duration="300" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="duration-label">TEAM SIZE</div>
+        <div class="duration-chips">
+          <button class="duration-chip selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
+          <button class="duration-chip" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+        </div>
+      </div>
     </div>
     <div class="bet-win-panel">
       <img src="assets/bet_win_panel.png" alt="" />
@@ -1915,11 +1900,33 @@ function cacheProfile(p) {
 // updates the cached balance, persists it, and repaints the lobby coin pill
 // (the pill itself only lives in the DOM once #mode-select is in the page,
 // but this is safe to call before that - the querySelector just no-ops)
+// the coin HUD pill is sized to match .settings-gear/.exit-app-btn (a fixed
+// small 46px-tall bar), so the balance is shown compact rather than in
+// full - plain up to 9999, then k/M/B abbreviated (10k, 999k, 1.2M, 999B)
+// so it never needs more than ~5 characters regardless of how large the
+// balance grows. Floors rather than rounds in the abbreviated tiers (e.g.
+// 999,999 reads "999k" not "1000k") since a currency counter reading
+// slightly low is normal/expected for this kind of compact display.
+function formatCoins(n) {
+  n = Math.max(0, Math.floor(n) || 0);
+  if (n < 10000) return String(n);
+  const tiers = [[1e9, 'B'], [1e6, 'M'], [1e3, 'k']];
+  for (const [div, suffix] of tiers) {
+    if (n >= div) {
+      const val = n / div;
+      const shown = val < 100 ? String(Math.floor(val * 10) / 10) : String(Math.floor(val));
+      return shown + suffix;
+    }
+  }
+  return String(n);
+}
+
 function setCoins(amount) {
   PROFILE_COINS = Math.max(0, Math.round(amount) || 0);
   localStorage.setItem('kickoffDuelCoins', String(PROFILE_COINS));
   // more than one HUD instance exists now (main menu + Bet Match screen)
-  document.querySelectorAll('.coin-pill-amount').forEach((el) => { el.textContent = PROFILE_COINS.toLocaleString(); });
+  const label = formatCoins(PROFILE_COINS);
+  document.querySelectorAll('.coin-pill-amount').forEach((el) => { el.textContent = label; });
   // the Bet Match screen's own affordability check/stake display needs to
   // react live if coins change while it's open (e.g. after a refreshCoins())
   if (document.getElementById('bet-select-screen').style.display === 'flex') updateBetDisplay();
@@ -2825,10 +2832,14 @@ function selectBetTeamSize(size, el) {
 function openBetSelect() {
   hideAllMenus();
   betStakeIndex = 0;
-  // reflect whichever team size is already active (e.g. chosen on the main
-  // menu before opening this screen) rather than always resetting to 2v2
-  document.querySelectorAll('#bet-select-screen .duration-chip').forEach((c) => {
+  // reflect whichever team size/match length are already active (e.g. left
+  // over from a previous visit to this screen) rather than always
+  // resetting to the defaults
+  document.querySelectorAll('#bet-select-screen .duration-chip[data-team-size]').forEach((c) => {
     c.classList.toggle('selected', Number(c.dataset.teamSize) === PRIVATE_TEAM_SIZE);
+  });
+  document.querySelectorAll('#bet-select-screen .duration-chip[data-duration]').forEach((c) => {
+    c.classList.toggle('selected', Number(c.dataset.duration) === MATCH_DURATION);
   });
   updateBetDisplay();
   document.getElementById('bet-select-screen').style.display = 'flex';
