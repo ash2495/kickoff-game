@@ -212,6 +212,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
       x: startPos[slot].x, y: startPos[slot].y, vx: 0, vy: 0,
       team: slot[0], isBot: true, socketId: null, name: randomBotName(), userId: null,
       equippedAura: null, equippedJersey: null, difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
+      pendingLeaveTimer: null,
     };
   });
   const room = {
@@ -817,24 +818,29 @@ function checkKickoffReady(room) {
   }
 }
 
-function handleLeave(socket) {
-  const code = socket.data.code, slot = socket.data.slot;
-  socket.data.code = null;
-  socket.data.slot = null;
-  if (!code || !slot) return;
-  socket.leave(code);
+// how long a disconnected (not explicitly-left) player's seat is held open
+// for them to reconnect via 'rejoinRoom' before a bot takes over - covers a
+// backgrounded app losing its socket (or the whole WebView reloading) for
+// a little while, which shouldn't instantly cost them their spot
+const RECONNECT_GRACE_MS = 10000;
 
+// the actual bot-takeover: refund (if applicable), flip isBot, clean up an
+// emptied room, hand off host, recheck kickoff-ready. Shared by an explicit
+// leave (immediate) and a disconnect once its grace period expires.
+function finalizeLeave(code, slot) {
   const room = rooms.get(code);
   if (!room) return;
   const e = room.entities[slot];
+  if (!e || e.isBot) return; // already finalized (or reclaimed via rejoin) - nothing to do
+  if (e.pendingLeaveTimer) { clearTimeout(e.pendingLeaveTimer); e.pendingLeaveTimer = null; }
   // leaving a Bet Match before kickoff (still in the lobby/matchmaking wait)
   // refunds the stake in full - it's only actually "in play" (win it or
   // forfeit it) once the match goes live, same as a mid-match disconnect
   // after that point is a forfeit, not a bug
-  if (e && room.isBetMatch && !room.kickoffLive && e.userId) {
+  if (room.isBetMatch && !room.kickoffLive && e.userId) {
     profile.creditCoins(e.userId, room.betStake).catch(() => {});
   }
-  if (e) { e.isBot = true; e.socketId = null; e.name = randomBotName(); e.difficulty = randomBotDifficulty(); }
+  e.isBot = true; e.socketId = null; e.userId = null; e.name = randomBotName(); e.difficulty = randomBotDifficulty();
 
   const connectedSlots = room.slots.filter((s) => !room.entities[s].isBot);
   if (connectedSlots.length === 0) {
@@ -849,6 +855,38 @@ function handleLeave(socket) {
   // kickoff was waiting on - recheck so remaining players aren't stuck
   if (room.started && !room.kickoffLive) checkKickoffReady(room);
   emitLobby(room);
+}
+
+// explicit, intentional leave (the 'leaveRoom' event - exiting a match/lobby
+// on purpose) - no grace period, finalize immediately
+function handleLeave(socket) {
+  const code = socket.data.code, slot = socket.data.slot;
+  socket.data.code = null;
+  socket.data.slot = null;
+  if (!code || !slot) return;
+  socket.leave(code);
+  finalizeLeave(code, slot);
+}
+
+// involuntary disconnect (network drop, backgrounded app, socket timeout) -
+// holds the seat for RECONNECT_GRACE_MS in case 'rejoinRoom' claims it back,
+// rather than instantly handing it to a bot. Zeroes inputVec so they stand
+// still during the grace window instead of coasting on their last input.
+function handleDisconnect(socket) {
+  const code = socket.data.code, slot = socket.data.slot;
+  socket.data.code = null;
+  socket.data.slot = null;
+  if (!code || !slot) return;
+  socket.leave(code);
+
+  const room = rooms.get(code);
+  if (!room) return;
+  const e = room.entities[slot];
+  if (!e || e.isBot) return;
+  e.socketId = null;
+  e.inputVec = { x: 0, y: 0 };
+  if (e.pendingLeaveTimer) clearTimeout(e.pendingLeaveTimer);
+  e.pendingLeaveTimer = setTimeout(() => finalizeLeave(code, slot), RECONNECT_GRACE_MS);
 }
 
 // Guards createRoom/joinRoom/quickMatch against the same socket landing in
@@ -1109,7 +1147,38 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveRoom', () => handleLeave(socket));
-  socket.on('disconnect', () => handleLeave(socket));
+  socket.on('disconnect', () => handleDisconnect(socket));
+
+  // reclaims a seat within its RECONNECT_GRACE_MS window after an
+  // involuntary disconnect (see handleDisconnect) - e.g. the app was
+  // backgrounded and its whole WebView reloaded, wiping roomCode/mySlot
+  // from memory, so the client persists {code, userId} itself (see
+  // persistActiveMatch client-side) and replays it here on next boot.
+  // Matched by userId, not by re-supplying a slot, so a rejoin can't be
+  // used to hijack someone else's seat.
+  socket.on('rejoinRoom', (data, cb) => {
+    if (typeof cb !== 'function') return;
+    const code = ((data && data.code) || '').toUpperCase();
+    const userId = typeof (data && data.userId) === 'string' ? data.userId : null;
+    const room = rooms.get(code);
+    if (!room || !userId) return cb({ ok: false, error: 'Match no longer available.' });
+    const slot = room.slots.find((s) => room.entities[s].userId === userId);
+    if (!slot) return cb({ ok: false, error: 'Match no longer available.' });
+    const e = room.entities[slot];
+    if (e.isBot) return cb({ ok: false, error: 'Your seat was taken over.' });
+    if (alreadyInRoom(socket)) return cb({ ok: false, error: 'Already in a match.' });
+
+    if (e.pendingLeaveTimer) { clearTimeout(e.pendingLeaveTimer); e.pendingLeaveTimer = null; }
+    e.socketId = socket.id;
+    socket.join(code);
+    socket.data.code = code;
+    socket.data.slot = slot;
+    cb({
+      ok: true, code, slot, isHost: slot === room.hostSlot,
+      isBetMatch: room.isBetMatch, betStake: room.betStake,
+    });
+    emitLobby(room);
+  });
 
   // ---- Player profiles (Guest/Google login, profile edits) ----
   // independent of the match/room system above - these just read/write

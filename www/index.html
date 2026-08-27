@@ -1894,6 +1894,16 @@ if (!PROFILE_USER_ID) {
   // reaches into ensureSocket()'s `let socket` further down this same
   // script, which is still in its temporal dead zone at this exact line
   setTimeout(guestLogin, 0);
+} else {
+  // #mode-select's own CSS defaults to visible - hide it immediately so a
+  // returning player backgrounded mid-match (Android in particular can
+  // reload the whole WebView after enough time in the background, wiping
+  // roomCode/mySlot from memory even though the match is still live
+  // server-side) doesn't flash the main menu before resumeActiveMatchOrShowMenu
+  // decides whether to drop them straight back into that match instead -
+  // same temporal-dead-zone deferral reason as guestLogin() above
+  document.getElementById('mode-select').style.display = 'none';
+  setTimeout(resumeActiveMatchOrShowMenu, 0);
 }
 // deferred for the same temporal-dead-zone reason as guestLogin() above -
 // refreshMainMenuAvatar() doesn't touch `socket`, but keep it consistent
@@ -2407,6 +2417,10 @@ function spawnConfetti(containerId, count) {
 function spawnMatchEndConfetti() { spawnConfetti('matchEndConfetti', 40); }
 
 function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
+  // the match is genuinely over - nothing left to resume into (see
+  // resumeActiveMatchOrShowMenu), regardless of whether a rematch gets
+  // offered below
+  clearActiveMatch();
   // Quick Match opponents are a one-off random group, not a standing room to
   // rematch - only Private Match's host gets the option to run it back
   const canRematch = isHost && !isQuickMatchFlow;
@@ -3339,6 +3353,7 @@ function ensureSocket(onReady, onFail) {
   });
   socket.on('lobbyUpdate', renderLobby);
   socket.on('matchStarted', () => {
+    persistActiveMatch(); // see resumeActiveMatchOrShowMenu - lets a backgrounded/reloaded app find its way back into this match
     if (isQuickMatchFlow) {
       // the server already started simulating the instant matchmaking
       // resolved (bots move, goals can happen) - mount the real, synced
@@ -3631,6 +3646,60 @@ function startPrivateMatch() {
   socket.emit('startMatch', { code: roomCode });
 }
 
+// ---- Resuming a match after the app was backgrounded and reloaded ----
+// Capacitor apps (Android especially) can have their whole WebView process
+// reclaimed after enough time in the background, wiping every in-memory
+// variable (roomCode, mySlot, gameInstance) on next launch even though the
+// match itself is still live server-side. Without this, a returning player
+// always lands back on the main menu mid-match. Persisted only while
+// actually in a live room; see server.js's RECONNECT_GRACE_MS for the
+// matching server-side seat-holding window.
+function persistActiveMatch() {
+  if (!roomCode || !PROFILE_USER_ID) return;
+  localStorage.setItem('kickoffDuelActiveMatch', JSON.stringify({
+    code: roomCode, userId: PROFILE_USER_ID, stake: currentBetStake, isQuickMatchFlow,
+  }));
+}
+function clearActiveMatch() {
+  localStorage.removeItem('kickoffDuelActiveMatch');
+}
+
+// called at boot in place of just showing the main menu (see the login-vs-
+// cached-profile branch above) - attempts to reclaim a still-open seat via
+// 'rejoinRoom' before falling back to the normal menu
+function resumeActiveMatchOrShowMenu() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('kickoffDuelActiveMatch') || 'null'); } catch (e) {}
+  if (!saved || !saved.code || saved.userId !== PROFILE_USER_ID) {
+    clearActiveMatch();
+    document.getElementById('mode-select').style.display = 'flex';
+    return;
+  }
+  ensureSocket(() => {
+    socket.emit('rejoinRoom', { code: saved.code, userId: PROFILE_USER_ID }, (res) => {
+      if (!res || !res.ok) {
+        clearActiveMatch();
+        document.getElementById('mode-select').style.display = 'flex';
+        return;
+      }
+      roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
+      isQuickMatchFlow = !!saved.isQuickMatchFlow;
+      currentBetStake = res.isBetMatch ? (saved.stake || 0) : 0;
+      startOnlineMatch();
+      // no reveal curtain on resume - drop straight into the live match,
+      // same as Private Match's own no-curtain path
+      socket.emit('readyForKickoff', { code: roomCode });
+      kickoffRevealed = true;
+      SFX.crowdAmbience.start();
+    });
+  }, () => {
+    // couldn't even reach the server right now - leave the saved record in
+    // place (it may just be a network blip) and fall back to the menu for
+    // this launch; they can retry manually
+    document.getElementById('mode-select').style.display = 'flex';
+  });
+}
+
 function startOnlineMatch() {
   // isQuickMatchFlow stays as-is here (not reset) - it needs to persist
   // through the match into onOnlineMatchEnd() so the match-end screen still
@@ -3661,6 +3730,7 @@ function startOnlineMatch() {
 
 function leavePrivateRoom() {
   isQuickMatchFlow = false;
+  clearActiveMatch();
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false;
   hideAllMenus();
@@ -3672,6 +3742,7 @@ function leavePrivateRoom() {
 function exitOnlineMatch() {
   SFX.crowdAmbience.stop();
   kickoffRevealed = false;
+  clearActiveMatch();
   if (gameInstance) { gameInstance.destroy(true); gameInstance = null; }
   if (socket) { socket.emit('leaveRoom'); socket.disconnect(); socket = null; }
   roomCode = null; mySlot = null; isHost = false; isQuickMatchFlow = false;
