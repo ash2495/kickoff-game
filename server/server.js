@@ -82,7 +82,7 @@ const QUICKMATCH_COUNTDOWN_MS = 15000;
 // counterparty (a house-backed payout), not a real pot between the two
 // teams' stakes - this is what lets a Bet Match still fill empty slots with
 // bots exactly like Quick Match, with no need to find real staking opponents.
-const BET_STAKE_TIERS = [100, 500, 1000, 2500];
+const BET_STAKE_TIERS = [500, 1000, 2500, 5000, 10000];
 // total returned to each winning real player = their own stake * this - net
 // profit is stake * (BET_WIN_MULTIPLIER - 1), so 2 means "double your stake"
 const BET_WIN_MULTIPLIER = 2;

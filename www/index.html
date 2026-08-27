@@ -142,7 +142,7 @@
     font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 1px;
     color: #ffcb3d; text-shadow: 0 2px 0 #1a1008; margin-bottom: 0;
   }
-  #mode-select .duration-chips {
+  #mode-select .duration-chips, #bet-select-screen .duration-chips {
     /* overrides the shared .duration-chips base rule's flex-wrap:wrap and
        max-width:340px - without these, the box wraps to 2 rows well before
        it actually runs out of horizontal room */
@@ -151,7 +151,7 @@
     border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
     border-radius: 6px; padding: 6px;
   }
-  #mode-select .duration-chip {
+  #mode-select .duration-chip, #bet-select-screen .duration-chip {
     /* clip-path: none overrides the shared base rule's pill-shaped
        (round 20px) tap-area mask, which would otherwise clip the corners
        of this much less rounded (3px) chip */
@@ -159,11 +159,11 @@
     border: 2px solid #7a6a45; border-radius: 3px; background: #16233a;
     padding: 9px 12px; cursor: pointer; white-space: nowrap; clip-path: none;
   }
-  #mode-select .duration-chip.selected {
+  #mode-select .duration-chip.selected, #bet-select-screen .duration-chip.selected {
     background: #1e9e46; border-color: #6fe085; color: #eafff0;
     box-shadow: 0 0 8px rgba(46,204,113,0.5);
   }
-  #mode-select .duration-chip:active { transform: scale(0.95); }
+  #mode-select .duration-chip:active, #bet-select-screen .duration-chip:active { transform: scale(0.95); }
   #mode-select .mode-btn {
     border: none; background: none; padding: 0; cursor: pointer;
     width: 220px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
@@ -657,39 +657,55 @@
     overflow: hidden;
     background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
   }
-  /* ---- Bet Match: stake-tier picker, shown before matchmaking starts ---- */
-  .bet-title {
-    font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: 3px;
-    color: #ffcb3d; text-shadow: 0 3px 0 #1a1008; text-transform: uppercase;
+  /* ---- Bet Match: stake stepper screen, shown before matchmaking starts ----
+     Every panel below is real art (see the bet_*.png assets - sliced from a
+     single generated sheet) with the live number(s) absolutely-positioned
+     as HTML text over each panel's own blank interior. The % offsets are
+     measured directly off each source image (see the comments at each rule)
+     - re-measure if any of these assets are ever regenerated/replaced. */
+  .bet-panel-group {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    width: min(640px, 92vw);
   }
-  .bet-subtitle {
-    font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #cfd8e6;
-    margin-top: 6px; letter-spacing: 0.5px;
+  .bet-title-img {
+    height: clamp(36px, 9vh, 58px); width: auto; margin-bottom: 2px;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
   }
-  .bet-balance {
-    display: flex; align-items: center; gap: 8px; margin-top: 18px;
-    background: #0e1a2b; border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
-    border-radius: 6px; padding: 8px 20px;
-    font-family: 'Press Start 2P', monospace; font-size: 12px; color: #fff;
+  .bet-win-panel, .bet-stepper-panel { position: relative; width: 100%; }
+  .bet-win-panel img, .bet-stepper-panel img { width: 100%; display: block; }
+  /* blank interior of bet_win_panel.png spans roughly x 22%-76%, y 35%-88% */
+  .bet-win-amount {
+    position: absolute; left: 24%; right: 24%; top: 35%; bottom: 12%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace; color: #eafff0; text-shadow: 0 2px 0 #0a2b0a;
+    font-size: clamp(14px, 3.4vw, 26px); overflow: hidden; white-space: nowrap;
   }
-  .bet-balance span { color: #ffcb3d; }
-  .bet-tiers {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;
-    margin-top: 28px; max-width: 560px;
+  .bet-stepper { display: flex; align-items: center; gap: 10px; width: 100%; }
+  /* blank interior of bet_stepper_panel.png (between the two baked-in
+     labels) spans roughly y 33%-74%, well clear of the side borders */
+  .bet-stake-amount {
+    position: absolute; left: 12%; right: 12%; top: 33%; bottom: 26%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace; color: #ffcb3d; text-shadow: 0 2px 0 #1a1008;
+    font-size: clamp(16px, 3.8vw, 28px); overflow: hidden; white-space: nowrap;
   }
-  .bet-tier-btn {
-    font-family: 'Press Start 2P', monospace; font-size: 15px; color: #eafff0;
-    background: #16233a; border: 3px solid #7a6a45; border-radius: 8px;
-    box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
-    padding: 18px 22px; cursor: pointer; width: 120px;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  .bet-step-btn {
+    border: none; background: none; padding: 0; cursor: pointer;
+    width: clamp(40px, 8vw, 56px); flex: 0 0 auto;
   }
-  .bet-tier-btn .bet-tier-icon { font-size: 22px; }
-  .bet-tier-btn:active { transform: scale(0.95); }
-  .bet-tier-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .bet-tier-btn:not(:disabled):hover { border-color: #e9c873; }
+  .bet-step-btn img { width: 100%; display: block; }
+  .bet-step-btn:active { transform: scale(0.92); }
+  .bet-step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .bet-start-btn {
+    border: none; background: none; padding: 0; cursor: pointer;
+    width: 100%; margin-top: 4px;
+  }
+  .bet-start-btn img { width: 100%; display: block; }
+  .bet-start-btn:active { transform: scale(0.97); }
+  .bet-start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   #betSelectError {
-    margin-top: 18px; color: #ff6b6b; font-family: 'Rajdhani', sans-serif;
+    color: #ff6b6b; font-family: 'Rajdhani', sans-serif;
     font-weight: 700; font-size: 14px; min-height: 18px; text-align: center;
   }
   .back-circle-btn {
@@ -1516,11 +1532,28 @@
 
 <div id="bet-select-screen">
   <button class="back-circle-btn" onclick="SFX.click(); closeBetSelect()"><span class="chevron-left"></span></button>
-  <div class="bet-title">🪙 Bet Match</div>
-  <div class="bet-subtitle">Pick your stake - win the match, double it. Lose, and it's gone.</div>
-  <div class="bet-balance">BALANCE: <span id="betBalanceAmount">0</span> 🪙</div>
-  <div class="bet-tiers" id="betTiers"></div>
-  <div id="betSelectError"></div>
+  <div class="coin-pill" aria-label="Coin balance"><span class="coin-pill-amount">0</span></div>
+  <div class="bet-panel-group">
+    <img class="bet-title-img" src="assets/bet_title_banner.png" alt="Bet Screen" />
+    <div class="duration-chips">
+      <button class="duration-chip selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
+      <button class="duration-chip" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+    </div>
+    <div class="bet-win-panel">
+      <img src="assets/bet_win_panel.png" alt="" />
+      <span class="bet-win-amount" id="betWinAmount">1,000</span>
+    </div>
+    <div class="bet-stepper">
+      <button class="bet-step-btn" id="betMinusBtn" onclick="SFX.click(); adjustBetStake(-1)"><img src="assets/bet_minus_btn.png" alt="Decrease stake" /></button>
+      <div class="bet-stepper-panel">
+        <img src="assets/bet_stepper_panel.png" alt="" />
+        <span class="bet-stake-amount" id="betStakeAmount">500</span>
+      </div>
+      <button class="bet-step-btn" id="betPlusBtn" onclick="SFX.click(); adjustBetStake(1)"><img src="assets/bet_plus_btn.png" alt="Increase stake" /></button>
+    </div>
+    <button class="bet-start-btn" id="betStartBtn" onclick="SFX.click(); confirmStartBetMatch()"><img src="assets/bet_start_button.png" alt="Start Match" /></button>
+    <div id="betSelectError"></div>
+  </div>
 </div>
 
 <div id="private-select">
@@ -1885,8 +1918,11 @@ function cacheProfile(p) {
 function setCoins(amount) {
   PROFILE_COINS = Math.max(0, Math.round(amount) || 0);
   localStorage.setItem('kickoffDuelCoins', String(PROFILE_COINS));
-  const el = document.getElementById('coinPillAmount');
-  if (el) el.textContent = PROFILE_COINS.toLocaleString();
+  // more than one HUD instance exists now (main menu + Bet Match screen)
+  document.querySelectorAll('.coin-pill-amount').forEach((el) => { el.textContent = PROFILE_COINS.toLocaleString(); });
+  // the Bet Match screen's own affordability check/stake display needs to
+  // react live if coins change while it's open (e.g. after a refreshCoins())
+  if (document.getElementById('bet-select-screen').style.display === 'flex') updateBetDisplay();
 }
 
 // lighter-weight than refreshProfileStats() - just the balance, no stat
@@ -2742,29 +2778,59 @@ function closePrivateMenu() {
 
 // ---- Bet Match ----
 // kept in sync with server.js's own BET_STAKE_TIERS - the server is the
-// real source of truth (any other value is rejected there), this is just
-// what tier buttons to draw
-const BET_STAKE_TIERS = [100, 500, 1000, 2500];
+// real source of truth (any other stake is rejected there), this is just
+// what values the +/- stepper cycles through
+const BET_STAKE_TIERS = [500, 1000, 2500, 5000, 10000];
+// display-only mirror of the server's own BET_WIN_MULTIPLIER, purely so the
+// "win per player" readout matches the real payout rule - the server does
+// the actual crediting independently, this never controls real money
+const BET_WIN_MULTIPLIER = 2;
+let betStakeIndex = 0; // index into BET_STAKE_TIERS - what the stepper currently shows
 let currentBetStake = 0; // >0 for the lifetime of a Bet Match room (see betMatch/exitOnlineMatch)
 
-function renderBetTiers() {
-  const container = document.getElementById('betTiers');
-  container.innerHTML = '';
-  BET_STAKE_TIERS.forEach((stake) => {
-    const btn = document.createElement('button');
-    btn.className = 'bet-tier-btn';
-    btn.disabled = PROFILE_COINS < stake;
-    btn.innerHTML = `<span class="bet-tier-icon">🪙</span>${stake.toLocaleString()}`;
-    btn.onclick = () => { SFX.click(); startBetMatch(stake); };
-    container.appendChild(btn);
-  });
+function adjustBetStake(direction) {
+  const next = betStakeIndex + direction;
+  if (next < 0 || next >= BET_STAKE_TIERS.length) return;
+  betStakeIndex = next;
+  updateBetDisplay();
+}
+
+// re-run on every stepper tap and team-size tab switch (team size doesn't
+// currently change the payout math - every real player on the winning team
+// gets the same stake * BET_WIN_MULTIPLIER regardless of team size - but
+// recomputing on both keeps this readout honest if that ever changes, and
+// costs nothing either way)
+function updateBetDisplay() {
+  const stake = BET_STAKE_TIERS[betStakeIndex];
+  document.getElementById('betStakeAmount').textContent = stake.toLocaleString();
+  document.getElementById('betWinAmount').textContent = (stake * BET_WIN_MULTIPLIER).toLocaleString();
+  document.getElementById('betMinusBtn').disabled = betStakeIndex === 0;
+  document.getElementById('betPlusBtn').disabled = betStakeIndex === BET_STAKE_TIERS.length - 1;
+  const startBtn = document.getElementById('betStartBtn');
+  const errEl = document.getElementById('betSelectError');
+  if (PROFILE_COINS < stake) {
+    startBtn.disabled = true;
+    errEl.textContent = 'Not enough coins for this stake.';
+  } else {
+    startBtn.disabled = false;
+    errEl.textContent = '';
+  }
+}
+
+function selectBetTeamSize(size, el) {
+  setPrivateTeamSize(size, el);
+  updateBetDisplay();
 }
 
 function openBetSelect() {
   hideAllMenus();
-  document.getElementById('betSelectError').textContent = '';
-  document.getElementById('betBalanceAmount').textContent = PROFILE_COINS.toLocaleString();
-  renderBetTiers();
+  betStakeIndex = 0;
+  // reflect whichever team size is already active (e.g. chosen on the main
+  // menu before opening this screen) rather than always resetting to 2v2
+  document.querySelectorAll('#bet-select-screen .duration-chip').forEach((c) => {
+    c.classList.toggle('selected', Number(c.dataset.teamSize) === PRIVATE_TEAM_SIZE);
+  });
+  updateBetDisplay();
   document.getElementById('bet-select-screen').style.display = 'flex';
 }
 
@@ -2773,6 +2839,10 @@ function closeBetSelect() {
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
+}
+
+function confirmStartBetMatch() {
+  startBetMatch(BET_STAKE_TIERS[betStakeIndex]);
 }
 
 // same auto-matchmaking flow as quickMatch() (see its own comment), except
