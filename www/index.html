@@ -661,8 +661,21 @@
     width: min(640px, 92vw);
   }
   .bet-title-img {
-    height: clamp(36px, 9vh, 58px); width: auto; margin-bottom: 2px;
+    height: clamp(36px, 9vh, 58px); width: auto; margin-bottom: -6px;
     filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+    position: relative; z-index: 1;
+  }
+  /* single card enclosing every control below the title banner (which
+     overlaps its top edge slightly, like a nameplate) - same dark-navy/
+     gold-border/pixel-shadow language as .duration-chips and the rest of
+     this game's chrome, just scaled up into a full panel */
+  .bet-card {
+    width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    background: #0e1a2b; border: 4px solid #e9c873;
+    box-shadow: 0 0 0 4px #1a1008, 0 12px 26px rgba(0,0,0,0.5);
+    border-radius: 16px;
+    padding: 26px 20px 22px;
   }
   .bet-win-panel, .bet-stepper-panel { position: relative; width: 100%; }
   .bet-win-panel img, .bet-stepper-panel img { width: 100%; display: block; }
@@ -1506,37 +1519,39 @@
   <div class="coin-pill" aria-label="Coin balance"><span class="coin-pill-amount">0</span></div>
   <div class="bet-panel-group">
     <img class="bet-title-img" src="assets/bet_title_banner.png" alt="Bet Screen" />
-    <div class="settings-row">
-      <div class="setting-group">
-        <div class="duration-label">MATCH LENGTH</div>
-        <div class="duration-chips">
-          <button class="duration-chip" data-duration="60" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
-          <button class="duration-chip" data-duration="120" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
-          <button class="duration-chip selected" data-duration="180" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
-          <button class="duration-chip" data-duration="300" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
+    <div class="bet-card">
+      <div class="settings-row">
+        <div class="setting-group">
+          <div class="duration-label">MATCH LENGTH</div>
+          <div class="duration-chips">
+            <button class="duration-chip" data-duration="60" onclick="SFX.click(); setDuration(60,this)">1 MIN</button>
+            <button class="duration-chip" data-duration="120" onclick="SFX.click(); setDuration(120,this)">2 MIN</button>
+            <button class="duration-chip selected" data-duration="180" onclick="SFX.click(); setDuration(180,this)">3 MIN</button>
+            <button class="duration-chip" data-duration="300" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="duration-label">TEAM SIZE</div>
+          <div class="duration-chips">
+            <button class="duration-chip selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
+            <button class="duration-chip" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+          </div>
         </div>
       </div>
-      <div class="setting-group">
-        <div class="duration-label">TEAM SIZE</div>
-        <div class="duration-chips">
-          <button class="duration-chip selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
-          <button class="duration-chip" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+      <div class="bet-win-panel">
+        <img src="assets/bet_win_panel.png" alt="" />
+        <span class="bet-win-amount" id="betWinAmount">1,000</span>
+      </div>
+      <div class="bet-stepper">
+        <button class="bet-step-btn" id="betMinusBtn" onclick="SFX.click(); adjustBetStake(-1)"><img src="assets/bet_minus_btn.png" alt="Decrease stake" /></button>
+        <div class="bet-stepper-panel">
+          <img src="assets/bet_stepper_panel.png" alt="" />
+          <span class="bet-stake-amount" id="betStakeAmount">500</span>
         </div>
+        <button class="bet-step-btn" id="betPlusBtn" onclick="SFX.click(); adjustBetStake(1)"><img src="assets/bet_plus_btn.png" alt="Increase stake" /></button>
       </div>
+      <button class="bet-start-btn" id="betStartBtn" onclick="SFX.click(); confirmStartBetMatch()"><img src="assets/bet_start_button.png" alt="Start Match" /></button>
     </div>
-    <div class="bet-win-panel">
-      <img src="assets/bet_win_panel.png" alt="" />
-      <span class="bet-win-amount" id="betWinAmount">1,000</span>
-    </div>
-    <div class="bet-stepper">
-      <button class="bet-step-btn" id="betMinusBtn" onclick="SFX.click(); adjustBetStake(-1)"><img src="assets/bet_minus_btn.png" alt="Decrease stake" /></button>
-      <div class="bet-stepper-panel">
-        <img src="assets/bet_stepper_panel.png" alt="" />
-        <span class="bet-stake-amount" id="betStakeAmount">500</span>
-      </div>
-      <button class="bet-step-btn" id="betPlusBtn" onclick="SFX.click(); adjustBetStake(1)"><img src="assets/bet_plus_btn.png" alt="Increase stake" /></button>
-    </div>
-    <button class="bet-start-btn" id="betStartBtn" onclick="SFX.click(); confirmStartBetMatch()"><img src="assets/bet_start_button.png" alt="Start Match" /></button>
     <div id="betSelectError"></div>
   </div>
 </div>
