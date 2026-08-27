@@ -665,17 +665,30 @@
     filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
     position: relative; z-index: 1;
   }
-  /* single card enclosing every control below the title banner (which
-     overlaps its top edge slightly, like a nameplate) - same dark-navy/
+  /* team-size tabs sit flush on top of .bet-card (no gap between them - see
+     .bet-card-wrap) so the selected tab reads as part of the same panel,
+     like a folder tab */
+  .bet-card-wrap { width: 100%; display: flex; flex-direction: column; }
+  .bet-team-tabs { display: flex; width: 100%; }
+  .bet-team-tab {
+    flex: 1; font-family: 'Press Start 2P', monospace; font-size: clamp(14px, 3vw, 20px);
+    color: #cfd8e6; background: #16233a; cursor: pointer;
+    border: 4px solid #e9c873; border-bottom: none;
+    padding: 16px 0 14px;
+  }
+  .bet-team-tab:first-child { border-radius: 14px 0 0 0; }
+  .bet-team-tab:last-child { border-radius: 0 14px 0 0; }
+  .bet-team-tab.selected { background: #1e9e46; border-color: #6fe085; color: #eafff0; }
+  /* single card enclosing every control below the tabs - same dark-navy/
      gold-border/pixel-shadow language as .duration-chips and the rest of
      this game's chrome, just scaled up into a full panel */
   .bet-card {
     width: 100%;
     display: flex; flex-direction: column; align-items: center; gap: 16px;
-    background: #0e1a2b; border: 4px solid #e9c873;
+    background: #0e1a2b; border: 4px solid #e9c873; border-top: none;
     box-shadow: 0 0 0 4px #1a1008, 0 12px 26px rgba(0,0,0,0.5);
-    border-radius: 16px;
-    padding: 26px 20px 22px;
+    border-radius: 0 0 16px 16px;
+    padding: 22px 20px 22px;
   }
   .bet-win-panel, .bet-stepper-panel { position: relative; width: 100%; }
   .bet-win-panel img, .bet-stepper-panel img { width: 100%; display: block; }
@@ -691,9 +704,14 @@
      labels) spans roughly y 33%-74%, well clear of the side borders */
   .bet-stake-amount {
     position: absolute; left: 12%; right: 12%; top: 33%; bottom: 26%;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
     font-family: 'Press Start 2P', monospace; color: #ffcb3d; text-shadow: 0 2px 0 #1a1008;
     font-size: clamp(16px, 3.8vw, 28px); overflow: hidden; white-space: nowrap;
+  }
+  /* overrides .bet-stepper-panel img's width:100% (meant for that panel's
+     own background art, not this small inline icon nested inside it) */
+  .bet-stepper-panel .bet-stake-amount img.bet-inline-coin {
+    height: 0.85em; width: auto; flex: 0 0 auto;
   }
   .bet-step-btn {
     border: none; background: none; padding: 0; cursor: pointer;
@@ -1519,8 +1537,12 @@
   <div class="coin-pill" aria-label="Coin balance"><span class="coin-pill-amount">0</span></div>
   <div class="bet-panel-group">
     <img class="bet-title-img" src="assets/bet_title_banner.png" alt="Bet Screen" />
-    <div class="bet-card">
-      <div class="settings-row">
+    <div class="bet-card-wrap">
+      <div class="bet-team-tabs">
+        <button class="bet-team-tab selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
+        <button class="bet-team-tab" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+      </div>
+      <div class="bet-card">
         <div class="setting-group">
           <div class="duration-label">MATCH LENGTH</div>
           <div class="duration-chips">
@@ -1530,27 +1552,20 @@
             <button class="duration-chip" data-duration="300" onclick="SFX.click(); setDuration(300,this)">5 MIN</button>
           </div>
         </div>
-        <div class="setting-group">
-          <div class="duration-label">TEAM SIZE</div>
-          <div class="duration-chips">
-            <button class="duration-chip selected" data-team-size="2" onclick="SFX.click(); selectBetTeamSize(2, this)">2 v 2</button>
-            <button class="duration-chip" data-team-size="3" onclick="SFX.click(); selectBetTeamSize(3, this)">3 v 3</button>
+        <div class="bet-win-panel">
+          <img src="assets/bet_win_panel.png" alt="" />
+          <span class="bet-win-amount" id="betWinAmount">1,000</span>
+        </div>
+        <div class="bet-stepper">
+          <button class="bet-step-btn" id="betMinusBtn" onclick="SFX.click(); adjustBetStake(-1)"><img src="assets/bet_minus_btn.png" alt="Decrease stake" /></button>
+          <div class="bet-stepper-panel">
+            <img src="assets/bet_stepper_panel.png" alt="" />
+            <span class="bet-stake-amount"><span id="betStakeAmount">500</span><img class="bet-inline-coin" src="assets/coin_icon.png" alt="" /></span>
           </div>
+          <button class="bet-step-btn" id="betPlusBtn" onclick="SFX.click(); adjustBetStake(1)"><img src="assets/bet_plus_btn.png" alt="Increase stake" /></button>
         </div>
+        <button class="bet-start-btn" id="betStartBtn" onclick="SFX.click(); confirmStartBetMatch()"><img src="assets/bet_start_button.png" alt="Start Match" /></button>
       </div>
-      <div class="bet-win-panel">
-        <img src="assets/bet_win_panel.png" alt="" />
-        <span class="bet-win-amount" id="betWinAmount">1,000</span>
-      </div>
-      <div class="bet-stepper">
-        <button class="bet-step-btn" id="betMinusBtn" onclick="SFX.click(); adjustBetStake(-1)"><img src="assets/bet_minus_btn.png" alt="Decrease stake" /></button>
-        <div class="bet-stepper-panel">
-          <img src="assets/bet_stepper_panel.png" alt="" />
-          <span class="bet-stake-amount" id="betStakeAmount">500</span>
-        </div>
-        <button class="bet-step-btn" id="betPlusBtn" onclick="SFX.click(); adjustBetStake(1)"><img src="assets/bet_plus_btn.png" alt="Increase stake" /></button>
-      </div>
-      <button class="bet-start-btn" id="betStartBtn" onclick="SFX.click(); confirmStartBetMatch()"><img src="assets/bet_start_button.png" alt="Start Match" /></button>
     </div>
     <div id="betSelectError"></div>
   </div>
@@ -2840,7 +2855,9 @@ function updateBetDisplay() {
 }
 
 function selectBetTeamSize(size, el) {
-  setPrivateTeamSize(size, el);
+  PRIVATE_TEAM_SIZE = size;
+  el.parentElement.querySelectorAll('.bet-team-tab').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
   updateBetDisplay();
 }
 
@@ -2850,7 +2867,7 @@ function openBetSelect() {
   // reflect whichever team size/match length are already active (e.g. left
   // over from a previous visit to this screen) rather than always
   // resetting to the defaults
-  document.querySelectorAll('#bet-select-screen .duration-chip[data-team-size]').forEach((c) => {
+  document.querySelectorAll('#bet-select-screen .bet-team-tab').forEach((c) => {
     c.classList.toggle('selected', Number(c.dataset.teamSize) === PRIVATE_TEAM_SIZE);
   });
   document.querySelectorAll('#bet-select-screen .duration-chip[data-duration]').forEach((c) => {
