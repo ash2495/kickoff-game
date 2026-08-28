@@ -632,6 +632,46 @@
     color: #ffcb3d; letter-spacing: 0.5px; text-shadow: 0 1px 0 #1a1008;
     overflow: hidden; white-space: nowrap;
   }
+  /* Bet Match win payout - flying coins (see flyCoinsToHud) travel from
+     mid-screen to the coin pill's own baked-in coin icon, then this pulse
+     plays on the pill each time one "lands" */
+  .coin-fly-icon {
+    position: fixed;
+    width: 30px; height: 30px;
+    pointer-events: none;
+    z-index: 9999;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  }
+  @keyframes coinPillPulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.22); }
+    100% { transform: scale(1); }
+  }
+  .coin-pill-pulse { animation: coinPillPulse 0.28s ease-out; }
+
+  /* stacked directly under .coin-pill, same right edge - gem_hud_bar.png
+     bakes in its own gem icon (left) and "+" affordance (right), mirroring
+     coin_hud_bar.png's layout. Text-box %s measured directly off the
+     2022x778 source art (dark-bar interior spans x 557-1538, y 260-494) -
+     re-measure if the art is ever swapped for a different layout. */
+  .gem-pill {
+    position: absolute;
+    top: calc(max(16px, env(safe-area-inset-top)) + 46px + 8px);
+    right: calc(max(16px, env(safe-area-inset-right)) + 46px + 8px + 46px + 10px);
+    z-index: 3;
+    height: 46px; width: auto;
+    aspect-ratio: 2022 / 778;
+    background: center / 100% 100% no-repeat url('assets/gem_hud_bar.png');
+  }
+  .gem-pill-amount {
+    position: absolute;
+    left: 27.6%; right: 23.9%; top: 33.4%; bottom: 36.5%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: #8fe0ff; letter-spacing: 0.5px; text-shadow: 0 1px 0 #071a2e;
+    overflow: hidden; white-space: nowrap;
+  }
 
   #settings-panel, #match-end, #profile-screen {
     background: rgba(6,10,18,0.6);
@@ -1471,6 +1511,9 @@
   <div class="coin-pill" aria-label="Coin balance">
     <span class="coin-pill-amount" id="coinPillAmount">0</span>
   </div>
+  <div class="gem-pill" aria-label="Gem balance">
+    <span class="gem-pill-amount" id="gemPillAmount">0</span>
+  </div>
   <button class="leaderboard-corner-btn" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard">
     <img src="assets/menu_leaderboard_icon.png" alt="" />
   </button>
@@ -1821,6 +1864,10 @@ let PROFILE_HAS_GOOGLE = localStorage.getItem('kickoffDuelHasGoogle') === '1';
 // refreshed on login and after every Bet Match result (see cacheProfile,
 // refreshProfileStats, and onOnlineMatchEnd's bet-result handling)
 let PROFILE_COINS = Number(localStorage.getItem('kickoffDuelCoins')) || 0;
+// Gem balance - same caching pattern as PROFILE_COINS (authoritative value
+// lives server-side, see server/profile.js's gems field). Spent on the
+// in-match sprint boost (see sendSprint) and, later, gem-priced shop items.
+let PROFILE_GEMS = Number(localStorage.getItem('kickoffDuelGems')) || 0;
 // 1/2/3 if this player finished top-3 last week (see getFrameRank server-
 // side), else null - cached like the rest of the profile so the frame shows
 // immediately from localStorage on a returning launch, before any
@@ -1922,6 +1969,7 @@ function cacheProfile(p) {
   PROFILE_EQUIPPED_BALL = p.equippedBall || null;
   PROFILE_EQUIPPED_JERSEY = p.equippedJersey || null;
   setCoins(typeof p.coins === 'number' ? p.coins : PROFILE_COINS);
+  setGems(typeof p.gems === 'number' ? p.gems : PROFILE_GEMS);
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
   localStorage.setItem('kickoffDuelUserId', PROFILE_USER_ID);
   if (p.authToken) localStorage.setItem('kickoffDuelAuthToken', p.authToken);
@@ -1981,6 +2029,106 @@ function refreshCoins() {
       if (res && res.ok && typeof res.coins === 'number') setCoins(res.coins);
     });
   });
+}
+
+// gems mirror the coin pill exactly - same formatCoins() abbreviation, same
+// "safe to call before #mode-select exists" no-op querySelector behavior
+function setGems(amount) {
+  PROFILE_GEMS = Math.max(0, Math.round(amount) || 0);
+  localStorage.setItem('kickoffDuelGems', String(PROFILE_GEMS));
+  const label = formatCoins(PROFILE_GEMS);
+  document.querySelectorAll('.gem-pill-amount').forEach((el) => { el.textContent = label; });
+}
+
+// used after a sprint activation resolves, so the lobby's gem pill is
+// accurate the moment the player lands back on the main menu (mirrors
+// refreshCoins - see onOnlineMatchEnd/exitOnlineMatch for the coin version)
+function refreshGems() {
+  if (!PROFILE_USER_ID) return;
+  ensureSocket(() => {
+    socket.emit('getProfileStats', { userId: PROFILE_USER_ID }, (res) => {
+      if (res && res.ok && typeof res.gems === 'number') setGems(res.gems);
+    });
+  });
+}
+
+// set by onOnlineMatchEnd on a Bet Match win (the pill stays at the
+// pre-win balance until the player actually lands back on the lobby - see
+// exitOnlineMatch) - a plain sum rather than a fresh server fetch, so the
+// fly animation can start immediately without waiting on a round trip;
+// += (not =) so back-to-back rematch wins before ever hitting the lobby
+// still all get counted, in case that path is ever opened up to Bet Match
+let pendingCoinWinAmount = 0;
+
+// Bet Match win celebration - coins fly from mid-screen to the lobby coin
+// pill's own baked-in coin icon, then the balance counts up once they land.
+// Called from exitOnlineMatch(), after #mode-select is already visible, so
+// getBoundingClientRect() below reflects the pill's real on-screen position.
+function flyCoinsToHud(amount) {
+  const pillAmountEl = document.getElementById('coinPillAmount');
+  const pillEl = pillAmountEl ? pillAmountEl.closest('.coin-pill') : null;
+  if (!pillEl || amount <= 0) { refreshCoins(); return; }
+
+  const pillRect = pillEl.getBoundingClientRect();
+  // the pill's own art bakes a coin icon into its left third (see
+  // .coin-pill-amount's left:25.3% comment) - aim there, not at the number
+  const targetX = pillRect.left + pillRect.width * 0.13;
+  const targetY = pillRect.top + pillRect.height / 2;
+  const startX = window.innerWidth / 2;
+  const startY = window.innerHeight * 0.55;
+
+  const startBalance = PROFILE_COINS;
+  const targetBalance = startBalance + amount;
+  const coinCount = Math.min(8, Math.max(4, Math.round(amount / 200)));
+  let landed = 0;
+
+  for (let i = 0; i < coinCount; i++) {
+    setTimeout(() => {
+      const jitterX = (Math.random() - 0.5) * 90;
+      const jitterY = (Math.random() - 0.5) * 40;
+      const coin = document.createElement('img');
+      coin.src = 'assets/coin_icon.png';
+      coin.className = 'coin-fly-icon';
+      coin.style.left = (startX + jitterX) + 'px';
+      coin.style.top = (startY + jitterY) + 'px';
+      document.body.appendChild(coin);
+
+      const dx = targetX - (startX + jitterX);
+      const dy = targetY - (startY + jitterY);
+      const anim = coin.animate([
+        { transform: 'translate(0, 0) scale(1)', opacity: 1, offset: 0 },
+        { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 70}px) scale(1.05)`, opacity: 1, offset: 0.55 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.25)`, opacity: 0, offset: 1 },
+      ], { duration: 620 + Math.random() * 140, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' });
+
+      anim.onfinish = () => {
+        coin.remove();
+        SFX.coin();
+        pillEl.classList.remove('coin-pill-pulse');
+        void pillEl.offsetWidth; // restart the pulse animation from scratch
+        pillEl.classList.add('coin-pill-pulse');
+        landed++;
+        if (landed === coinCount) animateCoinCount(startBalance, targetBalance);
+      };
+    }, i * 90 + Math.random() * 40);
+  }
+}
+
+// counts the lobby coin pill up from `from` to `to` over `duration`ms, then
+// persists the final value via setCoins - used only for the flyCoinsToHud
+// celebration; every other balance update just calls setCoins directly
+function animateCoinCount(from, to, duration) {
+  duration = duration || 550;
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const label = formatCoins(Math.round(from + (to - from) * eased));
+    document.querySelectorAll('.coin-pill-amount').forEach((el) => { el.textContent = label; });
+    if (t < 1) requestAnimationFrame(step);
+    else setCoins(to);
+  }
+  requestAnimationFrame(step);
 }
 
 function guestLogin() {
@@ -2259,6 +2407,14 @@ const SFX = (function() {
       tone(2200, t, long ? 0.45 : 0.26, 'sine', 0.2, 2600);
       if (long) tone(2200, t + 0.55, 0.45, 'sine', 0.2, 2600);
     },
+    // short two-note "ding" - one per coin landing in flyCoinsToHud
+    coin() {
+      if (!on()) return;
+      const c = ensureCtx();
+      const t = c.currentTime;
+      tone(1500, t, 0.09, 'triangle', 0.16, 2100);
+      tone(2400, t + 0.04, 0.12, 'triangle', 0.12);
+    },
     crowdAmbience: {
       start() {
         if (!musicOn()) return;
@@ -2442,11 +2598,17 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
     let text, cls;
     // net profit on a win is stake * (BET_WIN_MULTIPLIER - 1), not the full
     // stake - only equal to it when the multiplier happens to be exactly 2
-    if (outcome === 'draw') { text = `REFUNDED ${currentBetStake.toLocaleString()} 🪙`; cls = 'draw'; }
-    else if (outcome === 'victory') { text = `+${Math.round(currentBetStake * (BET_WIN_MULTIPLIER - 1)).toLocaleString()} 🪙 WON`; cls = 'win'; }
-    else { text = `-${currentBetStake.toLocaleString()} 🪙 LOST`; cls = 'lose'; }
+    if (outcome === 'draw') { text = `REFUNDED ${currentBetStake.toLocaleString()} 🪙`; cls = 'draw'; refreshCoins(); }
+    else if (outcome === 'victory') {
+      const winAmount = Math.round(currentBetStake * (BET_WIN_MULTIPLIER - 1));
+      text = `+${winAmount.toLocaleString()} 🪙 WON`; cls = 'win';
+      // don't refresh the pill yet - hold it at the pre-win balance so
+      // flyCoinsToHud (fired from exitOnlineMatch, once the lobby is
+      // actually visible) has something to animate up from
+      pendingCoinWinAmount += winAmount;
+    }
+    else { text = `-${currentBetStake.toLocaleString()} 🪙 LOST`; cls = 'lose'; refreshCoins(); }
     [betResultDraw, betResultOutcome].forEach((el) => { el.textContent = text; el.className = 'me-bet-result ' + cls; el.style.display = 'block'; });
-    refreshCoins();
     currentBetStake = 0;
   } else {
     betResultDraw.style.display = 'none';
@@ -3545,7 +3707,7 @@ function revealBotsAndCountdown(onDone) {
       .filter((slot) => !mmShownSlots.has(slot))
   );
   const statusEl = document.querySelector('#matchmaking-screen .mm-status');
-  if (stillSearching.length > 0) statusEl.textContent = 'Matching with bots…';
+  if (stillSearching.length > 0) statusEl.textContent = 'Finding players…';
 
   function revealNext(i) {
     if (i >= stillSearching.length) { startCountdown(); return; }
@@ -3761,7 +3923,13 @@ function exitOnlineMatch() {
   document.querySelector('.exit-app-btn').style.display = 'flex';
   document.getElementById('mode-select').style.display = 'flex';
   SFX.menuMusic.start();
-  refreshCoins();
+  if (pendingCoinWinAmount > 0) {
+    const amount = pendingCoinWinAmount;
+    pendingCoinWinAmount = 0;
+    flyCoinsToHud(amount);
+  } else {
+    refreshCoins();
+  }
 }
 </script>
 <script>
@@ -3771,6 +3939,11 @@ function exitOnlineMatch() {
 // ============================================================
 
 const FIELD = { w: 1600, h: 800 };
+// mirrors server.js's SPRINT_GEM_COST - client-side only for the sprint
+// button's own pre-check UX (can't afford it → show a message instead of
+// firing the request); the server is still the sole source of truth and
+// re-checks the real balance itself before ever deducting anything
+const SPRINT_GEM_COST = 1;
 // character sprite sheet: 3 poses (front, left, back) laid out as one
 // horizontal row of 58x68 frames - right-side facings are the left-side
 // poses mirrored (setFlipX) and frontleft aliases left, so no separate art
@@ -3847,6 +4020,33 @@ function createPauseButton(scene, onExit) {
     openPauseMenu(scene, onExit);
   });
   return container;
+}
+
+// Gem-powered sprint button - bottom-right, clear of the kick zone's own
+// "TAP ANYWHERE TO KICK" hint text beneath it. Needs the same setDepth(1000)
+// trick as createPauseButton since the kick zone covers this whole corner.
+// Returns a handle the scene keeps (see this.sprintBtn) so update() can
+// redraw the cooldown wipe and triggerSprint() can read/write its state.
+function createSprintButton(scene) {
+  const W = scene.scale.width, H = scene.scale.height;
+  const r = 34;
+  const x = W - 14 - r, y = H - 108 - r;
+
+  const bg = scene.add.circle(0, 0, r, 0x0b1220, 0.55).setStrokeStyle(3, 0xffcb3d, 0.7);
+  const icon = scene.add.image(0, 0, 'gemIcon').setDisplaySize(r * 1.15, r * 1.15);
+  // drawn fresh each frame in updateSprintCooldown() as a dark pie slice
+  // that shrinks away as the cooldown counts down - cheap radial "recharge" wipe
+  const cooldownGfx = scene.add.graphics();
+  const costText = scene.add.text(0, r + 13, 'x' + SPRINT_GEM_COST, {
+    fontFamily: 'Rajdhani', fontSize: '13px', fontStyle: '700', color: '#8fe0ff'
+  }).setOrigin(0.5).setAlpha(0.85);
+
+  const container = scene.add.container(x, y, [bg, icon, cooldownGfx, costText]);
+  container.setSize(r * 2, r * 2);
+  container.setDepth(1000);
+  container.setInteractive({ useHandCursor: true });
+
+  return { container, bg, icon, cooldownGfx, costText, r, readyAt: 0, totalMs: 0 };
 }
 
 // name tag banner (team-colored art, with a tail pointing down at the
@@ -4016,6 +4216,7 @@ class OnlineScene extends Phaser.Scene {
     this.load.image('fieldTexture', currentFieldTextureSrc());
     this.load.image('ballTexture', currentBallTextureSrc());
     this.load.image('pauseIcon', 'assets/pause_icon.png');
+    this.load.image('gemIcon', 'assets/gem_icon.png');
     this.load.image('tagBlue', 'assets/tag_blue.png');
     this.load.image('tagRed', 'assets/tag_red.png');
     this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
@@ -4130,6 +4331,11 @@ class OnlineScene extends Phaser.Scene {
     const pauseBtn = createPauseButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
     registerEditableUI(this, 'pauseButton', pauseBtn);
 
+    // ---- Sprint button (gem-powered speed boost) ----
+    this.sprintBtn = createSprintButton(this);
+    this.sprintBtn.container.on('pointerdown', () => this.triggerSprint());
+    registerEditableUI(this, 'sprintButton', this.sprintBtn.container);
+
     // ---- Controls: reuse the same full-half-screen joystick + kick zone pattern ----
     this.setupOnlineJoystick();
     this.setupOnlineKickZone();
@@ -4215,6 +4421,61 @@ class OnlineScene extends Phaser.Scene {
     }
   }
 
+  // gem is only actually spent server-side (see the 'sprint' handler in
+  // server.js) - the PROFILE_GEMS check here is just so tapping with an
+  // empty balance shows a message instead of firing a request that's
+  // guaranteed to fail
+  triggerSprint() {
+    if (!socket || !roomCode) return;
+    if (this.time.now < this.sprintBtn.readyAt) return;
+    if (typeof PROFILE_GEMS === 'number' && PROFILE_GEMS < SPRINT_GEM_COST) {
+      this.showSprintMessage('NOT ENOUGH GEMS');
+      return;
+    }
+    socket.emit('sprint', { code: roomCode, authToken: PROFILE_AUTH_TOKEN }, (res) => {
+      if (!res || !res.ok) {
+        this.showSprintMessage(res && res.error === 'Sprint on cooldown.' ? 'RECHARGING' : 'NOT ENOUGH GEMS');
+        return;
+      }
+      if (typeof res.gems === 'number' && typeof setGems === 'function') setGems(res.gems);
+      this.sprintBtn.totalMs = res.durationMs + res.cooldownMs;
+      this.sprintBtn.readyAt = this.time.now + this.sprintBtn.totalMs;
+      if (typeof SFX !== 'undefined') SFX.click();
+      vibrate(20);
+    });
+  }
+
+  showSprintMessage(text) {
+    const x = this.sprintBtn.container.x, y = this.sprintBtn.container.y - this.sprintBtn.r - 16;
+    const msg = this.add.text(x, y, text, {
+      fontFamily: 'Rajdhani', fontSize: '13px', fontStyle: '700', align: 'center',
+      color: '#ff6b6b', stroke: '#0b1220', strokeThickness: 4
+    }).setOrigin(0.5).setAlpha(0).setDepth(1000);
+    this.tweens.add({
+      targets: msg, alpha: 1, y: y - 8, duration: 150,
+      onComplete: () => {
+        this.tweens.add({ targets: msg, alpha: 0, delay: 450, duration: 300, onComplete: () => msg.destroy() });
+      }
+    });
+  }
+
+  // radial "recharge" wipe - a dark pie slice that shrinks away clockwise as
+  // the cooldown counts down, dimming the icon while it's not usable
+  updateSprintCooldown() {
+    const sb = this.sprintBtn;
+    const remaining = sb.readyAt - this.time.now;
+    sb.cooldownGfx.clear();
+    if (remaining > 0 && sb.totalMs > 0) {
+      const frac = Phaser.Math.Clamp(remaining / sb.totalMs, 0, 1);
+      sb.cooldownGfx.fillStyle(0x000000, 0.6);
+      sb.cooldownGfx.slice(0, 0, sb.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false);
+      sb.cooldownGfx.fillPath();
+      sb.icon.setAlpha(0.45);
+    } else {
+      sb.icon.setAlpha(1);
+    }
+  }
+
   ensureEntitySprite(slot, x, y) {
     if (this.entitySprites[slot]) return this.entitySprites[slot];
     const team = slot[0];
@@ -4237,6 +4498,9 @@ class OnlineScene extends Phaser.Scene {
       circle, shadow, ring, label, x, y, targetX: x, targetY: y,
       kick: null, walkDist: 0, flip: false, pose: 'front', lastMoveAt: 0,
       layout: hasJersey ? JERSEY_LAYOUTS[info.jersey] : CHAR_LAYOUT_DEFAULT,
+      // sprinting (see applyServerState/update) recolors the ring away from
+      // this and back - kept so it has something to restore to
+      teamStroke: colors.stroke, sprinting: false,
     };
     this.entitySprites[slot] = sprite;
     return sprite;
@@ -4251,6 +4515,7 @@ class OnlineScene extends Phaser.Scene {
       const e = data.entities[slot];
       const sx = this.mirrorX(e.x), sy = e.y;
       const s = this.ensureEntitySprite(slot, sx, sy);
+      s.sprinting = !!e.sprinting;
       // drive the run-cycle off the real per-tick server movement rather
       // than the client's rendered per-frame lerp delta - under real
       // network jitter the interpolated position keeps re-converging
@@ -4380,6 +4645,8 @@ class OnlineScene extends Phaser.Scene {
       this.sendInput();
     }
 
+    this.updateSprintCooldown();
+
     // smoothly interpolate every entity + the ball toward the latest server position
     const lerp = 0.28;
     Object.values(this.entitySprites).forEach((s) => {
@@ -4389,6 +4656,15 @@ class OnlineScene extends Phaser.Scene {
       s.shadow.setPosition(s.x, s.y+28);
       s.ring.setPosition(s.x, s.y+30);
       s.label.setPosition(s.x, s.y-56);
+      // gem sprint boost is server-broadcast (see applyServerState), so this
+      // glow is visible on opponents too, not just the player who triggered it
+      if (s.sprinting) {
+        s.ring.setStrokeStyle(3, 0xfff275, 0.95);
+        s.ring.setScale(1.18, 1.18);
+      } else {
+        s.ring.setStrokeStyle(2, s.teamStroke, 0.55);
+        s.ring.setScale(1, 1);
+      }
 
       if (s.kick && time < s.kick.until) {
         const t = 1 - (s.kick.until - time) / s.kick.duration;

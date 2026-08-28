@@ -51,6 +51,14 @@ const BALL_R = 16;
 const NET_MIN_X = PITCH.x + BALL_R;
 const NET_MAX_X = PITCH.x + PITCH.w - BALL_R;
 const PLAYER_SPEED = 260;
+// Gem-powered sprint: a tap-to-burst boost, not a held/metered drain - one
+// gem buys one fixed-length burst. The cooldown runs from the moment sprint
+// is triggered (covering the boost itself plus a rest period after), so a
+// player can't chain bursts back-to-back even if they have gems to spare.
+const SPRINT_GEM_COST = 1;
+const SPRINT_DURATION_MS = 3000;
+const SPRINT_SPEED_MULTIPLIER = 1.6;
+const SPRINT_COOLDOWN_MS = 5000;
 const BALL_MAX_SPEED = 600;
 const BALL_DRAG = 0.96; // per-tick velocity multiplier
 const KICK_RANGE = 90;
@@ -213,6 +221,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
       team: slot[0], isBot: true, socketId: null, name: randomBotName(), userId: null,
       equippedAura: null, equippedJersey: null, difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
       pendingLeaveTimer: null,
+      sprintUntil: 0, sprintReadyAt: 0,
     };
   });
   const room = {
@@ -394,8 +403,9 @@ function updatePlayers(room, dt) {
     let { x: vx, y: vy } = e.inputVec;
     const mag = Math.hypot(vx, vy);
     if (mag > 1) { vx /= mag; vy /= mag; }
-    e.vx = vx * PLAYER_SPEED;
-    e.vy = vy * PLAYER_SPEED;
+    const speed = Date.now() < e.sprintUntil ? PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER : PLAYER_SPEED;
+    e.vx = vx * speed;
+    e.vy = vy * speed;
     e.x += e.vx * dt;
     e.y += e.vy * dt;
     clampToPitch(e);
@@ -713,7 +723,11 @@ function scoreGoal(room, team) {
 
 function broadcastState(room) {
   const entities = {};
-  room.slots.forEach((slot) => { entities[slot] = { x: room.entities[slot].x, y: room.entities[slot].y }; });
+  const now = Date.now();
+  room.slots.forEach((slot) => {
+    const e = room.entities[slot];
+    entities[slot] = { x: e.x, y: e.y, sprinting: now < e.sprintUntil };
+  });
   io.to(room.code).emit('state', {
     entities,
     ball: { x: room.ball.x, y: room.ball.y },
@@ -1160,6 +1174,31 @@ io.on('connection', (socket) => {
       room.ball.lastKickSlot = socket.data.slot;
       emitBallKicked(room, socket.data.slot);
     }
+  });
+
+  // Gem-powered sprint - see SPRINT_* constants. sprintReadyAt is claimed
+  // synchronously, before the async gem deduction resolves, so a second tap
+  // fired while the first is still in flight can't also pass the cooldown
+  // check and double-spend; if the deduction turns out to fail (not enough
+  // gems), the claim is rolled back so the player can retry immediately.
+  socket.on('sprint', async (data, cb) => {
+    const ack = typeof cb === 'function' ? cb : () => {};
+    const code = data && data.code;
+    const room = rooms.get(code);
+    if (!room || socket.data.code !== code || !room.started || room.ended || !room.kickoffLive) return ack({ ok: false });
+    const e = room.entities[socket.data.slot];
+    if (!e || e.isBot || !e.userId) return ack({ ok: false });
+    const now = Date.now();
+    if (now < e.sprintReadyAt) return ack({ ok: false, error: 'Sprint on cooldown.' });
+    e.sprintReadyAt = now + SPRINT_DURATION_MS + SPRINT_COOLDOWN_MS;
+    const authToken = data && data.authToken;
+    const result = await profile.deductGems(e.userId, authToken, SPRINT_GEM_COST);
+    if (!result.ok) {
+      e.sprintReadyAt = now; // no gem was spent - free to retry right away
+      return ack({ ok: false, error: result.error });
+    }
+    e.sprintUntil = now + SPRINT_DURATION_MS;
+    ack({ ok: true, gems: result.gems, durationMs: SPRINT_DURATION_MS, cooldownMs: SPRINT_COOLDOWN_MS });
   });
 
   socket.on('leaveRoom', () => handleLeave(socket));

@@ -23,6 +23,7 @@ const AVATAR_PRESET_COUNT = 6;
 // Google, whichever happens first) - never re-granted on later logins, since
 // it's only ever set on the `insert` object below, not on an existing doc
 const SIGNUP_BONUS_COINS = 10000;
+const SIGNUP_BONUS_GEMS = 100;
 
 function sanitizeName(name) {
   if (typeof name !== 'string') return 'Player';
@@ -119,6 +120,7 @@ async function toPublicProfile(doc) {
     winRate: matchesPlayed > 0 ? Math.round((matchesWon / matchesPlayed) * 100) : 0,
     frameRank: await getFrameRank(userId),
     coins: doc.coins || 0,
+    gems: doc.gems || 0,
   };
 }
 
@@ -145,6 +147,7 @@ async function guestLogin(deviceId) {
       createdAt: now,
       lastSeenAt: now,
       coins: SIGNUP_BONUS_COINS,
+      gems: SIGNUP_BONUS_GEMS,
     };
     const result = await users.insertOne(insert);
     doc = { ...insert, _id: result.insertedId };
@@ -199,6 +202,7 @@ async function googleLogin(idToken, deviceId) {
         createdAt: now,
         lastSeenAt: now,
         coins: SIGNUP_BONUS_COINS,
+        gems: SIGNUP_BONUS_GEMS,
       };
       const result = await users.insertOne(insert);
       doc = { ...insert, _id: result.insertedId };
@@ -283,6 +287,24 @@ async function creditCoins(userId, amount) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId) || !Number.isInteger(amount) || amount <= 0) return;
   const users = getUsers();
   await users.updateOne({ _id: new ObjectId(userId) }, { $inc: { coins: amount } });
+}
+
+// gem spends (in-match sprint activation, gem-priced shop purchases) are
+// both client-initiated same as a bet stake, so this mirrors deductCoins
+// exactly - same authToken check, same atomic $gte guard against a double
+// spend from spamming the trigger before the first ack returns
+async function deductGems(userId, authToken, amount) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
+  if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
+  if (!Number.isInteger(amount) || amount <= 0) return { ok: false, error: 'Invalid amount.' };
+  const users = getUsers();
+  const doc = await users.findOneAndUpdate(
+    { _id: new ObjectId(userId), gems: { $gte: amount } },
+    { $inc: { gems: -amount } },
+    { returnDocument: 'after' }
+  );
+  if (!doc) return { ok: false, error: 'Not enough gems.' };
+  return { ok: true, gems: doc.gems };
 }
 
 // called from server.js at match end (matchesPlayed/matchesWon for every
@@ -418,4 +440,4 @@ async function getLeaderboard(userId) {
   return { ok: true, top, me, lastWeekWinners, weekEndsAt: weekEndsAt(currentWeekId) };
 }
 
-module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins };
+module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, deductGems };
