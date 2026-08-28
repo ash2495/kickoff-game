@@ -124,6 +124,26 @@ async function toPublicProfile(doc) {
   };
 }
 
+// accounts created before gems existed as a field never went through the
+// insertOne path above and so never got the join bonus at all - not even
+// a `gems: 0`. This is a one-time top-up for exactly that gap, gated on
+// the field being fully ABSENT (checked both in JS here and again in the
+// query filter, so two concurrent requests for the same stale account
+// can't both pass the JS check and double-grant) rather than falsy/0,
+// which is a perfectly normal balance after actually spending gems.
+// Called from every read path (guestLogin, googleLogin, getStats) so it
+// fires the moment any of them next touches the account, not just login.
+async function backfillGemsBonus(doc) {
+  if (doc.gems !== undefined) return doc;
+  const users = getUsers();
+  const updated = await users.findOneAndUpdate(
+    { _id: doc._id, gems: { $exists: false } },
+    { $set: { gems: SIGNUP_BONUS_GEMS } },
+    { returnDocument: 'after' }
+  );
+  return updated || doc;
+}
+
 async function guestLogin(deviceId) {
   if (typeof deviceId !== 'string' || !deviceId) return { ok: false, error: 'Missing device ID.' };
   const users = getUsers();
@@ -152,6 +172,7 @@ async function guestLogin(deviceId) {
     const result = await users.insertOne(insert);
     doc = { ...insert, _id: result.insertedId };
   }
+  doc = await backfillGemsBonus(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -208,6 +229,7 @@ async function googleLogin(idToken, deviceId) {
       doc = { ...insert, _id: result.insertedId };
     }
   }
+  doc = await backfillGemsBonus(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -254,8 +276,9 @@ async function updateProfile(userId, authToken, { name, country, avatar, equippe
 async function getStats(userId) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   const users = getUsers();
-  const doc = await users.findOne({ _id: new ObjectId(userId) });
+  let doc = await users.findOne({ _id: new ObjectId(userId) });
   if (!doc) return { ok: false, error: 'Profile not found.' };
+  doc = await backfillGemsBonus(doc);
   return { ok: true, ...(await toPublicProfile(doc)) };
 }
 

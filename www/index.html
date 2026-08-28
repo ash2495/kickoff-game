@@ -709,6 +709,14 @@
     overflow-y: auto; -webkit-overflow-scrolling: touch;
     background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
   }
+  /* Bet Match screen: solid black (no translucent stadium backdrop showing
+     through) and never scrolls - fitBetPanel() (see JS) scales .bet-panel-
+     group down instead, so overflow never happens in the first place */
+  #bet-select-screen {
+    justify-content: center;
+    overflow: hidden;
+    background: #060a12;
+  }
   /* ---- Bet Match: stake stepper screen, shown before matchmaking starts ----
      Every panel below is real art (see the bet_*.png assets - sliced from a
      single generated sheet) with the live number(s) absolutely-positioned
@@ -719,6 +727,9 @@
     position: relative; z-index: 1;
     display: flex; flex-direction: column; align-items: center; gap: 14px;
     width: min(640px, 92vw);
+    /* scaled down by fitBetPanel() (see JS) on short viewports - center
+       origin keeps it visually centered in #bet-select-screen at any scale */
+    transform-origin: 50% 50%;
   }
   .bet-title-img {
     height: clamp(36px, 9vh, 58px); width: auto; margin-bottom: -6px;
@@ -3077,7 +3088,36 @@ function openBetSelect() {
   });
   updateBetDisplay();
   document.getElementById('bet-select-screen').style.display = 'flex';
+  requestAnimationFrame(fitBetPanel);
 }
+
+// scales .bet-panel-group down (never up) just enough to fit inside
+// #bet-select-screen's own height, so the screen never needs to scroll -
+// short landscape phones can otherwise be shorter than the panel's natural
+// height (team-size buttons, match length, win/stake panels, Start Match
+// button all stacked). Re-run on resize/orientation change while the
+// screen is open; a no-op otherwise since it bails out when hidden.
+function fitBetPanel() {
+  const screen = document.getElementById('bet-select-screen');
+  const panel = screen.querySelector('.bet-panel-group');
+  if (!panel || screen.style.display !== 'flex') return;
+  panel.style.transform = 'none';
+  // .back-circle-btn/.coin-pill sit in the top-left/top-right corners (see
+  // markup) at up to ~62px tall - reserving that same amount on BOTH top
+  // and bottom (not just top) is what actually keeps the panel clear of
+  // them: it's centered in the FULL screen height, so shrinking the
+  // available space symmetrically is what pushes its centered top edge
+  // down below the reserved zone, not just capping its height
+  const CORNER_UI_CLEARANCE = 70;
+  const available = screen.clientHeight - CORNER_UI_CLEARANCE * 2;
+  const natural = panel.scrollHeight;
+  // floor of 0.3 - a pathologically short viewport shouldn't ever flip to a
+  // negative/zero scale (which would render nothing or mirror the panel)
+  const scale = Math.max(0.3, available / natural);
+  panel.style.transform = natural > available ? `scale(${scale})` : 'none';
+}
+window.addEventListener('resize', fitBetPanel);
+window.addEventListener('orientationchange', () => setTimeout(fitBetPanel, 50));
 
 function closeBetSelect() {
   hideAllMenus();
