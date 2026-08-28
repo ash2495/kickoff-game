@@ -124,21 +124,27 @@ async function toPublicProfile(doc) {
   };
 }
 
-// accounts created before gems existed as a field never went through the
-// insertOne path above and so never got the join bonus at all - not even
-// a `gems: 0`. This is a one-time top-up for exactly that gap, gated on
-// the field being fully ABSENT (checked both in JS here and again in the
-// query filter, so two concurrent requests for the same stale account
-// can't both pass the JS check and double-grant) rather than falsy/0,
-// which is a perfectly normal balance after actually spending gems.
+// accounts created before `coins` and/or `gems` existed as fields never
+// went through the insertOne path above and so never got the matching join
+// bonus at all - not even a `0`. This is a one-time top-up for exactly that
+// gap, gated on each field being fully ABSENT (checked both in JS here and
+// again in the query filter, so two concurrent requests for the same stale
+// account can't both pass the JS check and double-grant) rather than
+// falsy/0, which is a perfectly normal balance after actually spending.
 // Called from every read path (guestLogin, googleLogin, getStats) so it
 // fires the moment any of them next touches the account, not just login.
-async function backfillGemsBonus(doc) {
-  if (doc.gems !== undefined) return doc;
+async function backfillSignupBonuses(doc) {
+  const missing = {};
+  if (doc.coins === undefined) missing.coins = SIGNUP_BONUS_COINS;
+  if (doc.gems === undefined) missing.gems = SIGNUP_BONUS_GEMS;
+  if (Object.keys(missing).length === 0) return doc;
   const users = getUsers();
+  const filter = { _id: doc._id };
+  if (doc.coins === undefined) filter.coins = { $exists: false };
+  if (doc.gems === undefined) filter.gems = { $exists: false };
   const updated = await users.findOneAndUpdate(
-    { _id: doc._id, gems: { $exists: false } },
-    { $set: { gems: SIGNUP_BONUS_GEMS } },
+    filter,
+    { $set: missing },
     { returnDocument: 'after' }
   );
   return updated || doc;
@@ -172,7 +178,7 @@ async function guestLogin(deviceId) {
     const result = await users.insertOne(insert);
     doc = { ...insert, _id: result.insertedId };
   }
-  doc = await backfillGemsBonus(doc);
+  doc = await backfillSignupBonuses(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -229,7 +235,7 @@ async function googleLogin(idToken, deviceId) {
       doc = { ...insert, _id: result.insertedId };
     }
   }
-  doc = await backfillGemsBonus(doc);
+  doc = await backfillSignupBonuses(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -278,7 +284,7 @@ async function getStats(userId) {
   const users = getUsers();
   let doc = await users.findOne({ _id: new ObjectId(userId) });
   if (!doc) return { ok: false, error: 'Profile not found.' };
-  doc = await backfillGemsBonus(doc);
+  doc = await backfillSignupBonuses(doc);
   return { ok: true, ...(await toPublicProfile(doc)) };
 }
 
