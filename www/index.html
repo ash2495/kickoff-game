@@ -643,8 +643,15 @@
        be their containing block. static would hand that off to the next
        positioned ancestor up (.lobby-hud-row) instead, sizing the text
        box against ITS width rather than the pill's - a real bug caught by
-       testing with a full 5-character balance instead of a short one */
+       testing with a full 5-character balance instead of a short one.
+       top/right: auto resets the base .coin-pill/.gem-pill rule's corner
+       offsets, which switching away from position:static revived as
+       actual relative-positioning shifts (right:126px slides the element
+       126px LEFT of its flex position instead of being ignored the way it
+       was under position:absolute/static) - without this it drags both
+       pills back on top of the profile pill instead of sitting after it. */
     position: relative;
+    top: auto; right: auto;
     width: 98px; height: 46px;
     aspect-ratio: auto;
     flex-shrink: 0;
