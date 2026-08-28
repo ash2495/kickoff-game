@@ -4034,8 +4034,8 @@ function createPauseButton(scene, onExit) {
 function createSprintButton(scene) {
   const W = scene.scale.width, H = scene.scale.height;
   const r = 36;
-  // badge art is 240x69 - keep that aspect ratio at the circle's own width
-  const badgeW = r * 2, badgeH = badgeW * (69 / 240), gap = 4;
+  // badge art is 845x282 (~3:1, same convention as the coin/gem HUD bars)
+  const badgeW = r * 2, badgeH = badgeW * (282 / 845), gap = 4;
   const x = W - 14 - r, y = H - 120;
 
   const icon = scene.add.image(0, 0, 'sprintIconReady').setDisplaySize(r * 2, r * 2);
@@ -4044,10 +4044,12 @@ function createSprintButton(scene) {
   // cooldown elapses, mirroring the reference art's own depletion wipe
   const cooldownGfx = scene.add.graphics();
   const badge = scene.add.image(0, r + gap + badgeH / 2, 'sprintBadge').setDisplaySize(badgeW, badgeH);
-  // sits in the badge's own empty right-hand space (the art reserves that
-  // next to the baked-in gem icon) - see SPRINT_GEM_COST
-  const costText = scene.add.text(badgeW * 0.17, r + gap + badgeH / 2, 'x' + SPRINT_GEM_COST, {
-    fontFamily: 'Rajdhani', fontSize: '13px', fontStyle: '700', color: '#8fe0ff'
+  // cost number sits just right of the badge art's own baked-in gem (which
+  // occupies roughly its left third) - no second gem icon needed, one is
+  // already right there
+  const badgeCenterY = r + gap + badgeH / 2;
+  const costText = scene.add.text(badgeW * -0.06, badgeCenterY, String(SPRINT_GEM_COST), {
+    fontFamily: 'Rajdhani', fontSize: '14px', fontStyle: '700', color: '#8fe0ff'
   }).setOrigin(0.5);
 
   const container = scene.add.container(x, y, [icon, cooldownGfx, badge, costText]);
