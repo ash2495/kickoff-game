@@ -631,10 +631,21 @@
      art's own native aspect ratio) so they read as a matched pair sitting
      right of the profile pill - background-size 100% 100% (above/below)
      already stretches to fill whatever box it's given, so no other change
-     needed to make either art fill this shared size */
+     needed to make either art fill this shared size. Width is sized to the
+     text box's actual worst-case content: formatCoins()/formatCoins() never
+     produces more than 5 characters ("99.9B" etc, measured at 42.5px in
+     this font/size), and .gem-pill-amount's text box (the tighter of the
+     two, at 48.5% of pill width) is what the 98px below is picked to fit -
+     re-measure both if the font, its size, or either text box's % ever change. */
   .lobby-hud-row .coin-pill, .lobby-hud-row .gem-pill {
-    position: static;
-    width: 104px; height: 46px;
+    /* relative, not static - .coin-pill-amount/.gem-pill-amount are
+       position:absolute children positioned by %, so this still needs to
+       be their containing block. static would hand that off to the next
+       positioned ancestor up (.lobby-hud-row) instead, sizing the text
+       box against ITS width rather than the pill's - a real bug caught by
+       testing with a full 5-character balance instead of a short one */
+    position: relative;
+    width: 98px; height: 46px;
     aspect-ratio: auto;
     flex-shrink: 0;
   }
