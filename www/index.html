@@ -696,9 +696,17 @@
      landscape viewport without scrolling) ---- */
   #private-select, #lobby-screen, #bet-select-screen {
     position: fixed; inset: 0; z-index: 900; display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center;
+    /* "safe center" centers normally, but falls back to start-aligned the
+       moment content is taller than the viewport - plain "center" would
+       instead clip evenly off BOTH ends with no way to scroll back to them
+       (a real bug on short-landscape phones, e.g. the Bet Match screen's
+       team-size buttons and Start Match button both going off-screen).
+       overflow-y:auto so that start-aligned overflow can actually be
+       scrolled into view rather than just being reachable-in-theory. */
+    justify-content: safe center;
     font-family: 'Rajdhani', sans-serif; color: white; padding: 20px; box-sizing: border-box;
-    overflow: hidden;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
     background: radial-gradient(ellipse at 50% 30%, rgba(20,30,50,0.55) 0%, rgba(6,10,18,0.75) 70%);
   }
   /* ---- Bet Match: stake stepper screen, shown before matchmaking starts ----
@@ -782,7 +790,10 @@
     font-weight: 700; font-size: 14px; min-height: 18px; text-align: center;
   }
   .back-circle-btn {
-    position: absolute;
+    /* fixed (not absolute) so it stays put in the corner rather than
+       scrolling away with the panel content on screens tall enough to need
+       overflow-y:auto (see #private-select/#lobby-screen/#bet-select-screen) */
+    position: fixed;
     top: max(16px, env(safe-area-inset-top));
     left: max(16px, env(safe-area-inset-left));
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25);
