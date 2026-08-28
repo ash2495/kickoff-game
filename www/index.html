@@ -4034,8 +4034,10 @@ function createPauseButton(scene, onExit) {
 function createSprintButton(scene) {
   const W = scene.scale.width, H = scene.scale.height;
   const r = 36;
-  // badge art is 845x282 (~3:1, same convention as the coin/gem HUD bars)
-  const badgeW = r * 2, badgeH = badgeW * (282 / 845), gap = 4;
+  // badge art is 509x282 (~1.8:1) - a short pill (gem + just enough room for
+  // a 2-digit cost) rather than a full-width bar, and narrower than the
+  // circle above it on purpose so it reads as a small tag, not another button
+  const badgeW = 52, badgeH = badgeW * (282 / 509), gap = 4;
   const x = W - 14 - r, y = H - 120;
 
   const icon = scene.add.image(0, 0, 'sprintIconReady').setDisplaySize(r * 2, r * 2);
@@ -4044,16 +4046,15 @@ function createSprintButton(scene) {
   // cooldown elapses, mirroring the reference art's own depletion wipe
   const cooldownGfx = scene.add.graphics();
   const badge = scene.add.image(0, r + gap + badgeH / 2, 'sprintBadge').setDisplaySize(badgeW, badgeH);
-  // cost number sits just right of the badge art's own baked-in gem (which
-  // occupies roughly its left third) - no second gem icon needed, one is
-  // already right there
+  // cost number sits in the dark space between the badge's own baked-in gem
+  // (left ~58%) and its right end-cap - sized for up to 2 digits
   const badgeCenterY = r + gap + badgeH / 2;
-  const costText = scene.add.text(badgeW * -0.06, badgeCenterY, String(SPRINT_GEM_COST), {
-    fontFamily: 'Rajdhani', fontSize: '14px', fontStyle: '700', color: '#8fe0ff'
+  const costText = scene.add.text(badgeW * 0.24, badgeCenterY, String(SPRINT_GEM_COST), {
+    fontFamily: 'Rajdhani', fontSize: '13px', fontStyle: '700', color: '#8fe0ff'
   }).setOrigin(0.5);
 
   const container = scene.add.container(x, y, [icon, cooldownGfx, badge, costText]);
-  container.setSize(badgeW, r * 2 + gap + badgeH);
+  container.setSize(Math.max(r * 2, badgeW), r * 2 + gap + badgeH);
   container.setDepth(1000);
   container.setInteractive({ useHandCursor: true });
 
