@@ -575,19 +575,23 @@
     object-fit: fill !important; box-sizing: content-box !important;
     pointer-events: none !important; z-index: 5 !important;
   }
-  .profile-pill {
-    /* absolute (not fixed) + nested inside #mode-select (see markup) so it's
-       only ever visible on the main menu, never on other screens layered on
-       top - matches how .back-circle-btn is scoped to its own screen */
+  /* top-left group: profile pill, then coin pill, then gem pill, laid out
+     left-to-right by .lobby-hud-row (see markup) - only ever visible on the
+     main menu, never on other screens layered on top, matching how
+     .back-circle-btn is scoped to its own screen */
+  .lobby-hud-row {
     position: absolute;
     top: max(16px, env(safe-area-inset-top));
     left: max(16px, env(safe-area-inset-left));
     z-index: 3;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .profile-pill {
     display: flex; align-items: center; gap: 9px;
     background: #0e1a2b; border: 3px solid #e9c873;
     box-shadow: 0 0 0 3px #1a1008, 0 4px 10px rgba(0,0,0,0.4);
     border-radius: 6px; padding: 5px 16px 5px 5px;
-    cursor: pointer; max-width: 200px;
+    cursor: pointer; max-width: 200px; flex-shrink: 0;
   }
   .pill-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
   .profile-pill img {
@@ -599,13 +603,15 @@
     color: #fff; letter-spacing: 0.3px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 0 #1a1008;
   }
-  /* top-right mirror of .profile-pill (top-left) - coin_hud_bar.png already
-     bakes in the coin icon (left) and a "+" affordance (right, currently
-     decorative - no coin-purchase flow exists yet to wire it to), so this
-     is just the balance number positioned over the art's own blank navy
-     bar. Percentages below are measured directly off the 2172x724 source
-     art (dark-bar interior spans x 520-1680, y 240-460) - re-measure if
-     the art is ever swapped for a different layout.
+  /* coin_hud_bar.png already bakes in the coin icon (left) and a "+"
+     affordance (right, currently decorative - no coin-purchase flow exists
+     yet to wire it to), so this is just the balance number positioned over
+     the art's own blank navy bar. Percentages below are measured directly
+     off the 2172x724 source art (dark-bar interior spans x 520-1680,
+     y 240-460) - re-measure if the art is ever swapped for a different
+     layout. Base rule is sized/positioned for the Bet Match screen's own
+     standalone coin-pill; .lobby-hud-row overrides both below for the
+     main-menu instance, which sits in-line next to the profile pill instead.
   */
   .coin-pill {
     position: absolute;
@@ -620,6 +626,17 @@
     height: 46px; width: auto;
     aspect-ratio: 2172 / 724;
     background: center / 100% 100% no-repeat url('assets/coin_hud_bar.png');
+  }
+  /* main-menu coin+gem pills: same fixed box for both (rather than each
+     art's own native aspect ratio) so they read as a matched pair sitting
+     right of the profile pill - background-size 100% 100% (above/below)
+     already stretches to fill whatever box it's given, so no other change
+     needed to make either art fill this shared size */
+  .lobby-hud-row .coin-pill, .lobby-hud-row .gem-pill {
+    position: static;
+    width: 104px; height: 46px;
+    aspect-ratio: auto;
+    flex-shrink: 0;
   }
   .coin-pill-amount {
     position: absolute;
@@ -650,18 +667,13 @@
   }
   .coin-pill-pulse { animation: coinPillPulse 0.28s ease-out; }
 
-  /* stacked directly under .coin-pill, same right edge - gem_hud_bar.png
-     bakes in its own gem icon (left) and "+" affordance (right), mirroring
-     coin_hud_bar.png's layout. Text-box %s measured directly off the
-     2022x778 source art (dark-bar interior spans x 557-1538, y 260-494) -
-     re-measure if the art is ever swapped for a different layout. */
+  /* sits right of .coin-pill in .lobby-hud-row (see markup and the shared
+     sizing override above) - gem_hud_bar.png bakes in its own gem icon
+     (left) and "+" affordance (right), mirroring coin_hud_bar.png's layout.
+     Text-box %s measured directly off the 2022x778 source art (dark-bar
+     interior spans x 557-1538, y 260-494) - re-measure if the art is ever
+     swapped for a different layout. */
   .gem-pill {
-    position: absolute;
-    top: calc(max(16px, env(safe-area-inset-top)) + 46px + 8px);
-    right: calc(max(16px, env(safe-area-inset-right)) + 46px + 8px + 46px + 10px);
-    z-index: 3;
-    height: 46px; width: auto;
-    aspect-ratio: 2022 / 778;
     background: center / 100% 100% no-repeat url('assets/gem_hud_bar.png');
   }
   .gem-pill-amount {
@@ -1504,15 +1516,17 @@
   <div class="pixel-menu-bg"></div>
   <div class="pixel-banner left"><img src="assets/menu_banner_left.png" alt="" /></div>
   <div class="pixel-banner right"><img src="assets/menu_banner_right.png" alt="" /></div>
-  <button class="profile-pill" onclick="SFX.click(); openProfile()">
-    <span class="pill-avatar-wrap"><img id="mainMenuAvatarImg" alt="Profile" /></span>
-    <span id="mainMenuNameLabel"></span>
-  </button>
-  <div class="coin-pill" aria-label="Coin balance">
-    <span class="coin-pill-amount" id="coinPillAmount">0</span>
-  </div>
-  <div class="gem-pill" aria-label="Gem balance">
-    <span class="gem-pill-amount" id="gemPillAmount">0</span>
+  <div class="lobby-hud-row">
+    <button class="profile-pill" onclick="SFX.click(); openProfile()">
+      <span class="pill-avatar-wrap"><img id="mainMenuAvatarImg" alt="Profile" /></span>
+      <span id="mainMenuNameLabel"></span>
+    </button>
+    <div class="coin-pill" aria-label="Coin balance">
+      <span class="coin-pill-amount" id="coinPillAmount">0</span>
+    </div>
+    <div class="gem-pill" aria-label="Gem balance">
+      <span class="gem-pill-amount" id="gemPillAmount">0</span>
+    </div>
   </div>
   <button class="leaderboard-corner-btn" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard">
     <img src="assets/menu_leaderboard_icon.png" alt="" />
