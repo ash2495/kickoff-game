@@ -3676,7 +3676,10 @@ function resumeActiveMatchOrShowMenu() {
     return;
   }
   ensureSocket(() => {
-    socket.emit('rejoinRoom', { code: saved.code, userId: PROFILE_USER_ID }, (res) => {
+    socket.emit('rejoinRoom', {
+      code: saved.code, userId: PROFILE_USER_ID, name: PLAYER_NAME,
+      equippedAura: PROFILE_EQUIPPED_AURA, equippedJersey: PROFILE_EQUIPPED_JERSEY,
+    }, (res) => {
       if (!res || !res.ok) {
         clearActiveMatch();
         document.getElementById('mode-select').style.display = 'flex';
