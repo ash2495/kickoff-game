@@ -866,13 +866,19 @@
   .pm-input {
     width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: white;
-    font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600;
+    /* Press Start 2P, not Rajdhani - matches the rest of the game's text
+       (titles, HUD numbers, labels) instead of standing out as plain
+       browser-input text. It's ~2x wider than Rajdhani per character
+       (measured directly, not assumed), so 15px dropped to 10px - re-check
+       a full 16-char name still fits if this size or the input's own width
+       ever changes; see the two rules below for the private-select variant,
+       which needed the same scaling applied to its own vh-based clamp. */
+    font-family: 'Press Start 2P', monospace; font-size: 10px; font-weight: normal;
     clip-path: inset(0 round 8px);
   }
   .pm-input::placeholder { color: rgba(255,255,255,0.45); }
   .pm-code-input {
-    text-align: center; letter-spacing: 5px; font-family: 'Orbitron', sans-serif;
-    font-size: 16px; text-transform: uppercase;
+    text-align: center; letter-spacing: 5px; text-transform: uppercase;
   }
   #privateError { color: #ff6b6b; font-size: 13px; margin-top: 12px; min-height: 16px; text-align: center; }
 
@@ -899,16 +905,20 @@
   #private-select .pm-panel-join { aspect-ratio: 704 / 712; background-image: url('assets/pm_join_panel.png'); }
   #private-select .pm-input {
     position: absolute; box-sizing: border-box; border: none; border-radius: 0;
-    background: transparent; color: white; font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    background: transparent; color: white; font-family: 'Press Start 2P', monospace; font-weight: normal;
     padding: 0 3%; clip-path: none;
   }
   #private-select .pm-input::placeholder { color: rgba(255,255,255,0.4); }
+  /* clamp scaled down from the old Rajdhani sizing (11px/4.4vh/32px) by the
+     same ~2x width ratio Press Start 2P measures wider at per character -
+     verified directly against a full 16-char name at both ends of the
+     clamp, not just carried over from the old Rajdhani-tuned numbers */
   #private-select .pm-panel-create .pm-input {
-    left: 8.5%; top: 36%; width: 82.5%; height: 19%; font-size: clamp(11px, 4.4vh, 32px);
+    left: 8.5%; top: 36%; width: 82.5%; height: 19%; font-size: clamp(9px, 2.1vh, 15px);
   }
   #private-select .pm-panel-join .pm-input {
     left: 8.4%; top: 36%; width: 83.2%; height: 19%;
-    text-transform: uppercase; font-size: clamp(11px, 4.4vh, 32px);
+    text-transform: uppercase; font-size: clamp(9px, 2.1vh, 15px);
   }
   #private-select .pm-btn-img {
     position: absolute; border: none; background: transparent; padding: 0; cursor: pointer;
@@ -1192,9 +1202,22 @@
     color: #9fb3c8; margin-bottom: 4px; text-transform: uppercase;
   }
   .profile-field input[type=text], .profile-field select {
-    width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 14px;
-    font-family: 'Rajdhani', sans-serif; border-radius: 10px;
+    width: 100%; box-sizing: border-box; padding: 8px 12px;
+    border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: white;
+  }
+  /* Press Start 2P, not Rajdhani - matches the name inputs elsewhere (see
+     .pm-input) instead of standing out as plain browser-input text. Scoped
+     to the text input only, NOT the country <select> below it - country
+     names run far longer than the 16-char name cap this size was verified
+     against (e.g. "Saint Vincent and the Grenadines"), and a native
+     <select>'s open dropdown list often ignores custom fonts anyway on
+     mobile WebViews, so there's nothing to gain by risking it there. */
+  .profile-field input[type=text] {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+  }
+  .profile-field select {
+    font-family: 'Rajdhani', sans-serif; font-size: 14px;
   }
   .profile-account-hint { font-size: 11px; color: #b7c2d6; margin-bottom: 8px; line-height: 1.3; }
   #profile-screen .login-btn { padding: 8px; font-size: 12px; margin-bottom: 0; }
