@@ -4025,28 +4025,37 @@ function createPauseButton(scene, onExit) {
 // Gem-powered sprint button - bottom-right, clear of the kick zone's own
 // "TAP ANYWHERE TO KICK" hint text beneath it. Needs the same setDepth(1000)
 // trick as createPauseButton since the kick zone covers this whole corner.
+// Art is sprint_btn_icon(_active).png (the circle+ring+runner, baked as one
+// piece) plus a separate sprint_btn_badge.png gem-cost pedestal that only
+// shows in the ready state - swapping textures/visibility beats compositing
+// since neither the circle nor the badge needs any dynamic recoloring.
 // Returns a handle the scene keeps (see this.sprintBtn) so update() can
 // redraw the cooldown wipe and triggerSprint() can read/write its state.
 function createSprintButton(scene) {
   const W = scene.scale.width, H = scene.scale.height;
-  const r = 34;
-  const x = W - 14 - r, y = H - 108 - r;
+  const r = 36;
+  // badge art is 240x69 - keep that aspect ratio at the circle's own width
+  const badgeW = r * 2, badgeH = badgeW * (69 / 240), gap = 4;
+  const x = W - 14 - r, y = H - 120;
 
-  const bg = scene.add.circle(0, 0, r, 0x0b1220, 0.55).setStrokeStyle(3, 0xffcb3d, 0.7);
-  const icon = scene.add.image(0, 0, 'gemIcon').setDisplaySize(r * 1.15, r * 1.15);
-  // drawn fresh each frame in updateSprintCooldown() as a dark pie slice
-  // that shrinks away as the cooldown counts down - cheap radial "recharge" wipe
+  const icon = scene.add.image(0, 0, 'sprintIconReady').setDisplaySize(r * 2, r * 2);
+  // drawn fresh each frame in updateSprintCooldown() as a black wedge that
+  // grows clockwise from 12 o'clock over the active (blue) texture as the
+  // cooldown elapses, mirroring the reference art's own depletion wipe
   const cooldownGfx = scene.add.graphics();
-  const costText = scene.add.text(0, r + 13, 'x' + SPRINT_GEM_COST, {
+  const badge = scene.add.image(0, r + gap + badgeH / 2, 'sprintBadge').setDisplaySize(badgeW, badgeH);
+  // sits in the badge's own empty right-hand space (the art reserves that
+  // next to the baked-in gem icon) - see SPRINT_GEM_COST
+  const costText = scene.add.text(badgeW * 0.17, r + gap + badgeH / 2, 'x' + SPRINT_GEM_COST, {
     fontFamily: 'Rajdhani', fontSize: '13px', fontStyle: '700', color: '#8fe0ff'
-  }).setOrigin(0.5).setAlpha(0.85);
+  }).setOrigin(0.5);
 
-  const container = scene.add.container(x, y, [bg, icon, cooldownGfx, costText]);
-  container.setSize(r * 2, r * 2);
+  const container = scene.add.container(x, y, [icon, cooldownGfx, badge, costText]);
+  container.setSize(badgeW, r * 2 + gap + badgeH);
   container.setDepth(1000);
   container.setInteractive({ useHandCursor: true });
 
-  return { container, bg, icon, cooldownGfx, costText, r, readyAt: 0, totalMs: 0 };
+  return { container, icon, badge, costText, cooldownGfx, r, readyAt: 0, totalMs: 0 };
 }
 
 // name tag banner (team-colored art, with a tail pointing down at the
@@ -4216,7 +4225,9 @@ class OnlineScene extends Phaser.Scene {
     this.load.image('fieldTexture', currentFieldTextureSrc());
     this.load.image('ballTexture', currentBallTextureSrc());
     this.load.image('pauseIcon', 'assets/pause_icon.png');
-    this.load.image('gemIcon', 'assets/gem_icon.png');
+    this.load.image('sprintIconReady', 'assets/sprint_btn_icon.png');
+    this.load.image('sprintIconActive', 'assets/sprint_btn_icon_active.png');
+    this.load.image('sprintBadge', 'assets/sprint_btn_badge.png');
     this.load.image('tagBlue', 'assets/tag_blue.png');
     this.load.image('tagRed', 'assets/tag_red.png');
     this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
@@ -4459,20 +4470,28 @@ class OnlineScene extends Phaser.Scene {
     });
   }
 
-  // radial "recharge" wipe - a dark pie slice that shrinks away clockwise as
-  // the cooldown counts down, dimming the icon while it's not usable
+  // matches the reference art's own depletion wipe: while on cooldown the
+  // icon swaps to the fully-blue active texture, then a black wedge grows
+  // clockwise from 12 o'clock (covering more as time elapses) until it's
+  // fully black again, at which point it swaps back to the ready texture
+  // and the gem-cost badge reappears
   updateSprintCooldown() {
     const sb = this.sprintBtn;
     const remaining = sb.readyAt - this.time.now;
+    const onCooldown = remaining > 0 && sb.totalMs > 0;
     sb.cooldownGfx.clear();
-    if (remaining > 0 && sb.totalMs > 0) {
-      const frac = Phaser.Math.Clamp(remaining / sb.totalMs, 0, 1);
-      sb.cooldownGfx.fillStyle(0x000000, 0.6);
-      sb.cooldownGfx.slice(0, 0, sb.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false);
-      sb.cooldownGfx.fillPath();
-      sb.icon.setAlpha(0.45);
+    sb.badge.setVisible(!onCooldown);
+    sb.costText.setVisible(!onCooldown);
+    if (onCooldown) {
+      sb.icon.setTexture('sprintIconActive');
+      const elapsedFrac = 1 - Phaser.Math.Clamp(remaining / sb.totalMs, 0, 1);
+      if (elapsedFrac > 0) {
+        sb.cooldownGfx.fillStyle(0x0b1220, 0.92);
+        sb.cooldownGfx.slice(0, 0, sb.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * elapsedFrac, false);
+        sb.cooldownGfx.fillPath();
+      }
     } else {
-      sb.icon.setAlpha(1);
+      sb.icon.setTexture('sprintIconReady');
     }
   }
 
