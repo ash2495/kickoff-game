@@ -2314,6 +2314,9 @@ function setPrivateTeamSize(size, el) {
   el.classList.add('selected');
 }
 let socket = null;
+// callbacks waiting on an in-flight connection attempt (see ensureSocket) -
+// null when no connection is currently being established
+let socketConnectQueue = null;
 let roomCode = null;
 let mySlot = null;
 let isHost = false;
@@ -3017,6 +3020,7 @@ function refreshProfileStats() {
       document.getElementById('statGoalsScored').textContent = res.goalsScored;
       document.getElementById('statWinRate').textContent = res.winRate + '%';
       if (typeof res.coins === 'number') setCoins(res.coins);
+      if (typeof res.gems === 'number') setGems(res.gems);
       PROFILE_FRAME_RANK = res.frameRank || null;
       if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
       applyAvatarFrame(document.querySelector('.avatar-picker'), PROFILE_FRAME_RANK);
@@ -3648,13 +3652,34 @@ function ensureSocket(onReady, onFail) {
     return;
   }
   if (socket && socket.connected) { onReady(); return; }
+  if (socketConnectQueue) {
+    // a connection attempt is already in flight - e.g. two callers both hit
+    // ensureSocket in the same tick, before either's socket has connected
+    // yet (resumeActiveMatchOrShowMenu's refreshCoins()+refreshGems() is
+    // exactly this). Queuing onto it is required, not just an optimization:
+    // the old code instead disconnected the just-created socket and started
+    // a second one for every call past the first, so the first caller's
+    // 'connect' handler never fired at all and its callback was silently
+    // dropped forever - not a timing-dependent race, every single first
+    // caller lost, deterministically.
+    socketConnectQueue.push({ onReady, onFail });
+    return;
+  }
   if (socket) socket.disconnect();
   showPrivateError('Connecting…');
+  socketConnectQueue = [{ onReady, onFail }];
   socket = io(SERVER_URL, { transports: ['websocket', 'polling'], timeout: 8000 });
-  socket.on('connect', () => { showPrivateError(''); onReady(); });
+  socket.on('connect', () => {
+    showPrivateError('');
+    const queued = socketConnectQueue || [];
+    socketConnectQueue = null;
+    queued.forEach((entry) => entry.onReady());
+  });
   socket.on('connect_error', () => {
     showPrivateError("Couldn't reach that server. Check the URL and that it's deployed.");
-    if (onFail) onFail();
+    const queued = socketConnectQueue || [];
+    socketConnectQueue = null;
+    queued.forEach((entry) => { if (entry.onFail) entry.onFail(); });
   });
   socket.on('lobbyUpdate', renderLobby);
   socket.on('matchStarted', () => {
@@ -3978,6 +4003,13 @@ function resumeActiveMatchOrShowMenu() {
   if (!saved || !saved.code || saved.userId !== PROFILE_USER_ID) {
     clearActiveMatch();
     document.getElementById('mode-select').style.display = 'flex';
+    // a returning user's coins/gems otherwise only ever come from
+    // localStorage - nothing else touches the server on a normal launch
+    // that isn't resuming a match, so a balance change made server-side
+    // since the last session (e.g. the gems/coins signup-bonus backfill)
+    // would never actually reach the HUD without this
+    refreshCoins();
+    refreshGems();
     return;
   }
   ensureSocket(() => {

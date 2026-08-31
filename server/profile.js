@@ -147,7 +147,14 @@ async function backfillSignupBonuses(doc) {
     { $set: missing },
     { returnDocument: 'after' }
   );
-  return updated || doc;
+  if (updated) return updated;
+  // filter didn't match - someone else's concurrent call already backfilled
+  // this account (e.g. refreshCoins() and refreshGems() firing back-to-back
+  // both hit this at once) between our read and our update. Re-fetch rather
+  // than falling back to the stale `doc` we were passed, which would still
+  // show the pre-backfill 0/undefined and silently hand the caller wrong
+  // data despite the account actually being correct in the database.
+  return (await users.findOne({ _id: doc._id })) || doc;
 }
 
 async function guestLogin(deviceId) {
