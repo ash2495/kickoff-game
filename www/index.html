@@ -1259,16 +1259,45 @@
   }
   #match-end .me-actions { position: relative; z-index: 1; width: 100%; max-width: 280px; }
   /* Bet Match payout/forfeit line - only populated (and shown) when the
-     match that just ended was a Bet Match, see onOnlineMatchEnd */
+     match that just ended was a Bet Match, see onOnlineMatchEnd. win/lose
+     use the real me_bet_won/lost_banner.png art (which already says "YOU
+     WON"/"YOU LOST"), with just the amount overlaid via .me-bet-amount -
+     draw/refund has no matching banner art, so it keeps the plain bordered
+     text-box treatment this whole element used to have. */
   .me-bet-result {
     position: relative; z-index: 1; display: none;
+    margin-bottom: 18px;
+  }
+  .me-bet-result.draw {
     font-family: 'Press Start 2P', monospace; font-size: 13px;
     background: #0e1a2b; border: 3px solid #e9c873; box-shadow: 0 0 0 3px #1a1008;
-    border-radius: 6px; padding: 10px 18px; margin-bottom: 18px;
+    border-radius: 6px; padding: 10px 18px; color: #ffcb3d;
   }
-  .me-bet-result.win { color: #6fe085; }
-  .me-bet-result.lose { color: #ff6b6b; }
-  .me-bet-result.draw { color: #ffcb3d; }
+  .me-bet-result.win, .me-bet-result.lose {
+    width: min(340px, 88vw);
+    background-position: center; background-repeat: no-repeat; background-size: 100% 100%;
+  }
+  .me-bet-result.win { aspect-ratio: 1804 / 513; background-image: url('assets/me_bet_won_banner.png'); }
+  .me-bet-result.lose { aspect-ratio: 1948 / 500; background-image: url('assets/me_bet_lost_banner.png'); }
+  /* text-box %s measured directly off each banner's own empty interior
+     (between its coin-pile graphic and its corner coin+sparkle decoration)
+     via the overlay-rectangle technique - re-measure if either asset is
+     ever swapped for a different layout */
+  .me-bet-amount {
+    position: absolute;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(10px, 3.2vw, 16px);
+    overflow: hidden; white-space: nowrap;
+  }
+  .me-bet-result.win .me-bet-amount {
+    left: 34%; right: 20%; top: 56%; bottom: 10%;
+    color: #ffe9a8; text-shadow: 0 2px 0 #4a2e05;
+  }
+  .me-bet-result.lose .me-bet-amount {
+    left: 34%; right: 22%; top: 50%; bottom: 18%;
+    color: #ffb3b3; text-shadow: 0 2px 0 #3a0a0a;
+  }
 
   #meDrawView, #meOutcomeView {
     display: none; flex-direction: column; align-items: center;
@@ -2678,14 +2707,22 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
     if (outcome === 'draw') { text = `REFUNDED ${currentBetStake.toLocaleString()} 🪙`; cls = 'draw'; refreshCoins(); }
     else if (outcome === 'victory') {
       const winAmount = Math.round(currentBetStake * (BET_WIN_MULTIPLIER - 1));
-      text = `+${winAmount.toLocaleString()} 🪙 WON`; cls = 'win';
+      // no "WON" suffix needed - the banner art itself already says "YOU WON"
+      text = `+${winAmount.toLocaleString()} 🪙`; cls = 'win';
       // don't refresh the pill yet - hold it at the pre-win balance so
       // flyCoinsToHud (fired from exitOnlineMatch, once the lobby is
       // actually visible) has something to animate up from
       pendingCoinWinAmount += winAmount;
     }
-    else { text = `-${currentBetStake.toLocaleString()} 🪙 LOST`; cls = 'lose'; refreshCoins(); }
-    [betResultDraw, betResultOutcome].forEach((el) => { el.textContent = text; el.className = 'me-bet-result ' + cls; el.style.display = 'block'; });
+    else { text = `-${currentBetStake.toLocaleString()} 🪙`; cls = 'lose'; refreshCoins(); }
+    // draw has no banner art (see .me-bet-result.draw) so it's just plain
+    // text; win/lose need the amount as its own positioned child so
+    // .me-bet-amount can sit inside the banner's own empty interior
+    [betResultDraw, betResultOutcome].forEach((el) => {
+      el.className = 'me-bet-result ' + cls;
+      el.innerHTML = cls === 'draw' ? text : `<span class="me-bet-amount">${text}</span>`;
+      el.style.display = 'block';
+    });
     currentBetStake = 0;
   } else {
     betResultDraw.style.display = 'none';
