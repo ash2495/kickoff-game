@@ -3173,12 +3173,15 @@ function openBetSelect() {
   requestAnimationFrame(fitBetPanel);
 }
 
-// scales .bet-panel-group down (never up) just enough to fit inside
-// #bet-select-screen's own height, so the screen never needs to scroll -
-// short landscape phones can otherwise be shorter than the panel's natural
-// height (team-size buttons, match length, win/stake panels, Start Match
-// button all stacked). Re-run on resize/orientation change while the
-// screen is open; a no-op otherwise since it bails out when hidden.
+// scales .bet-panel-group to fill #bet-select-screen, in EITHER direction -
+// not just shrinking it to avoid overflow on short phones, but also
+// growing it on a screen with lots of unused room (most of the panel's
+// content - chip buttons, labels - is fixed px, not vw/vh-relative, so it
+// stays a fixed small size on a big screen unless something scales the
+// whole thing up as a unit; a plain wider CSS max-width wouldn't do that,
+// it'd just add side padding around still-small controls). Re-run on
+// resize/orientation change while the screen is open; a no-op otherwise
+// since it bails out when hidden.
 function fitBetPanel() {
   const screen = document.getElementById('bet-select-screen');
   const panel = screen.querySelector('.bet-panel-group');
@@ -3191,12 +3194,19 @@ function fitBetPanel() {
   // available space symmetrically is what pushes its centered top edge
   // down below the reserved zone, not just capping its height
   const CORNER_UI_CLEARANCE = 70;
-  const available = screen.clientHeight - CORNER_UI_CLEARANCE * 2;
-  const natural = panel.scrollHeight;
-  // floor of 0.3 - a pathologically short viewport shouldn't ever flip to a
-  // negative/zero scale (which would render nothing or mirror the panel)
-  const scale = Math.max(0.3, available / natural);
-  panel.style.transform = natural > available ? `scale(${scale})` : 'none';
+  const availableH = screen.clientHeight - CORNER_UI_CLEARANCE * 2;
+  const availableW = screen.clientWidth * 0.92;
+  const naturalH = panel.scrollHeight;
+  const naturalW = panel.scrollWidth;
+  // whichever dimension is the tighter fit wins - scaling to fully use the
+  // more generous one would overflow the other
+  const rawScale = Math.min(availableH / naturalH, availableW / naturalW);
+  // floor of 0.3 so a pathologically short viewport never flips to a
+  // negative/zero scale (renders nothing, or mirrors the panel); cap of 1.7
+  // so a much bigger screen doesn't blow the panel up past where its art
+  // still looks crisp, or make it feel like an oversized blown-up UI
+  const scale = Math.max(0.3, Math.min(rawScale, 1.7));
+  panel.style.transform = Math.abs(scale - 1) > 0.02 ? `scale(${scale})` : 'none';
 }
 window.addEventListener('resize', fitBetPanel);
 window.addEventListener('orientationchange', () => setTimeout(fitBetPanel, 50));
