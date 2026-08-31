@@ -4430,7 +4430,7 @@ class OnlineScene extends Phaser.Scene {
     // Power Ball feature - see POWER_* constants server-side
     this.load.spritesheet('powerBallTrail', 'assets/power_ball_trail_sheet.png', { frameWidth: 219, frameHeight: 218 });
     this.load.spritesheet('powerOrbIdle', 'assets/power_orb_idle_sheet.png', { frameWidth: 146, frameHeight: 170 });
-    this.load.image('powerPlayerAura', 'assets/power_player_aura.png');
+    this.load.spritesheet('powerPlayerAuraFrames', 'assets/power_player_aura_sheet.png', { frameWidth: 224, frameHeight: 215 });
     this.load.image('powerBallBanner', 'assets/power_ball_activated_banner.png');
   }
 
@@ -4535,6 +4535,29 @@ class OnlineScene extends Phaser.Scene {
     this.powerOrb.setScale(36 / 146);
     this.powerOrb.setVisible(false);
     this.powerOrb.setDepth(4);
+
+    // ---- Power Ball player aura: an "ignite" build-up (ring -> full flame
+    // burst, 8 frames) the instant the buff starts, then a gentle 2-frame
+    // flicker for as long as it's sustained - triggered inline in update()
+    // via a rising/falling edge check on s.powered vs s.wasPowered, per
+    // entity sprite (each ensureEntitySprite() gets its own, since more than
+    // one player could plausibly be powered back-to-back). Frames are all
+    // cropped to the same fixed canvas region from the source sheet, so the
+    // ring sits at an identical position across every frame - no per-frame
+    // repositioning needed as it grows. ----
+    this.anims.create({
+      key: 'powerAuraIgnite',
+      frames: this.anims.generateFrameNumbers('powerPlayerAuraFrames', { start: 0, end: 7 }),
+      frameRate: 14,
+      repeat: 0,
+    });
+    this.anims.create({
+      key: 'powerAuraLoop',
+      frames: this.anims.generateFrameNumbers('powerPlayerAuraFrames', { start: 6, end: 7 }),
+      frameRate: 4,
+      repeat: -1,
+      yoyo: true,
+    });
 
     // ---- Ball ----
     const ballCircle = this.add.image(W/2, H/2, 'ballTexture');
@@ -4752,7 +4775,12 @@ class OnlineScene extends Phaser.Scene {
     // ring position (~84% down its height, measured directly off the
     // source), not the image center, so the ring lands at the character's
     // feet instead of around their waist
-    const powerAura = this.add.image(x, y + 20, 'powerPlayerAura').setOrigin(0.5, 0.84).setScale(130 / 1041).setVisible(false);
+    const powerAura = this.add.sprite(x, y + 20, 'powerPlayerAuraFrames', 0).setOrigin(0.5, 0.87).setScale(130 / 224).setVisible(false);
+    // ignite (ring -> full burst) plays once, then hands off to the 2-frame
+    // sustained loop - see update()'s rising/falling-edge check below
+    powerAura.on('animationcomplete', (anim) => {
+      if (anim.key === 'powerAuraIgnite') powerAura.play('powerAuraLoop');
+    });
     const circle = this.add.sprite(x, y, texKey, 0);
     const shadow = this.add.ellipse(x, y+28, 34, 12, 0x000000, 0.3);
     const ring = this.add.ellipse(x, y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, colors.stroke, 0.55);
@@ -4766,7 +4794,7 @@ class OnlineScene extends Phaser.Scene {
       layout: hasJersey ? JERSEY_LAYOUTS[info.jersey] : CHAR_LAYOUT_DEFAULT,
       // sprinting (see applyServerState/update) recolors the ring away from
       // this and back - kept so it has something to restore to
-      teamStroke: colors.stroke, sprinting: false, powered: false,
+      teamStroke: colors.stroke, sprinting: false, powered: false, wasPowered: false,
     };
     this.entitySprites[slot] = sprite;
     return sprite;
@@ -4953,7 +4981,14 @@ class OnlineScene extends Phaser.Scene {
       }
       // Power Ball buff - also server-broadcast, visible on opponents too
       s.powerAura.setPosition(s.x, s.y + 20);
-      s.powerAura.setVisible(s.powered);
+      if (s.powered && !s.wasPowered) {
+        s.powerAura.setVisible(true);
+        s.powerAura.play('powerAuraIgnite');
+      } else if (!s.powered && s.wasPowered) {
+        s.powerAura.setVisible(false);
+        s.powerAura.stop();
+      }
+      s.wasPowered = s.powered;
 
       if (s.kick && time < s.kick.until) {
         const t = 1 - (s.kick.until - time) / s.kick.duration;
