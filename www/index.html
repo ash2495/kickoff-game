@@ -4427,6 +4427,11 @@ class OnlineScene extends Phaser.Scene {
       this.load.spritesheet('jerseyChar_' + id, JERSEY_CHAR_SRC[id], { frameWidth: CHAR_W, frameHeight: CHAR_H });
     });
     this.load.spritesheet('fireAuraFrames', 'assets/fire_aura_sheet.png', { frameWidth: 256, frameHeight: 256 });
+    // Power Ball feature - see POWER_* constants server-side
+    this.load.spritesheet('powerBallTrail', 'assets/power_ball_trail_sheet.png', { frameWidth: 219, frameHeight: 218 });
+    this.load.spritesheet('powerOrbIdle', 'assets/power_orb_idle_sheet.png', { frameWidth: 146, frameHeight: 170 });
+    this.load.image('powerPlayerAura', 'assets/power_player_aura.png');
+    this.load.image('powerBallBanner', 'assets/power_ball_activated_banner.png');
   }
 
   create() {
@@ -4499,6 +4504,38 @@ class OnlineScene extends Phaser.Scene {
     this.ballAura.setVisible(false);
     this.ballAura.on('animationcomplete', () => this.ballAura.setVisible(false));
 
+    // ---- Power Ball kick trail - a separate sprite/art from the cosmetic
+    // aura above, since it's a distinct game mechanic effect (always the
+    // same look, regardless of the kicker's own equipped aura) rather than
+    // a per-player cosmetic. Frame art is a ball-with-trail comet at native
+    // scale already close to the real ball's size, so no origin/scale
+    // trickery is needed the way the cosmetic aura (drawn much bigger, with
+    // its own baked-in ball) requires. ----
+    this.anims.create({
+      key: 'powerBallTrailBurn',
+      frames: this.anims.generateFrameNumbers('powerBallTrail', { start: 0, end: 6 }),
+      frameRate: 18,
+      repeat: 0,
+    });
+    this.powerBallAura = this.add.sprite(W/2, H/2, 'powerBallTrail', 0);
+    this.powerBallAura.setScale(40 / 219);
+    this.powerBallAura.setVisible(false);
+    this.powerBallAura.on('animationcomplete', () => this.powerBallAura.setVisible(false));
+
+    // ---- Power Ball pickup orb - a standalone pitch pickup, not the real
+    // ball (see room.powerBall server-side). Idle-pulses continuously
+    // whenever the server says one is active; position comes from state. ----
+    this.anims.create({
+      key: 'powerOrbPulse',
+      frames: this.anims.generateFrameNumbers('powerOrbIdle', { start: 0, end: 3 }),
+      frameRate: 6,
+      repeat: -1,
+    });
+    this.powerOrb = this.add.sprite(0, 0, 'powerOrbIdle', 0);
+    this.powerOrb.setScale(36 / 146);
+    this.powerOrb.setVisible(false);
+    this.powerOrb.setDepth(4);
+
     // ---- Ball ----
     const ballCircle = this.add.image(W/2, H/2, 'ballTexture');
     const ballShadow = this.add.ellipse(W/2, H/2+18, 22, 8, 0x000000, 0.3);
@@ -4526,6 +4563,19 @@ class OnlineScene extends Phaser.Scene {
     registerEditableUI(this, 'timerText', this.timerText);
     registerEditableUI(this, 'roomText', this.roomText);
 
+    // ---- Power Ball activated banner - shown to EVERYONE in the match (not
+    // just the powered player) below the scoreboard, for as long as
+    // data.poweredSlot is set. Countdown number sits in the banner art's own
+    // empty timer-box (measured via the overlay-rectangle technique, see
+    // asset conventions), same pattern as the match-end bet-result banners. */
+    const bannerW = 230, bannerH = bannerW * (333 / 1765);
+    const bannerY = 14 + panelH + 44;
+    this.powerBanner = this.add.image(W/2, bannerY, 'powerBallBanner').setDisplaySize(bannerW, bannerH).setVisible(false).setDepth(50);
+    this.powerBannerTimer = this.add.text(W/2 + bannerW * 0.41, bannerY, '', {
+      fontFamily: 'Press Start 2P', fontSize: '11px', color: '#ffe9a8'
+    }).setOrigin(0.5).setVisible(false).setDepth(51);
+    registerEditableUI(this, 'powerBanner', this.powerBanner);
+
     // ---- Pause button (mid-match) ----
     const pauseBtn = createPauseButton(this, () => { if (typeof exitOnlineMatch === 'function') exitOnlineMatch(); });
     registerEditableUI(this, 'pauseButton', pauseBtn);
@@ -4545,7 +4595,9 @@ class OnlineScene extends Phaser.Scene {
       socket.on('state', (data) => this.applyServerState(data));
       socket.off('ballKicked');
       socket.on('ballKicked', (data) => {
-        if (data && data.aura) this.playBallAura(data.aura);
+        if (!data || !data.aura) return;
+        if (data.aura === 'power') this.playPowerBallAura();
+        else this.playBallAura(data.aura);
       });
     }
 
@@ -4694,6 +4746,13 @@ class OnlineScene extends Phaser.Scene {
     // regardless of which body texture is showing.
     const hasJersey = info.jersey && JERSEY_CHAR_SRC[info.jersey];
     const texKey = hasJersey ? 'jerseyChar_' + info.jersey : (team === 'A' ? 'charBlue' : 'charRed');
+    // added BEFORE the character (see add-order = paint-order) so it renders
+    // as a portal the player stands inside of, flames rising up behind them,
+    // rather than on top obscuring them - origin's y is set to the art's own
+    // ring position (~84% down its height, measured directly off the
+    // source), not the image center, so the ring lands at the character's
+    // feet instead of around their waist
+    const powerAura = this.add.image(x, y + 20, 'powerPlayerAura').setOrigin(0.5, 0.84).setScale(130 / 1041).setVisible(false);
     const circle = this.add.sprite(x, y, texKey, 0);
     const shadow = this.add.ellipse(x, y+28, 34, 12, 0x000000, 0.3);
     const ring = this.add.ellipse(x, y+30, 46, 17, 0x000000, 0).setStrokeStyle(2, colors.stroke, 0.55);
@@ -4702,12 +4761,12 @@ class OnlineScene extends Phaser.Scene {
     const labelText = info.name;
     const label = createNameTag(this, x, y-56, labelText, team);
     const sprite = {
-      circle, shadow, ring, label, x, y, targetX: x, targetY: y,
+      circle, shadow, ring, label, powerAura, x, y, targetX: x, targetY: y,
       kick: null, walkDist: 0, flip: false, pose: 'front', lastMoveAt: 0,
       layout: hasJersey ? JERSEY_LAYOUTS[info.jersey] : CHAR_LAYOUT_DEFAULT,
       // sprinting (see applyServerState/update) recolors the ring away from
       // this and back - kept so it has something to restore to
-      teamStroke: colors.stroke, sprinting: false,
+      teamStroke: colors.stroke, sprinting: false, powered: false,
     };
     this.entitySprites[slot] = sprite;
     return sprite;
@@ -4723,6 +4782,7 @@ class OnlineScene extends Phaser.Scene {
       const sx = this.mirrorX(e.x), sy = e.y;
       const s = this.ensureEntitySprite(slot, sx, sy);
       s.sprinting = !!e.sprinting;
+      s.powered = !!e.powered;
       // drive the run-cycle off the real per-tick server movement rather
       // than the client's rendered per-frame lerp delta - under real
       // network jitter the interpolated position keeps re-converging
@@ -4744,6 +4804,25 @@ class OnlineScene extends Phaser.Scene {
     });
     this.ball.targetX = this.mirrorX(data.ball.x);
     this.ball.targetY = data.ball.y;
+
+    // Power Ball pickup orb - a standalone pitch pickup, not the real ball
+    if (data.powerBall) {
+      this.powerOrb.setPosition(this.mirrorX(data.powerBall.x), data.powerBall.y);
+      if (!this.powerOrb.visible) { this.powerOrb.setVisible(true); this.powerOrb.play('powerOrbPulse'); }
+    } else if (this.powerOrb.visible) {
+      this.powerOrb.setVisible(false);
+      this.powerOrb.stop();
+    }
+    // banner is shown to EVERYONE in the match, not just the powered player
+    if (data.poweredSlot) {
+      const secs = Math.max(0, Math.ceil((data.poweredRemainingMs || 0) / 1000));
+      this.powerBanner.setVisible(true);
+      this.powerBannerTimer.setVisible(true);
+      this.powerBannerTimer.setText(String(secs));
+    } else {
+      this.powerBanner.setVisible(false);
+      this.powerBannerTimer.setVisible(false);
+    }
     // display order matches the visual mirror too - my score always shows
     // on the left, opponent's on the right
     const leftScore = this.flip ? data.score.B : data.score.A;
@@ -4872,6 +4951,9 @@ class OnlineScene extends Phaser.Scene {
         s.ring.setStrokeStyle(2, s.teamStroke, 0.55);
         s.ring.setScale(1, 1);
       }
+      // Power Ball buff - also server-broadcast, visible on opponents too
+      s.powerAura.setPosition(s.x, s.y + 20);
+      s.powerAura.setVisible(s.powered);
 
       if (s.kick && time < s.kick.until) {
         const t = 1 - (s.kick.until - time) / s.kick.duration;
@@ -4921,8 +5003,16 @@ class OnlineScene extends Phaser.Scene {
         this.ballAura.setRotation(moveAngle + 0.9114 + Math.PI);
       }
     }
+    if (this.powerBallAura.visible) this.powerBallAura.setPosition(this.ball.x, this.ball.y);
     this.ball.prevX = this.ball.x; this.ball.prevY = this.ball.y;
     this.ball.circle.setRotation(this.ball.spinAngle);
+  }
+
+  playPowerBallAura() {
+    if (!this.powerBallAura) return;
+    this.powerBallAura.setPosition(this.ball.x, this.ball.y);
+    this.powerBallAura.setVisible(true);
+    this.powerBallAura.play('powerBallTrailBurn');
   }
 
   playBallAura(auraId) {

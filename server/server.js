@@ -59,7 +59,31 @@ const SPRINT_GEM_COST = 1;
 const SPRINT_DURATION_MS = 3000;
 const SPRINT_SPEED_MULTIPLIER = 1.6;
 const SPRINT_COOLDOWN_MS = 5000;
-const BALL_MAX_SPEED = 600;
+// Power Ball: a standalone pickup orb (not the match ball itself) that
+// spawns at a random pitch location at a random interval. Unlike sprint
+// (gem-gated, one player's own resource), this is a free-for-all pitch
+// event - first player from EITHER team to reach it gets the buff, which
+// is the whole point (it creates a real scramble/mini-battle for it).
+const POWER_BALL_MIN_SPAWN_MS = 20000;
+const POWER_BALL_MAX_SPAWN_MS = 40000;
+const POWER_BALL_PICKUP_RADIUS = 45;
+// despawns if nobody reaches it in time, rather than sitting there for the
+// rest of the match if both teams happen to be at the other end of the pitch
+const POWER_BALL_UNCLAIMED_TIMEOUT_MS = 15000;
+const POWER_DURATION_MS = 10000;
+const POWER_KICK_MULTIPLIER = 1.5;
+const POWER_SPEED_MULTIPLIER = 1.4;
+
+function randomPowerBallDelay() {
+  return POWER_BALL_MIN_SPAWN_MS + Math.random() * (POWER_BALL_MAX_SPAWN_MS - POWER_BALL_MIN_SPAWN_MS);
+}
+// raised from 600 so a Power Ball kick (KICK_POWER * POWER_KICK_MULTIPLIER =
+// 780) isn't immediately clamped straight back down near normal-kick speed,
+// which would silently neuter most of the intended 1.5x boost - a normal
+// kick (520) was already comfortably under the old cap either way, so this
+// only actually changes anything for powered kicks (and rare collision
+// pile-ups), not everyday play
+const BALL_MAX_SPEED = 800;
 const BALL_DRAG = 0.96; // per-tick velocity multiplier
 const KICK_RANGE = 90;
 const KICK_POWER = 520;
@@ -222,6 +246,7 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
       equippedAura: null, equippedJersey: null, difficulty: randomBotDifficulty(), inputVec: { x: 0, y: 0 },
       pendingLeaveTimer: null,
       sprintUntil: 0, sprintReadyAt: 0,
+      poweredUntil: 0,
     };
   });
   const room = {
@@ -259,6 +284,11 @@ function createRoomState(hostSocketId, matchDuration, hostName, teamSize, hostUs
     kickoffLive: false,
     kickoffReadySlots: new Set(),
     kickoffFallbackTimer: null,
+    // Power Ball pickup - see updatePowerBall(). Not part of resetMatchState's
+    // usual per-goal reset (it persists across goals, only resetting on a
+    // genuine match (re)start) since a mid-match power window shouldn't be
+    // cut short just because someone happened to score during it.
+    powerBall: { active: false, x: 0, y: 0, spawnAt: 0, expiresAt: 0 },
   };
   entities.A1.isBot = false;
   entities.A1.socketId = hostSocketId;
@@ -295,14 +325,18 @@ function emitLobby(room) {
   io.to(room.code).emit('lobbyUpdate', { code: room.code, players, hostSlot: room.hostSlot, teamSize: room.teamSize, countdownEndsAt: room.matchmakeCountdownEndsAt || null });
 }
 
-// fired once per actual kick (not every tick) so clients can play the
-// kicker's equipped aura trail on the ball - only when there's actually an
-// aura to show (bots always carry equippedAura: null), so bot kicks (which
-// happen just as often as real ones) don't add pointless socket traffic
-function emitBallKicked(room, slot) {
+// fired once per actual kick (not every tick) so clients can play a trail on
+// the ball - either the kicker's own equipped cosmetic aura, or (taking
+// priority over it) the Power Ball trail if this kick was powered. Bots
+// always carry equippedAura: null and are never powered, so bot kicks
+// (which happen just as often as real ones) don't add pointless socket
+// traffic unless there's actually something to show.
+function emitBallKicked(room, slot, powered) {
   const e = room.entities[slot];
-  if (!e || !e.equippedAura) return;
-  io.to(room.code).emit('ballKicked', { slot, aura: e.equippedAura });
+  if (!e) return;
+  const aura = powered ? 'power' : e.equippedAura;
+  if (!aura) return;
+  io.to(room.code).emit('ballKicked', { slot, aura });
 }
 
 function resetMatchState(room) {
@@ -315,11 +349,13 @@ function resetMatchState(room) {
     const e = room.entities[slot];
     e.x = room.startPos[slot].x; e.y = room.startPos[slot].y;
     e.vx = 0; e.vy = 0; e.inputVec = { x: 0, y: 0 };
+    e.poweredUntil = 0;
   });
   room.ball.x = FIELD.w / 2; room.ball.y = FIELD.h / 2;
   room.ball.vx = 0; room.ball.vy = 0;
   room.botState = {};
   room.stallTracker = null;
+  room.powerBall = { active: false, x: 0, y: 0, spawnAt: Date.now() + randomPowerBallDelay(), expiresAt: 0 };
 
   // Kickoff-ready handshake: the sim stays frozen (no bot/ball movement, no
   // clock, no scoring) right after matchStarted fires until every connected
@@ -403,13 +439,57 @@ function updatePlayers(room, dt) {
     let { x: vx, y: vy } = e.inputVec;
     const mag = Math.hypot(vx, vy);
     if (mag > 1) { vx /= mag; vy /= mag; }
-    const speed = Date.now() < e.sprintUntil ? PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER : PLAYER_SPEED;
+    // sprint and Power Ball are independent buffs that can be active at the
+    // same time (nothing stops a player from also holding a sprint charge) -
+    // take the higher multiplier rather than stacking them multiplicatively,
+    // which would let a doubly-buffed player move unfairly (and physically
+    // implausibly) fast
+    const now = Date.now();
+    const speedMult = Math.max(
+      now < e.sprintUntil ? SPRINT_SPEED_MULTIPLIER : 1,
+      now < e.poweredUntil ? POWER_SPEED_MULTIPLIER : 1,
+    );
+    const speed = PLAYER_SPEED * speedMult;
     e.vx = vx * speed;
     e.vy = vy * speed;
     e.x += e.vx * dt;
     e.y += e.vy * dt;
     clampToPitch(e);
   });
+}
+
+// Power Ball pickup - a standalone orb, independent of the real match ball
+// (see the POWER_BALL_* constants). Handles its full lifecycle: spawning
+// after a random delay, despawning if nobody reaches it in time, and
+// granting the timed buff to whichever human player (bots don't qualify -
+// same as sprint, there's no meaningful "AI fights for it" behavior to add)
+// first gets within pickup range.
+function updatePowerBall(room, now) {
+  const pb = room.powerBall;
+  if (!pb.active) {
+    if (now >= pb.spawnAt) {
+      pb.x = PITCH.x + SPRITE_HALF_W + Math.random() * (PITCH.w - SPRITE_HALF_W * 2);
+      pb.y = PITCH.y + Math.random() * PITCH.h;
+      pb.active = true;
+      pb.expiresAt = now + POWER_BALL_UNCLAIMED_TIMEOUT_MS;
+    }
+    return;
+  }
+  if (now >= pb.expiresAt) {
+    pb.active = false;
+    pb.spawnAt = now + randomPowerBallDelay();
+    return;
+  }
+  for (const slot of room.slots) {
+    const e = room.entities[slot];
+    if (e.isBot || !e.userId) continue;
+    if (Math.hypot(pb.x - e.x, pb.y - e.y) <= POWER_BALL_PICKUP_RADIUS) {
+      e.poweredUntil = now + POWER_DURATION_MS;
+      pb.active = false;
+      pb.spawnAt = now + randomPowerBallDelay();
+      return;
+    }
+  }
 }
 
 // whichever entity (human or bot) is nearest the ball on each team becomes
@@ -724,9 +804,15 @@ function scoreGoal(room, team) {
 function broadcastState(room) {
   const entities = {};
   const now = Date.now();
+  // at most one slot is ever powered at a time (a single orb, consumed on
+  // pickup), so this doubles as the "who/how much time left" the Power Ball
+  // banner needs - every client shows it, not just the powered player
+  let poweredSlot = null, poweredRemainingMs = 0;
   room.slots.forEach((slot) => {
     const e = room.entities[slot];
-    entities[slot] = { x: e.x, y: e.y, sprinting: now < e.sprintUntil };
+    const powered = now < e.poweredUntil;
+    entities[slot] = { x: e.x, y: e.y, sprinting: now < e.sprintUntil, powered };
+    if (powered) { poweredSlot = slot; poweredRemainingMs = e.poweredUntil - now; }
   });
   io.to(room.code).emit('state', {
     entities,
@@ -735,6 +821,9 @@ function broadcastState(room) {
     timeRemaining: room.timeRemaining,
     ended: room.ended,
     stallResetCount: room.stallResetCount,
+    powerBall: room.powerBall.active ? { x: room.powerBall.x, y: room.powerBall.y } : null,
+    poweredSlot,
+    poweredRemainingMs,
   });
 }
 
@@ -793,6 +882,7 @@ function tick(room) {
     resolveCollisions(room);
     checkGoals(room);
     checkBallStall(room, Date.now());
+    updatePowerBall(room, Date.now());
   } else {
     room.stallTracker = null;
   }
@@ -1169,10 +1259,12 @@ io.on('connection', (socket) => {
     const dx = room.ball.x - e.x, dy = room.ball.y - e.y;
     if (Math.hypot(dx, dy) < KICK_RANGE) {
       const angle = Math.atan2(dy, dx);
-      room.ball.vx = Math.cos(angle) * KICK_POWER;
-      room.ball.vy = Math.sin(angle) * KICK_POWER;
+      const powered = Date.now() < e.poweredUntil;
+      const power = powered ? KICK_POWER * POWER_KICK_MULTIPLIER : KICK_POWER;
+      room.ball.vx = Math.cos(angle) * power;
+      room.ball.vy = Math.sin(angle) * power;
       room.ball.lastKickSlot = socket.data.slot;
-      emitBallKicked(room, socket.data.slot);
+      emitBallKicked(room, socket.data.slot, powered);
     }
   });
 
