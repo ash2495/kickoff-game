@@ -90,9 +90,12 @@ function sanitizeJersey(jersey) {
 
 // cosmetics that require an explicit unlock (see unlockedJerseys/
 // claimDailyLogin below) rather than being free-equip like every other
-// jersey - golden is the first (Day 7 daily-login-streak reward), more IDs
-// can land here later the same way
-const PREMIUM_JERSEY_IDS = ['golden'];
+// jersey - royal (Royal Gold) is the first (Day 7 daily-login-streak
+// reward), more IDs can land here later the same way
+const PREMIUM_JERSEY_IDS = ['royal'];
+// same idea as PREMIUM_JERSEY_IDS but for the Aura category - golden is the
+// Day 30 cumulative-login-milestone reward
+const PREMIUM_AURA_IDS = ['golden'];
 
 function issueToken(userId) {
   return crypto.createHmac('sha256', SESSION_SECRET).update(userId).digest('hex');
@@ -122,6 +125,8 @@ async function toPublicProfile(doc) {
     // explicit-unlock list for PREMIUM_JERSEY_IDS - every other jersey
     // stays free-equip exactly as before, so it isn't listed here at all
     unlockedJerseys: doc.unlockedJerseys || [],
+    // same as unlockedJerseys, for PREMIUM_AURA_IDS
+    unlockedAuras: doc.unlockedAuras || [],
     hasGoogle: !!doc.googleId,
     matchesPlayed,
     matchesWon,
@@ -192,6 +197,21 @@ async function backfillPremiumJerseyGrandfather(doc) {
   return updated || doc;
 }
 
+// same as backfillPremiumJerseyGrandfather, for PREMIUM_AURA_IDS
+async function backfillPremiumAuraGrandfather(doc) {
+  const unlocked = doc.unlockedAuras || [];
+  if (!doc.equippedAura || !PREMIUM_AURA_IDS.includes(doc.equippedAura) || unlocked.includes(doc.equippedAura)) {
+    return doc;
+  }
+  const users = getUsers();
+  const updated = await users.findOneAndUpdate(
+    { _id: doc._id },
+    { $addToSet: { unlockedAuras: doc.equippedAura } },
+    { returnDocument: 'after' }
+  );
+  return updated || doc;
+}
+
 async function guestLogin(deviceId) {
   if (typeof deviceId !== 'string' || !deviceId) return { ok: false, error: 'Missing device ID.' };
   const users = getUsers();
@@ -223,6 +243,7 @@ async function guestLogin(deviceId) {
   }
   doc = await backfillSignupBonuses(doc);
   doc = await backfillPremiumJerseyGrandfather(doc);
+  doc = await backfillPremiumAuraGrandfather(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -282,6 +303,7 @@ async function googleLogin(idToken, deviceId) {
   }
   doc = await backfillSignupBonuses(doc);
   doc = await backfillPremiumJerseyGrandfather(doc);
+  doc = await backfillPremiumAuraGrandfather(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -302,7 +324,16 @@ async function updateProfile(userId, authToken, { name, country, avatar, equippe
   }
   if (equippedAura !== undefined) {
     const cleanAura = sanitizeAura(equippedAura);
-    if (cleanAura !== undefined) set.equippedAura = cleanAura;
+    if (cleanAura !== undefined) {
+      if (PREMIUM_AURA_IDS.includes(cleanAura)) {
+        // locked cosmetic (see claimDailyLogin) - same "invalid -> leave
+        // unchanged" behavior as the equippedJersey gate below
+        const owner = await users.findOne({ _id: new ObjectId(userId) }, { projection: { unlockedAuras: 1 } });
+        if (owner && (owner.unlockedAuras || []).includes(cleanAura)) set.equippedAura = cleanAura;
+      } else {
+        set.equippedAura = cleanAura;
+      }
+    }
   }
   if (equippedPitch !== undefined) {
     const cleanPitch = sanitizePitch(equippedPitch);
@@ -344,6 +375,7 @@ async function getStats(userId) {
   if (!doc) return { ok: false, error: 'Profile not found.' };
   doc = await backfillSignupBonuses(doc);
   doc = await backfillPremiumJerseyGrandfather(doc);
+  doc = await backfillPremiumAuraGrandfather(doc);
   return { ok: true, ...(await toPublicProfile(doc)) };
 }
 
@@ -468,20 +500,26 @@ function dayEndsAt(dayId) {
 }
 
 // 7-day CONSECUTIVE streak - index 0 = day 1 ... index 6 = day 7, escalating
-// coins/gems, day 7 unlocks the Golden Jersey (see PREMIUM_JERSEY_IDS).
+// coins/gems, day 7 unlocks the Royal Gold Jersey (see PREMIUM_JERSEY_IDS).
 // Missing a day resets the streak back to day 1 (see claimDailyLogin).
 const STREAK_REWARDS = [
-  { coins: 200 }, { coins: 300 }, { gems: 2 }, { coins: 400 },
-  { gems: 3 }, { coins: 600 }, { jersey: 'golden' },
+  { coins: 250 }, { coins: 500 }, { gems: 10 }, { coins: 700 },
+  { gems: 15 }, { coins: 1000 }, { jersey: 'royal' },
 ];
 // if an account loops back around to day 7 already owning the jersey (day
-// 14, 21, ...), grant this flat bonus instead of a no-op re-grant
-const STREAK_LOOP_FALLBACK_COINS = 600;
+// 14, 21, ...), grant this bonus instead of a no-op re-grant
+const STREAK_LOOP_FALLBACK = { coins: 1500, gems: 20 };
 
 // 30-day CUMULATIVE counter - not streak-gated, any login day counts and a
 // gap never resets it. Each milestone grants exactly once, ever (lifetime,
-// no loop back to day 1 after day 30 - see claimedMilestones).
-const MILESTONE_REWARDS = { 10: { coins: 1500 }, 20: { coins: 3000, gems: 10 }, 30: { coins: 6000, gems: 20 } };
+// no loop back to day 1 after day 30 - see claimedMilestones). Day 30 also
+// unlocks the Golden Star aura (see PREMIUM_AURA_IDS) - no loop-fallback
+// needed here since claimedMilestones already makes this strictly one-time.
+const MILESTONE_REWARDS = {
+  10: { coins: 2500, gems: 10 },
+  20: { coins: 5000, gems: 20 },
+  30: { coins: 7000, gems: 50, aura: 'golden' },
+};
 
 // Called once per calendar day per user (client fires this on every menu
 // launch - see checkDailyLoginReward client-side - not just first login).
@@ -523,7 +561,7 @@ async function claimDailyLogin(userId, authToken) {
   const streakDay = ((newStreakCount - 1) % 7) + 1;
   let streakReward = STREAK_REWARDS[streakDay - 1];
   if (streakReward.jersey && unlockedJerseys.includes(streakReward.jersey)) {
-    streakReward = { coins: STREAK_LOOP_FALLBACK_COINS };
+    streakReward = STREAK_LOOP_FALLBACK;
   }
 
   let milestoneDay = null;
@@ -543,6 +581,9 @@ async function claimDailyLogin(userId, authToken) {
   }
   if (streakReward.jersey) {
     update.$addToSet = { ...(update.$addToSet || {}), unlockedJerseys: streakReward.jersey };
+  }
+  if (milestoneReward && milestoneReward.aura) {
+    update.$addToSet = { ...(update.$addToSet || {}), unlockedAuras: milestoneReward.aura };
   }
   if (milestoneDay) {
     update.$addToSet = { ...(update.$addToSet || {}), claimedMilestones: milestoneDay };

@@ -1519,59 +1519,114 @@
   #pause-menu .pause-hit-exit { top: 74%; height: 20%; }
 
   /* ---- Daily login reward popup - see checkDailyLoginReward/
-     showDailyRewardPopup. Same translucent-blur centered-card pattern as
-     #pause-menu/#exit-confirm above (a transient modal over the menu, not
-     a dedicated full screen like the leaderboard-info one). Placeholder
-     styling reusing this file's existing gold/navy/Press-Start-2P language
-     - real art assets replace this in a follow-up pass. ---- */
+     showDailyRewardPopup. Built from the real pixel-art asset set (daily_*
+     PNGs) rather than plain CSS - each piece below is a cropped/trimmed
+     slice of those source sheets, positioned with %-based absolute overlays
+     so the layout holds regardless of the popup's actual rendered size
+     (scales with the card, no fixed px). ---- */
   #daily-reward-popup {
     position: fixed; inset: 0; z-index: 990; display: none;
-    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
-    background: rgba(6,10,18,0.6);
+    align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+    background: rgba(6,10,18,0.65);
     backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
-  #daily-reward-popup .overlay-card { max-width: 460px; }
-  .drp-grant-row {
-    display: flex; align-items: center; gap: 12px; text-align: left;
-    background: #0e1a2b; border: 2px solid #e9c873; border-radius: 10px;
-    padding: 10px 14px; margin-bottom: 10px;
+  .drp-card {
+    width: 100%; max-width: 460px; max-height: 100%; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 2px 2px 10px;
   }
-  .drp-grant-row .drp-icon { font-size: 30px; flex: 0 0 auto; }
-  .drp-grant-row .drp-text { display: flex; flex-direction: column; gap: 2px; }
-  .drp-grant-row .drp-amount {
-    font-family: 'Press Start 2P', monospace; font-size: 14px; color: #ffcb3d;
+  .drp-card::-webkit-scrollbar { display: none; }
+  .drp-header {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
   }
-  .drp-grant-row .drp-label {
-    font-family: 'Rajdhani', sans-serif; font-size: 11px; color: #9fb0c3;
-    text-transform: uppercase; letter-spacing: 1px; font-weight: 700;
+  .drp-calendar { height: 30px; width: auto; flex: 0 0 auto; }
+  .drp-title { height: 30px; width: auto; flex: 1 1 auto; min-width: 0; object-fit: contain; }
+  .drp-ball { height: 26px; width: auto; flex: 0 0 auto; }
+  .drp-subtitle { width: 84%; height: auto; display: block; }
+
+  /* -- 30-day journey panel -- */
+  .drp-thirty { position: relative; width: 88%; }
+  .drp-thirty-bg { width: 100%; height: auto; display: block; }
+  .drp-thirty-fill-track {
+    position: absolute; left: 7.46%; top: 51.2%; width: 81.44%; height: 5.3%;
+    border-radius: 999px; overflow: hidden; pointer-events: none;
   }
-  .drp-streak-row { display: flex; gap: 6px; justify-content: center; margin: 14px 0; }
-  .drp-day-box {
-    flex: 1; min-width: 0; aspect-ratio: 1 / 1.15; border-radius: 6px;
-    border: 2px solid #2a3b52; background: #0e1a2b;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 2px; color: #7d8ea3;
+  .drp-thirty-fill {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #ffd23f, #ff9f1c);
+    box-shadow: 0 0 6px rgba(255,180,40,0.8);
+    transition: width 0.4s ease;
   }
-  .drp-day-box .drp-day-num { font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 11px; }
-  .drp-day-box .drp-day-icon { font-size: 13px; }
-  .drp-day-box.claimed { border-color: #5fa528; background: #132a10; color: #bff07a; }
-  .drp-day-box.today { border-color: #ffcb3d; box-shadow: 0 0 0 2px rgba(255,203,61,0.35); color: #ffe9a8; }
-  .drp-milestones { margin-bottom: 18px; }
-  .drp-progress-label {
-    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px;
-    color: #9fb0c3; text-align: center; margin-bottom: 6px;
+  .drp-thirty-pill {
+    position: absolute; left: 38.9%; top: 78.3%; width: 18.2%; height: 11.5%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif; font-weight: 700;
+    font-size: clamp(9px, 2.4vw, 12px); color: #ffe9a8; white-space: nowrap;
+    pointer-events: none;
   }
-  .drp-progress-bar {
-    height: 10px; border-radius: 6px; background: #0e1a2b;
-    border: 1px solid #2a3b52; overflow: hidden;
+  .drp-milestone-hit {
+    position: absolute; top: 8%; width: 15%; height: 46%;
+    background: transparent; border: none; padding: 0; cursor: pointer;
   }
-  .drp-progress-fill { height: 100%; background: linear-gradient(90deg, #2e86f5, #5fa8ff); }
-  .drp-milestone-row { display: flex; justify-content: space-between; margin-top: 8px; }
-  .drp-milestone {
-    flex: 1; text-align: center; font-family: 'Rajdhani', sans-serif;
-    font-weight: 700; font-size: 11px; color: #7d8ea3;
+  .drp-milestone-hit-10 { left: 25.5%; }
+  .drp-milestone-hit-20 { left: 50.2%; }
+  .drp-milestone-hit-30 { left: 81.4%; }
+
+  /* -- 7-day streak row -- */
+  .drp-seven { display: flex; gap: 3%; width: 100%; justify-content: center; }
+  .drp-day-card {
+    position: relative; flex: 1 1 0; min-width: 0;
+    filter: grayscale(0.75) brightness(0.55); transition: filter 0.2s;
   }
-  .drp-milestone.claimed { color: #bff07a; }
+  .drp-day-card.reached { filter: none; }
+  .drp-day-card img.drp-day-bg { width: 100%; height: auto; display: block; }
+  .drp-day-reward {
+    position: absolute; left: 0; top: 30%; width: 100%; height: 62%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3%;
+  }
+  .drp-day-reward img { width: 46%; height: auto; object-fit: contain; }
+  .drp-day-reward .drp-day-amount {
+    font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: clamp(8px, 2.3vw, 11px);
+    color: #ffe9a8; text-align: center; line-height: 1.1;
+  }
+  .drp-today-tag {
+    position: absolute; left: 50%; bottom: -14%; transform: translateX(-50%);
+    width: 78%; height: auto; z-index: 2;
+  }
+
+  .drp-collect-btn {
+    background: none; border: none; padding: 0; cursor: pointer; width: 40%;
+    margin-top: 2px;
+  }
+  .drp-collect-btn img { width: 100%; height: auto; display: block; }
+  .drp-collect-btn:active { transform: scale(0.96); }
+
+  /* -- milestone inspect tooltip (tap a gift icon on the 30-day track) -- */
+  #drp-milestone-tooltip {
+    position: fixed; inset: 0; z-index: 995; display: none;
+    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+    background: rgba(4,7,13,0.55);
+  }
+  .drp-ms-card { position: relative; width: 100%; max-width: 300px; }
+  .drp-ms-card img.drp-ms-bg { width: 100%; height: auto; display: block; }
+  .drp-ms-slot {
+    position: absolute; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 4%;
+  }
+  .drp-ms-slot img { width: 48%; height: auto; object-fit: contain; }
+  .drp-ms-slot .drp-ms-amount {
+    font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: clamp(9px, 3vw, 13px);
+    color: #ffe9a8; text-align: center; line-height: 1.1;
+  }
+  .drp-ms-claimed-ribbon {
+    position: absolute; left: 8%; top: 72.5%; width: 84%; height: 19.5%;
+    background: linear-gradient(180deg, #4fae2f, #2f7a1c); border: 2px solid #bff07a;
+    border-radius: 8px; display: none; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: clamp(10px, 3vw, 14px);
+    color: #f0ffd8; letter-spacing: 0.5px;
+  }
+  .drp-ms-card.claimed .drp-ms-claimed-ribbon { display: flex; }
 
   /* ---- Guided practice tutorial (FTUE) coachmark overlay - see
      TutorialScene/startTutorial(). Sits on top of #game-container while the
@@ -2011,16 +2066,36 @@
 </div>
 
 <div id="daily-reward-popup">
-  <div class="overlay-card">
-    <h2>DAILY REWARD!</h2>
-    <div id="drpGrants"></div>
-    <div class="drp-streak-row" id="drpStreakRow"></div>
-    <div class="drp-milestones">
-      <div class="drp-progress-label" id="drpProgressLabel">Login Days: 0 / 30</div>
-      <div class="drp-progress-bar"><div class="drp-progress-fill" id="drpProgressFill" style="width:0%"></div></div>
-      <div class="drp-milestone-row" id="drpMilestoneRow"></div>
+  <div class="drp-card">
+    <div class="drp-header">
+      <img class="drp-calendar" src="assets/daily_calendar.png" alt="" />
+      <img class="drp-title" src="assets/daily_title_banner.png" alt="Daily Rewards" />
+      <img class="drp-ball" src="assets/daily_ball_icon.png" alt="" />
     </div>
-    <button class="done-btn" onclick="SFX.click(); closeDailyRewardPopup()">NICE!</button>
+    <img class="drp-subtitle" src="assets/daily_subtitle.png" alt="Login every day and get rewards!" />
+
+    <div class="drp-thirty">
+      <img class="drp-thirty-bg" src="assets/daily_30day_banner.png" alt="30 Day Journey" />
+      <div class="drp-thirty-fill-track"><div class="drp-thirty-fill" id="drpThirtyFill"></div></div>
+      <div class="drp-thirty-pill" id="drpThirtyPill">0 / 30</div>
+      <button class="drp-milestone-hit drp-milestone-hit-10" onclick="SFX.click(); showMilestoneTooltip(10)" aria-label="Day 10 reward"></button>
+      <button class="drp-milestone-hit drp-milestone-hit-20" onclick="SFX.click(); showMilestoneTooltip(20)" aria-label="Day 20 reward"></button>
+      <button class="drp-milestone-hit drp-milestone-hit-30" onclick="SFX.click(); showMilestoneTooltip(30)" aria-label="Day 30 reward"></button>
+    </div>
+
+    <div class="drp-seven" id="drpSeven"></div>
+
+    <button class="drp-collect-btn" onclick="SFX.click(); closeDailyRewardPopup()">
+      <img src="assets/daily_collect_btn.png" alt="Collect" />
+    </button>
+  </div>
+</div>
+
+<div id="drp-milestone-tooltip" onclick="closeMilestoneTooltip(event)">
+  <div class="drp-ms-card" id="drpMsCard">
+    <img class="drp-ms-bg" id="drpMsBg" src="" alt="" />
+    <div class="drp-ms-claimed-ribbon">CLAIMED ✓</div>
+    <div id="drpMsSlots"></div>
   </div>
 </div>
 
@@ -2222,6 +2297,10 @@ let PROFILE_EQUIPPED_JERSEY = localStorage.getItem('kickoffDuelEquippedJersey') 
 let PROFILE_UNLOCKED_JERSEYS = (() => {
   try { return JSON.parse(localStorage.getItem('kickoffDuelUnlockedJerseys') || '[]'); } catch (e) { return []; }
 })();
+// same as PROFILE_UNLOCKED_JERSEYS, for auras in PREMIUM_AURA_IDS
+let PROFILE_UNLOCKED_AURAS = (() => {
+  try { return JSON.parse(localStorage.getItem('kickoffDuelUnlockedAuras') || '[]'); } catch (e) { return []; }
+})();
 
 // per-rank wreath art + the geometry needed to center it over an existing
 // plain avatar circle: holePct is how much of the wreath's own width the
@@ -2299,6 +2378,7 @@ function cacheProfile(p) {
   PROFILE_EQUIPPED_BALL = p.equippedBall || null;
   PROFILE_EQUIPPED_JERSEY = p.equippedJersey || null;
   PROFILE_UNLOCKED_JERSEYS = Array.isArray(p.unlockedJerseys) ? p.unlockedJerseys : PROFILE_UNLOCKED_JERSEYS;
+  PROFILE_UNLOCKED_AURAS = Array.isArray(p.unlockedAuras) ? p.unlockedAuras : PROFILE_UNLOCKED_AURAS;
   setCoins(typeof p.coins === 'number' ? p.coins : PROFILE_COINS);
   setGems(typeof p.gems === 'number' ? p.gems : PROFILE_GEMS);
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
@@ -2314,6 +2394,7 @@ function cacheProfile(p) {
   if (PROFILE_EQUIPPED_BALL) localStorage.setItem('kickoffDuelEquippedBall', PROFILE_EQUIPPED_BALL); else localStorage.removeItem('kickoffDuelEquippedBall');
   if (PROFILE_EQUIPPED_JERSEY) localStorage.setItem('kickoffDuelEquippedJersey', PROFILE_EQUIPPED_JERSEY); else localStorage.removeItem('kickoffDuelEquippedJersey');
   localStorage.setItem('kickoffDuelUnlockedJerseys', JSON.stringify(PROFILE_UNLOCKED_JERSEYS));
+  localStorage.setItem('kickoffDuelUnlockedAuras', JSON.stringify(PROFILE_UNLOCKED_AURAS));
   refreshMainMenuAvatar();
 }
 
@@ -2490,28 +2571,65 @@ function checkDailyLoginReward() {
         PROFILE_UNLOCKED_JERSEYS = [...PROFILE_UNLOCKED_JERSEYS, res.streakReward.jersey];
         localStorage.setItem('kickoffDuelUnlockedJerseys', JSON.stringify(PROFILE_UNLOCKED_JERSEYS));
       }
+      if (res.milestoneReward && res.milestoneReward.aura && !PROFILE_UNLOCKED_AURAS.includes(res.milestoneReward.aura)) {
+        PROFILE_UNLOCKED_AURAS = [...PROFILE_UNLOCKED_AURAS, res.milestoneReward.aura];
+        localStorage.setItem('kickoffDuelUnlockedAuras', JSON.stringify(PROFILE_UNLOCKED_AURAS));
+      }
       showDailyRewardPopup(res);
     });
   });
 }
 
-// display-only mirror of the server's STREAK_REWARDS icons (see
-// server/profile.js) - purely cosmetic for the 7-day strip, doesn't need
-// to match exact amounts since those come back from the server per-claim
-const STREAK_REWARD_ICONS = ['🪙', '🪙', '💎', '🪙', '💎', '🪙', '👕'];
+// display-only mirror of server/profile.js's STREAK_REWARDS/MILESTONE_REWARDS
+// - purely cosmetic (icons + amounts for the popup art), doesn't drive any
+// actual grant math, which always comes from the server's claimDailyLogin
+// response instead
+const STREAK_REWARDS_DISPLAY = [
+  { coins: 250 }, { coins: 500 }, { gems: 10 }, { coins: 700 },
+  { gems: 15 }, { coins: 1000 }, { jersey: true },
+];
+const MILESTONE_CARD_INFO = {
+  10: {
+    img: 'assets/daily_milestone10.png',
+    slots: [
+      { left: 12.13, top: 36.58, width: 34.94, height: 32.41, reward: { coins: 2500 } },
+      { left: 51.88, top: 36.58, width: 35.15, height: 32.41, reward: { gems: 10 } },
+    ],
+  },
+  20: {
+    img: 'assets/daily_milestone20.png',
+    slots: [
+      { left: 11.65, top: 36.58, width: 35.59, height: 32.21, reward: { coins: 5000 } },
+      { left: 51.48, top: 36.58, width: 34.96, height: 32.21, reward: { gems: 20 } },
+    ],
+  },
+  30: {
+    img: 'assets/daily_milestone30.png',
+    slots: [
+      { left: 6.81, top: 37.18, width: 27.03, height: 31.01, reward: { coins: 7000 } },
+      { left: 36.48, top: 37.18, width: 26.84, height: 31.01, reward: { gems: 50 } },
+      { left: 65.98, top: 37.18, width: 27.22, height: 31.01, reward: { aura: true } },
+    ],
+  },
+};
 
-function dailyRewardIcon(reward) {
-  if (reward.jersey) return '👕';
-  if (reward.gems) return '💎';
-  return '🪙';
+function dailyRewardIconSrc(reward) {
+  if (reward.jersey) return 'assets/jersey_grid_royal.png';
+  if (reward.aura) return 'assets/aura_grid_golden.png';
+  if (reward.gems) return 'assets/gem_icon.png';
+  return 'assets/coin_icon.png';
 }
 function dailyRewardAmountText(reward) {
-  if (reward.jersey) return 'UNLOCKED!';
-  const parts = [];
-  if (reward.coins) parts.push('+' + reward.coins.toLocaleString() + ' 🪙');
-  if (reward.gems) parts.push('+' + reward.gems + ' 💎');
-  return parts.join('  ');
+  if (reward.jersey || reward.aura) return '';
+  if (reward.coins) return '+' + reward.coins.toLocaleString();
+  if (reward.gems) return '+' + reward.gems;
+  return '';
 }
+
+// last claimDailyLogin response - kept around so showMilestoneTooltip (which
+// can be opened any time while this popup is up) knows the current
+// totalLoginDays without a second round-trip
+let LAST_DAILY_LOGIN_RESULT = null;
 
 // renders exactly what claimDailyLogin just granted (both the day's streak
 // reward and, on the rare day both land at once, a newly-crossed 10/20/30
@@ -2519,44 +2637,58 @@ function dailyRewardAmountText(reward) {
 // already happened server-side by the time this shows, so the button here
 // is purely an acknowledgment/dismiss, not a second request
 function showDailyRewardPopup(res) {
-  const grants = [{ label: 'Day ' + res.streakDay + ' Login Streak', reward: res.streakReward }];
-  if (res.milestoneReward) grants.push({ label: res.milestoneReward.day + '-Day Milestone!', reward: res.milestoneReward });
-  document.getElementById('drpGrants').innerHTML = grants.map((g) => `
-    <div class="drp-grant-row">
-      <div class="drp-icon">${dailyRewardIcon(g.reward)}</div>
-      <div class="drp-text">
-        <div class="drp-amount">${dailyRewardAmountText(g.reward)}</div>
-        <div class="drp-label">${g.label}</div>
-      </div>
-    </div>
-  `).join('');
+  LAST_DAILY_LOGIN_RESULT = res;
 
-  const streakRow = document.getElementById('drpStreakRow');
-  streakRow.innerHTML = '';
+  const seven = document.getElementById('drpSeven');
+  seven.innerHTML = '';
   for (let day = 1; day <= 7; day++) {
-    const box = document.createElement('div');
-    box.className = 'drp-day-box' + (day === res.streakDay ? ' today claimed' : day < res.streakDay ? ' claimed' : '');
-    box.innerHTML = `<div class="drp-day-num">${day}</div><div class="drp-day-icon">${STREAK_REWARD_ICONS[day - 1]}</div>`;
-    streakRow.appendChild(box);
+    const reward = STREAK_REWARDS_DISPLAY[day - 1];
+    const card = document.createElement('div');
+    card.className = 'drp-day-card' + (day <= res.streakDay ? ' reached' : '');
+    const amountText = dailyRewardAmountText(reward);
+    card.innerHTML = `
+      <img class="drp-day-bg" src="assets/daily_card${day}.png" alt="Day ${day}" />
+      <div class="drp-day-reward">
+        <img src="${dailyRewardIconSrc(reward)}" alt="" />
+        ${amountText ? `<div class="drp-day-amount">${amountText}</div>` : ''}
+      </div>
+      ${day === res.streakDay ? '<img class="drp-today-tag" src="assets/daily_today_tag.png" alt="Today" />' : ''}
+    `;
+    seven.appendChild(card);
   }
 
   const total = res.totalLoginDays;
-  document.getElementById('drpProgressLabel').textContent = 'Login Days: ' + total + ' / 30';
-  document.getElementById('drpProgressFill').style.width = Math.min(100, (total / 30) * 100) + '%';
-  const msRow = document.getElementById('drpMilestoneRow');
-  msRow.innerHTML = '';
-  [10, 20, 30].forEach((d) => {
-    const el = document.createElement('div');
-    el.className = 'drp-milestone' + (total >= d ? ' claimed' : '');
-    el.textContent = 'Day ' + d;
-    msRow.appendChild(el);
-  });
+  document.getElementById('drpThirtyFill').style.width = Math.min(100, (total / 30) * 100) + '%';
+  document.getElementById('drpThirtyPill').textContent = Math.min(total, 30) + ' / 30';
 
   document.getElementById('daily-reward-popup').style.display = 'flex';
 }
 
 function closeDailyRewardPopup() {
   document.getElementById('daily-reward-popup').style.display = 'none';
+}
+
+// tap-to-preview for the 30-day journey's gift icons - shows what's inside
+// (icons/amounts overlaid on the matching daily_milestoneN.png card) and
+// whether it's already been claimed, using the last claimDailyLogin result
+// still on screen (see LAST_DAILY_LOGIN_RESULT)
+function showMilestoneTooltip(day) {
+  const info = MILESTONE_CARD_INFO[day];
+  if (!info || !LAST_DAILY_LOGIN_RESULT) return;
+  const claimed = LAST_DAILY_LOGIN_RESULT.totalLoginDays >= day;
+  document.getElementById('drpMsBg').src = info.img;
+  document.getElementById('drpMsCard').classList.toggle('claimed', claimed);
+  document.getElementById('drpMsSlots').innerHTML = info.slots.map((slot) => `
+    <div class="drp-ms-slot" style="left:${slot.left}%; top:${slot.top}%; width:${slot.width}%; height:${slot.height}%;">
+      <img src="${dailyRewardIconSrc(slot.reward)}" alt="" />
+      ${dailyRewardAmountText(slot.reward) ? `<div class="drp-ms-amount">${dailyRewardAmountText(slot.reward)}</div>` : ''}
+    </div>
+  `).join('');
+  document.getElementById('drp-milestone-tooltip').style.display = 'flex';
+}
+function closeMilestoneTooltip(e) {
+  if (e && e.target.closest('.drp-ms-card')) return;
+  document.getElementById('drp-milestone-tooltip').style.display = 'none';
 }
 
 function guestLogin() {
@@ -3677,7 +3809,15 @@ function closeLeaderboardInfo() {
 // that need an entry in PROFILE_UNLOCKED_JERSEYS to equip (currently just
 // the Day-7 daily-login-streak reward), rather than being free-equip like
 // every other jersey
-const PREMIUM_JERSEY_IDS = ['golden'];
+const PREMIUM_JERSEY_IDS = ['royal'];
+// same idea as PREMIUM_JERSEY_IDS but for the Aura category - golden is the
+// Day-30 cumulative-login-milestone reward
+const PREMIUM_AURA_IDS = ['golden'];
+// lookup used by renderShopDetail's lock check below, keyed by the same
+// `cat` tag SHOP_ITEMS entries carry
+const PREMIUM_IDS_BY_CAT = { jersey: PREMIUM_JERSEY_IDS, aura: PREMIUM_AURA_IDS };
+const UNLOCKED_BY_CAT = { jersey: () => PROFILE_UNLOCKED_JERSEYS, aura: () => PROFILE_UNLOCKED_AURAS };
+const LOCK_MESSAGE_BY_CAT = { jersey: '🔒 Reach a 7-day login streak', aura: '🔒 Reach a 30-day login streak' };
 
 // per-category item list - empty categories just show "Coming soon" until
 // their art arrives (see the sidebar icons themselves)
@@ -3817,12 +3957,14 @@ function renderShopDetail(item) {
     // match the panel's), with just the equip control floating on top of
     // it instead of stacked below
     const posStyle = item.previewFit ? ` style="object-fit:${item.previewFit}"` : '';
-    // locked cosmetic (see PREMIUM_JERSEY_IDS/claimDailyLogin) - no equip
-    // control at all until it's actually been earned
-    if (PREMIUM_JERSEY_IDS.includes(item.id) && !PROFILE_UNLOCKED_JERSEYS.includes(item.id)) {
+    // locked cosmetic (see PREMIUM_JERSEY_IDS/PREMIUM_AURA_IDS/
+    // claimDailyLogin) - no equip control at all until it's actually earned
+    const premiumIds = PREMIUM_IDS_BY_CAT[item.cat];
+    const unlocked = UNLOCKED_BY_CAT[item.cat];
+    if (premiumIds && premiumIds.includes(item.id) && !unlocked().includes(item.id)) {
       detail.innerHTML = `
         <img class="shop-detail-preview-full" src="${item.previewImg}" alt="${item.name} preview"${posStyle} />
-        <div class="shop-equip-btn-img shop-equip-btn-overlay locked" id="shopEquipBtn">🔒 Reach a 7-day login streak</div>
+        <div class="shop-equip-btn-img shop-equip-btn-overlay locked" id="shopEquipBtn">${LOCK_MESSAGE_BY_CAT[item.cat]}</div>
       `;
       return;
     }
@@ -3837,6 +3979,8 @@ function renderShopDetail(item) {
 }
 
 function toggleEquipAura(auraId) {
+  // defensive backstop - see the matching guard in toggleEquipJersey
+  if (auraId && PREMIUM_AURA_IDS.includes(auraId) && !PROFILE_UNLOCKED_AURAS.includes(auraId)) return;
   const next = PROFILE_EQUIPPED_AURA === auraId ? null : auraId; // tap again to unequip
   PROFILE_EQUIPPED_AURA = next;
   if (next) localStorage.setItem('kickoffDuelEquippedAura', next); else localStorage.removeItem('kickoffDuelEquippedAura');
