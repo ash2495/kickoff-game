@@ -1363,6 +1363,15 @@ io.on('connection', (socket) => {
     }));
   });
 
+  // fired on every menu launch (see checkDailyLoginReward client-side), not
+  // just once - profile.claimDailyLogin's own atomic day-lock is what makes
+  // that safe, returning alreadyClaimedToday:true on every call after the
+  // first one for a given calendar day
+  socket.on('claimDailyLogin', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.claimDailyLogin(data && data.userId, data && data.authToken));
+  });
+
   // re-fetches current stats (matches played/won, goals) without a full
   // login round-trip - called each time the Profile screen opens, since the
   // cached profile from login can be stale after playing more matches

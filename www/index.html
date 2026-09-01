@@ -536,6 +536,16 @@
   }
   #shop-screen .shop-equip-btn-img.equipped { filter: hue-rotate(80deg) saturate(1.3); color: #0f2e12; }
   #shop-screen .shop-equip-btn-img:active { transform: scale(0.96); }
+  /* locked premium jersey - longer label than the pill art was cut for, so
+     drop the image background and use a plain dim pill until real "locked"
+     art exists */
+  #shop-screen .shop-equip-btn-img.locked {
+    width: clamp(200px, 60vw, 340px); aspect-ratio: unset; height: auto;
+    background: rgba(10, 14, 22, 0.85); border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 999px; padding: 10px 18px; cursor: default;
+    color: #d8c98a; font-size: clamp(11px, 1.9vh, 14px); text-align: center;
+    line-height: 1.3;
+  }
 
   .settings-gear {
     position: fixed;
@@ -1508,6 +1518,61 @@
   #pause-menu .pause-hit-settings { top: 49%; height: 20%; }
   #pause-menu .pause-hit-exit { top: 74%; height: 20%; }
 
+  /* ---- Daily login reward popup - see checkDailyLoginReward/
+     showDailyRewardPopup. Same translucent-blur centered-card pattern as
+     #pause-menu/#exit-confirm above (a transient modal over the menu, not
+     a dedicated full screen like the leaderboard-info one). Placeholder
+     styling reusing this file's existing gold/navy/Press-Start-2P language
+     - real art assets replace this in a follow-up pass. ---- */
+  #daily-reward-popup {
+    position: fixed; inset: 0; z-index: 990; display: none;
+    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+    background: rgba(6,10,18,0.6);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  #daily-reward-popup .overlay-card { max-width: 460px; }
+  .drp-grant-row {
+    display: flex; align-items: center; gap: 12px; text-align: left;
+    background: #0e1a2b; border: 2px solid #e9c873; border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 10px;
+  }
+  .drp-grant-row .drp-icon { font-size: 30px; flex: 0 0 auto; }
+  .drp-grant-row .drp-text { display: flex; flex-direction: column; gap: 2px; }
+  .drp-grant-row .drp-amount {
+    font-family: 'Press Start 2P', monospace; font-size: 14px; color: #ffcb3d;
+  }
+  .drp-grant-row .drp-label {
+    font-family: 'Rajdhani', sans-serif; font-size: 11px; color: #9fb0c3;
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 700;
+  }
+  .drp-streak-row { display: flex; gap: 6px; justify-content: center; margin: 14px 0; }
+  .drp-day-box {
+    flex: 1; min-width: 0; aspect-ratio: 1 / 1.15; border-radius: 6px;
+    border: 2px solid #2a3b52; background: #0e1a2b;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; color: #7d8ea3;
+  }
+  .drp-day-box .drp-day-num { font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 11px; }
+  .drp-day-box .drp-day-icon { font-size: 13px; }
+  .drp-day-box.claimed { border-color: #5fa528; background: #132a10; color: #bff07a; }
+  .drp-day-box.today { border-color: #ffcb3d; box-shadow: 0 0 0 2px rgba(255,203,61,0.35); color: #ffe9a8; }
+  .drp-milestones { margin-bottom: 18px; }
+  .drp-progress-label {
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px;
+    color: #9fb0c3; text-align: center; margin-bottom: 6px;
+  }
+  .drp-progress-bar {
+    height: 10px; border-radius: 6px; background: #0e1a2b;
+    border: 1px solid #2a3b52; overflow: hidden;
+  }
+  .drp-progress-fill { height: 100%; background: linear-gradient(90deg, #2e86f5, #5fa8ff); }
+  .drp-milestone-row { display: flex; justify-content: space-between; margin-top: 8px; }
+  .drp-milestone {
+    flex: 1; text-align: center; font-family: 'Rajdhani', sans-serif;
+    font-weight: 700; font-size: 11px; color: #7d8ea3;
+  }
+  .drp-milestone.claimed { color: #bff07a; }
+
   /* ---- Guided practice tutorial (FTUE) coachmark overlay - see
      TutorialScene/startTutorial(). Sits on top of #game-container while the
      tutorial's own local Phaser scene is running underneath; every element
@@ -1945,6 +2010,20 @@
   </div>
 </div>
 
+<div id="daily-reward-popup">
+  <div class="overlay-card">
+    <h2>DAILY REWARD!</h2>
+    <div id="drpGrants"></div>
+    <div class="drp-streak-row" id="drpStreakRow"></div>
+    <div class="drp-milestones">
+      <div class="drp-progress-label" id="drpProgressLabel">Login Days: 0 / 30</div>
+      <div class="drp-progress-bar"><div class="drp-progress-fill" id="drpProgressFill" style="width:0%"></div></div>
+      <div class="drp-milestone-row" id="drpMilestoneRow"></div>
+    </div>
+    <button class="done-btn" onclick="SFX.click(); closeDailyRewardPopup()">NICE!</button>
+  </div>
+</div>
+
 <div id="ftue-overlay">
   <div class="ftue-dimband" id="ftueDimTop"></div>
   <div class="ftue-dimband" id="ftueDimBottom"></div>
@@ -2136,6 +2215,13 @@ let PROFILE_EQUIPPED_BALL = localStorage.getItem('kickoffDuelEquippedBall') || n
 // match, not self-only (see JERSEY_CHAR_SRC) - sent to the server on
 // create/join/quickMatch and broadcast to the room via lobbyUpdate
 let PROFILE_EQUIPPED_JERSEY = localStorage.getItem('kickoffDuelEquippedJersey') || null;
+// jerseys in PREMIUM_JERSEY_IDS (see the Shop section below) need an entry
+// here to be equippable - every other jersey stays free-equip. Cached the
+// same way as everything else in cacheProfile(), just as JSON since it's
+// an array rather than a single value.
+let PROFILE_UNLOCKED_JERSEYS = (() => {
+  try { return JSON.parse(localStorage.getItem('kickoffDuelUnlockedJerseys') || '[]'); } catch (e) { return []; }
+})();
 
 // per-rank wreath art + the geometry needed to center it over an existing
 // plain avatar circle: holePct is how much of the wreath's own width the
@@ -2212,6 +2298,7 @@ function cacheProfile(p) {
   PROFILE_EQUIPPED_PITCH = p.equippedPitch || null;
   PROFILE_EQUIPPED_BALL = p.equippedBall || null;
   PROFILE_EQUIPPED_JERSEY = p.equippedJersey || null;
+  PROFILE_UNLOCKED_JERSEYS = Array.isArray(p.unlockedJerseys) ? p.unlockedJerseys : PROFILE_UNLOCKED_JERSEYS;
   setCoins(typeof p.coins === 'number' ? p.coins : PROFILE_COINS);
   setGems(typeof p.gems === 'number' ? p.gems : PROFILE_GEMS);
   setPlayerName(p.name); // profile name IS the match-making name - one source of truth
@@ -2226,6 +2313,7 @@ function cacheProfile(p) {
   if (PROFILE_EQUIPPED_PITCH) localStorage.setItem('kickoffDuelEquippedPitch', PROFILE_EQUIPPED_PITCH); else localStorage.removeItem('kickoffDuelEquippedPitch');
   if (PROFILE_EQUIPPED_BALL) localStorage.setItem('kickoffDuelEquippedBall', PROFILE_EQUIPPED_BALL); else localStorage.removeItem('kickoffDuelEquippedBall');
   if (PROFILE_EQUIPPED_JERSEY) localStorage.setItem('kickoffDuelEquippedJersey', PROFILE_EQUIPPED_JERSEY); else localStorage.removeItem('kickoffDuelEquippedJersey');
+  localStorage.setItem('kickoffDuelUnlockedJerseys', JSON.stringify(PROFILE_UNLOCKED_JERSEYS));
   refreshMainMenuAvatar();
 }
 
@@ -2376,6 +2464,101 @@ function animateCoinCount(from, to, duration) {
   requestAnimationFrame(step);
 }
 
+// shows the main menu AND checks for an unclaimed daily-login reward - the
+// single wrapper used at every genuine "first time mode-select becomes
+// visible this session" point (fresh login, FTUE finishing, app launch
+// with/without a match to resume, leaving a resumed match) rather than
+// every place that merely closes a sub-screen BACK to a menu already shown
+// earlier this session (Shop/Leaderboard/Private lobby closing, etc.),
+// which would just re-fire the same already-answered check pointlessly.
+// Safe to call more than once a day regardless - claimDailyLogin's own
+// atomic day-lock server-side means every call after the first one for a
+// given calendar day just comes back as alreadyClaimedToday with no popup.
+function showMainMenu() {
+  document.getElementById('mode-select').style.display = 'flex';
+  checkDailyLoginReward();
+}
+
+function checkDailyLoginReward() {
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) return;
+  ensureSocket(() => {
+    socket.emit('claimDailyLogin', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN }, (res) => {
+      if (!res || !res.ok || res.alreadyClaimedToday) return;
+      setCoins(res.coins);
+      setGems(res.gems);
+      if (res.streakReward && res.streakReward.jersey && !PROFILE_UNLOCKED_JERSEYS.includes(res.streakReward.jersey)) {
+        PROFILE_UNLOCKED_JERSEYS = [...PROFILE_UNLOCKED_JERSEYS, res.streakReward.jersey];
+        localStorage.setItem('kickoffDuelUnlockedJerseys', JSON.stringify(PROFILE_UNLOCKED_JERSEYS));
+      }
+      showDailyRewardPopup(res);
+    });
+  });
+}
+
+// display-only mirror of the server's STREAK_REWARDS icons (see
+// server/profile.js) - purely cosmetic for the 7-day strip, doesn't need
+// to match exact amounts since those come back from the server per-claim
+const STREAK_REWARD_ICONS = ['🪙', '🪙', '💎', '🪙', '💎', '🪙', '👕'];
+
+function dailyRewardIcon(reward) {
+  if (reward.jersey) return '👕';
+  if (reward.gems) return '💎';
+  return '🪙';
+}
+function dailyRewardAmountText(reward) {
+  if (reward.jersey) return 'UNLOCKED!';
+  const parts = [];
+  if (reward.coins) parts.push('+' + reward.coins.toLocaleString() + ' 🪙');
+  if (reward.gems) parts.push('+' + reward.gems + ' 💎');
+  return parts.join('  ');
+}
+
+// renders exactly what claimDailyLogin just granted (both the day's streak
+// reward and, on the rare day both land at once, a newly-crossed 10/20/30
+// milestone too) plus the current state of both tracks - the grant itself
+// already happened server-side by the time this shows, so the button here
+// is purely an acknowledgment/dismiss, not a second request
+function showDailyRewardPopup(res) {
+  const grants = [{ label: 'Day ' + res.streakDay + ' Login Streak', reward: res.streakReward }];
+  if (res.milestoneReward) grants.push({ label: res.milestoneReward.day + '-Day Milestone!', reward: res.milestoneReward });
+  document.getElementById('drpGrants').innerHTML = grants.map((g) => `
+    <div class="drp-grant-row">
+      <div class="drp-icon">${dailyRewardIcon(g.reward)}</div>
+      <div class="drp-text">
+        <div class="drp-amount">${dailyRewardAmountText(g.reward)}</div>
+        <div class="drp-label">${g.label}</div>
+      </div>
+    </div>
+  `).join('');
+
+  const streakRow = document.getElementById('drpStreakRow');
+  streakRow.innerHTML = '';
+  for (let day = 1; day <= 7; day++) {
+    const box = document.createElement('div');
+    box.className = 'drp-day-box' + (day === res.streakDay ? ' today claimed' : day < res.streakDay ? ' claimed' : '');
+    box.innerHTML = `<div class="drp-day-num">${day}</div><div class="drp-day-icon">${STREAK_REWARD_ICONS[day - 1]}</div>`;
+    streakRow.appendChild(box);
+  }
+
+  const total = res.totalLoginDays;
+  document.getElementById('drpProgressLabel').textContent = 'Login Days: ' + total + ' / 30';
+  document.getElementById('drpProgressFill').style.width = Math.min(100, (total / 30) * 100) + '%';
+  const msRow = document.getElementById('drpMilestoneRow');
+  msRow.innerHTML = '';
+  [10, 20, 30].forEach((d) => {
+    const el = document.createElement('div');
+    el.className = 'drp-milestone' + (total >= d ? ' claimed' : '');
+    el.textContent = 'Day ' + d;
+    msRow.appendChild(el);
+  });
+
+  document.getElementById('daily-reward-popup').style.display = 'flex';
+}
+
+function closeDailyRewardPopup() {
+  document.getElementById('daily-reward-popup').style.display = 'none';
+}
+
 function guestLogin() {
   document.getElementById('loginError').textContent = '';
   document.getElementById('loginRetryBtn').style.display = 'none';
@@ -2405,7 +2588,7 @@ function guestLogin() {
       if (!PROFILE_FTUE_COMPLETED) {
         startTutorial();
       } else {
-        document.getElementById('mode-select').style.display = 'flex';
+        showMainMenu();
       }
     });
   }, onConnectFail);
@@ -3490,6 +3673,12 @@ function closeLeaderboardInfo() {
   document.getElementById('leaderboard-info-screen').style.display = 'none';
 }
 
+// client-side mirror of server/profile.js's PREMIUM_JERSEY_IDS - jerseys
+// that need an entry in PROFILE_UNLOCKED_JERSEYS to equip (currently just
+// the Day-7 daily-login-streak reward), rather than being free-equip like
+// every other jersey
+const PREMIUM_JERSEY_IDS = ['golden'];
+
 // per-category item list - empty categories just show "Coming soon" until
 // their art arrives (see the sidebar icons themselves)
 const SHOP_ITEMS = {
@@ -3627,9 +3816,18 @@ function renderShopDetail(item) {
     // gap on any side even if the card's own aspect ratio doesn't exactly
     // match the panel's), with just the equip control floating on top of
     // it instead of stacked below
+    const posStyle = item.previewFit ? ` style="object-fit:${item.previewFit}"` : '';
+    // locked cosmetic (see PREMIUM_JERSEY_IDS/claimDailyLogin) - no equip
+    // control at all until it's actually been earned
+    if (PREMIUM_JERSEY_IDS.includes(item.id) && !PROFILE_UNLOCKED_JERSEYS.includes(item.id)) {
+      detail.innerHTML = `
+        <img class="shop-detail-preview-full" src="${item.previewImg}" alt="${item.name} preview"${posStyle} />
+        <div class="shop-equip-btn-img shop-equip-btn-overlay locked" id="shopEquipBtn">🔒 Reach a 7-day login streak</div>
+      `;
+      return;
+    }
     const equipCfg = CARD_EQUIP_CONFIG[item.cat];
     const equipped = item.readyForEquip && equipCfg && equipCfg.get() === item.id;
-    const posStyle = item.previewFit ? ` style="object-fit:${item.previewFit}"` : '';
     detail.innerHTML = `
       <img class="shop-detail-preview-full" src="${item.previewImg}" alt="${item.name} preview"${posStyle} />
       <button class="shop-equip-btn-img shop-equip-btn-overlay${equipped ? ' equipped' : ''}" id="shopEquipBtn">${equipped ? 'EQUIPPED' : 'EQUIP'}</button>
@@ -3694,6 +3892,11 @@ function toggleEquipBall(ballId) {
 // self-only, no in-game effect yet - see the cardPreview comment on
 // SHOP_ITEMS.jersey
 function toggleEquipJersey(jerseyId) {
+  // defensive backstop - the Shop UI never renders an EQUIP control for a
+  // locked premium jersey in the first place (see renderShopDetail), and
+  // the server re-checks this independently regardless, but this keeps the
+  // local optimistic state below from ever getting ahead of reality
+  if (jerseyId && PREMIUM_JERSEY_IDS.includes(jerseyId) && !PROFILE_UNLOCKED_JERSEYS.includes(jerseyId)) return;
   const next = PROFILE_EQUIPPED_JERSEY === jerseyId ? null : jerseyId; // tap again to unequip
   PROFILE_EQUIPPED_JERSEY = next;
   if (next) localStorage.setItem('kickoffDuelEquippedJersey', next); else localStorage.removeItem('kickoffDuelEquippedJersey');
@@ -4213,7 +4416,7 @@ function resumeActiveMatchOrShowMenu() {
   try { saved = JSON.parse(localStorage.getItem('kickoffDuelActiveMatch') || 'null'); } catch (e) {}
   if (!saved || !saved.code || saved.userId !== PROFILE_USER_ID) {
     clearActiveMatch();
-    document.getElementById('mode-select').style.display = 'flex';
+    showMainMenu();
     // a returning user's coins/gems otherwise only ever come from
     // localStorage - nothing else touches the server on a normal launch
     // that isn't resuming a match, so a balance change made server-side
@@ -4230,7 +4433,7 @@ function resumeActiveMatchOrShowMenu() {
     }, (res) => {
       if (!res || !res.ok) {
         clearActiveMatch();
-        document.getElementById('mode-select').style.display = 'flex';
+        showMainMenu();
         return;
       }
       roomCode = res.code; mySlot = res.slot; isHost = res.isHost;
@@ -4247,7 +4450,7 @@ function resumeActiveMatchOrShowMenu() {
     // couldn't even reach the server right now - leave the saved record in
     // place (it may just be a network blip) and fall back to the menu for
     // this launch; they can retry manually
-    document.getElementById('mode-select').style.display = 'flex';
+    showMainMenu();
   });
 }
 
@@ -4307,7 +4510,7 @@ function exitOnlineMatch() {
   document.getElementById('decor-layer').style.display = 'block';
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
-  document.getElementById('mode-select').style.display = 'flex';
+  showMainMenu();
   SFX.menuMusic.start();
   if (pendingCoinWinAmount > 0) {
     const amount = pendingCoinWinAmount;
@@ -5723,7 +5926,7 @@ function finishTutorial() {
   document.getElementById('game-container').style.display = 'none';
   document.getElementById('stadium-bg').style.display = 'block';
   document.getElementById('decor-layer').style.display = 'block';
-  document.getElementById('mode-select').style.display = 'flex';
+  showMainMenu();
   document.querySelector('.settings-gear').style.display = 'flex';
   document.querySelector('.exit-app-btn').style.display = 'flex';
   SFX.menuMusic.start();

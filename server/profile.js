@@ -88,6 +88,12 @@ function sanitizeJersey(jersey) {
   return JERSEY_IDS.includes(jersey) ? jersey : undefined;
 }
 
+// cosmetics that require an explicit unlock (see unlockedJerseys/
+// claimDailyLogin below) rather than being free-equip like every other
+// jersey - golden is the first (Day 7 daily-login-streak reward), more IDs
+// can land here later the same way
+const PREMIUM_JERSEY_IDS = ['golden'];
+
 function issueToken(userId) {
   return crypto.createHmac('sha256', SESSION_SECRET).update(userId).digest('hex');
 }
@@ -113,6 +119,9 @@ async function toPublicProfile(doc) {
     equippedPitch: doc.equippedPitch || null,
     equippedBall: doc.equippedBall || null,
     equippedJersey: doc.equippedJersey || null,
+    // explicit-unlock list for PREMIUM_JERSEY_IDS - every other jersey
+    // stays free-equip exactly as before, so it isn't listed here at all
+    unlockedJerseys: doc.unlockedJerseys || [],
     hasGoogle: !!doc.googleId,
     matchesPlayed,
     matchesWon,
@@ -163,6 +172,26 @@ async function backfillSignupBonuses(doc) {
   return (await users.findOne({ _id: doc._id })) || doc;
 }
 
+// grandfathers a player who already had a now-locked cosmetic (see
+// PREMIUM_JERSEY_IDS) equipped BEFORE it became a streak-earned unlock -
+// so shipping that restriction never retroactively takes away something
+// someone was already wearing. Cheap no-op check on every read path
+// (guestLogin/googleLogin/getStats), same call pattern as
+// backfillSignupBonuses above.
+async function backfillPremiumJerseyGrandfather(doc) {
+  const unlocked = doc.unlockedJerseys || [];
+  if (!doc.equippedJersey || !PREMIUM_JERSEY_IDS.includes(doc.equippedJersey) || unlocked.includes(doc.equippedJersey)) {
+    return doc;
+  }
+  const users = getUsers();
+  const updated = await users.findOneAndUpdate(
+    { _id: doc._id },
+    { $addToSet: { unlockedJerseys: doc.equippedJersey } },
+    { returnDocument: 'after' }
+  );
+  return updated || doc;
+}
+
 async function guestLogin(deviceId) {
   if (typeof deviceId !== 'string' || !deviceId) return { ok: false, error: 'Missing device ID.' };
   const users = getUsers();
@@ -193,6 +222,7 @@ async function guestLogin(deviceId) {
     doc = { ...insert, _id: result.insertedId };
   }
   doc = await backfillSignupBonuses(doc);
+  doc = await backfillPremiumJerseyGrandfather(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -251,6 +281,7 @@ async function googleLogin(idToken, deviceId) {
     }
   }
   doc = await backfillSignupBonuses(doc);
+  doc = await backfillPremiumJerseyGrandfather(doc);
 
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
@@ -259,6 +290,7 @@ async function updateProfile(userId, authToken, { name, country, avatar, equippe
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
 
+  const users = getUsers();
   const set = { lastSeenAt: new Date() };
   if (name !== undefined) set.name = sanitizeName(name);
   if (country !== undefined) set.country = sanitizeCountry(country);
@@ -282,10 +314,19 @@ async function updateProfile(userId, authToken, { name, country, avatar, equippe
   }
   if (equippedJersey !== undefined) {
     const cleanJersey = sanitizeJersey(equippedJersey);
-    if (cleanJersey !== undefined) set.equippedJersey = cleanJersey;
+    if (cleanJersey !== undefined) {
+      if (PREMIUM_JERSEY_IDS.includes(cleanJersey)) {
+        // locked cosmetic (see claimDailyLogin) - only settable once actually
+        // unlocked, same "invalid -> leave unchanged" behavior as an
+        // unrecognized jersey ID above rather than an explicit error
+        const owner = await users.findOne({ _id: new ObjectId(userId) }, { projection: { unlockedJerseys: 1 } });
+        if (owner && (owner.unlockedJerseys || []).includes(cleanJersey)) set.equippedJersey = cleanJersey;
+      } else {
+        set.equippedJersey = cleanJersey;
+      }
+    }
   }
 
-  const users = getUsers();
   const doc = await users.findOneAndUpdate(
     { _id: new ObjectId(userId) },
     { $set: set },
@@ -302,6 +343,7 @@ async function getStats(userId) {
   let doc = await users.findOne({ _id: new ObjectId(userId) });
   if (!doc) return { ok: false, error: 'Profile not found.' };
   doc = await backfillSignupBonuses(doc);
+  doc = await backfillPremiumJerseyGrandfather(doc);
   return { ok: true, ...(await toPublicProfile(doc)) };
 }
 
@@ -333,6 +375,14 @@ async function creditCoins(userId, amount) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId) || !Number.isInteger(amount) || amount <= 0) return;
   const users = getUsers();
   await users.updateOne({ _id: new ObjectId(userId) }, { $inc: { coins: amount } });
+}
+
+// mirrors creditCoins exactly - nothing granted gems server-side before the
+// daily-login reward (see claimDailyLogin below), only ever spent
+async function creditGems(userId, amount) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId) || !Number.isInteger(amount) || amount <= 0) return;
+  const users = getUsers();
+  await users.updateOne({ _id: new ObjectId(userId) }, { $inc: { gems: amount } });
 }
 
 // gem spends (in-match sprint activation, gem-priced shop purchases) are
@@ -401,6 +451,119 @@ function getWeekId(date = new Date()) {
 }
 function weekEndsAt(weekId) {
   return WEEK_EPOCH + (weekId + 1) * WEEK_MS;
+}
+
+// ---- Daily login reward (two independent tracks) ----
+// day boundaries reuse the exact same fixed-UTC-epoch reasoning as the
+// weekly leaderboard above (a calendar day from the same arbitrary epoch,
+// not local midnight, so it never drifts by timezone and every server
+// process agrees on the same boundary) - just a shorter period, same epoch
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function getDayId(date = new Date()) {
+  return Math.floor((date.getTime() - WEEK_EPOCH) / DAY_MS);
+}
+function dayEndsAt(dayId) {
+  return WEEK_EPOCH + (dayId + 1) * DAY_MS;
+}
+
+// 7-day CONSECUTIVE streak - index 0 = day 1 ... index 6 = day 7, escalating
+// coins/gems, day 7 unlocks the Golden Jersey (see PREMIUM_JERSEY_IDS).
+// Missing a day resets the streak back to day 1 (see claimDailyLogin).
+const STREAK_REWARDS = [
+  { coins: 200 }, { coins: 300 }, { gems: 2 }, { coins: 400 },
+  { gems: 3 }, { coins: 600 }, { jersey: 'golden' },
+];
+// if an account loops back around to day 7 already owning the jersey (day
+// 14, 21, ...), grant this flat bonus instead of a no-op re-grant
+const STREAK_LOOP_FALLBACK_COINS = 600;
+
+// 30-day CUMULATIVE counter - not streak-gated, any login day counts and a
+// gap never resets it. Each milestone grants exactly once, ever (lifetime,
+// no loop back to day 1 after day 30 - see claimedMilestones).
+const MILESTONE_REWARDS = { 10: { coins: 1500 }, 20: { coins: 3000, gems: 10 }, 30: { coins: 6000, gems: 20 } };
+
+// Called once per calendar day per user (client fires this on every menu
+// launch - see checkDailyLoginReward client-side - not just first login).
+// The atomic day-lock below (the findOneAndUpdate with a `$ne` filter
+// guard) is what makes that safe to call redundantly: only the request
+// that actually flips `dailyLogin.lastDayId` to today "wins" and computes/
+// grants anything, closing the double-grant race the same way
+// deductCoins's `$gte` filter guard does elsewhere in this file - without
+// needing a single aggregation-pipeline update for logic this branchy
+// (streak math + milestone crossing + a jersey unlock all interacting).
+async function claimDailyLogin(userId, authToken) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
+  if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
+
+  const users = getUsers();
+  const todayId = getDayId();
+
+  // returnDocument:'before' - we need the PRE-update lastDayId to tell
+  // whether today is consecutive with the last claim, not the post-update
+  // value (which this same call is about to overwrite with todayId)
+  const before = await users.findOneAndUpdate(
+    { _id: new ObjectId(userId), 'dailyLogin.lastDayId': { $ne: todayId } },
+    { $set: { 'dailyLogin.lastDayId': todayId } },
+    { returnDocument: 'before' }
+  );
+  if (!before) {
+    const doc = await users.findOne({ _id: new ObjectId(userId) });
+    if (!doc) return { ok: false, error: 'Profile not found.' };
+    return { ok: true, alreadyClaimedToday: true, coins: doc.coins || 0, gems: doc.gems || 0 };
+  }
+
+  const prevStreak = before.dailyLogin || {};
+  const consecutive = prevStreak.lastDayId === todayId - 1;
+  const newStreakCount = consecutive ? (prevStreak.streakCount || 0) + 1 : 1;
+  const newTotalLoginDays = (before.totalLoginDays || 0) + 1;
+  const claimedMilestones = before.claimedMilestones || [];
+  const unlockedJerseys = before.unlockedJerseys || [];
+
+  const streakDay = ((newStreakCount - 1) % 7) + 1;
+  let streakReward = STREAK_REWARDS[streakDay - 1];
+  if (streakReward.jersey && unlockedJerseys.includes(streakReward.jersey)) {
+    streakReward = { coins: STREAK_LOOP_FALLBACK_COINS };
+  }
+
+  let milestoneDay = null;
+  for (const day of [10, 20, 30]) {
+    if (newTotalLoginDays >= day && !claimedMilestones.includes(day)) { milestoneDay = day; break; }
+  }
+  const milestoneReward = milestoneDay ? MILESTONE_REWARDS[milestoneDay] : null;
+
+  let coinsToAdd = (streakReward.coins || 0) + (milestoneReward ? (milestoneReward.coins || 0) : 0);
+  let gemsToAdd = (streakReward.gems || 0) + (milestoneReward ? (milestoneReward.gems || 0) : 0);
+
+  const update = { $set: { 'dailyLogin.streakCount': newStreakCount, totalLoginDays: newTotalLoginDays } };
+  if (coinsToAdd || gemsToAdd) {
+    update.$inc = {};
+    if (coinsToAdd) update.$inc.coins = coinsToAdd;
+    if (gemsToAdd) update.$inc.gems = gemsToAdd;
+  }
+  if (streakReward.jersey) {
+    update.$addToSet = { ...(update.$addToSet || {}), unlockedJerseys: streakReward.jersey };
+  }
+  if (milestoneDay) {
+    update.$addToSet = { ...(update.$addToSet || {}), claimedMilestones: milestoneDay };
+  }
+
+  const after = await users.findOneAndUpdate(
+    { _id: new ObjectId(userId) },
+    update,
+    { returnDocument: 'after' }
+  );
+
+  return {
+    ok: true,
+    alreadyClaimedToday: false,
+    streakDay,
+    streakReward,
+    totalLoginDays: newTotalLoginDays,
+    milestoneReward: milestoneDay ? { day: milestoneDay, ...milestoneReward } : null,
+    coins: (after && after.coins) || 0,
+    gems: (after && after.gems) || 0,
+  };
 }
 
 // if the week has rolled over since the last time anyone checked, snapshot
@@ -486,4 +649,4 @@ async function getLeaderboard(userId) {
   return { ok: true, top, me, lastWeekWinners, weekEndsAt: weekEndsAt(currentWeekId) };
 }
 
-module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, deductGems };
+module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, creditGems, deductGems, claimDailyLogin };
