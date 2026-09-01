@@ -1508,6 +1508,68 @@
   #pause-menu .pause-hit-settings { top: 49%; height: 20%; }
   #pause-menu .pause-hit-exit { top: 74%; height: 20%; }
 
+  /* ---- Guided practice tutorial (FTUE) coachmark overlay - see
+     TutorialScene/startTutorial(). Sits on top of #game-container while the
+     tutorial's own local Phaser scene is running underneath; every element
+     here is `pointer-events:none` except the skip chip, so taps still reach
+     the tutorial scene's own joystick/kick-zone/sprint-button input below it. ---- */
+  #ftue-overlay {
+    position: fixed; inset: 0; z-index: 1400; display: none;
+    pointer-events: none;
+  }
+  /* four plain solid bands tiling everything OUTSIDE the hole rect, rather
+     than one box-shadow-based cutout (0 0 0 9999px) - the oversized-spread
+     trick reads correctly in code/devtools but silently failed to actually
+     paint at all against a small circular hole in testing (worked fine for
+     the two half-screen rect holes, only broke on the small sprint-button
+     circle) - some engines cap/cull box-shadow spread past a certain size
+     relative to the element. Four real rectangles have no such edge case:
+     each one is just an ordinary opaque div, guaranteed to render the same
+     regardless of hole size or shape. Positioned/sized in JS per step (see
+     positionFtueSpotlight). */
+  .ftue-dimband {
+    position: absolute; background: rgba(4,7,13,0.82);
+    transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+  .ftue-spot-ring {
+    position: absolute; border: 2px dashed rgba(255,255,255,0.6);
+    animation: ftueSpotPulse 1.7s ease-in-out infinite;
+    transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+  .ftue-spot-ring.rect { border-radius: 10px; }
+  .ftue-spot-ring.circle { border-radius: 50%; }
+  @media (prefers-reduced-motion: reduce) { .ftue-spot-ring { animation: none; } }
+  @keyframes ftueSpotPulse { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.35; } }
+  .ftue-bubble {
+    position: absolute; max-width: min(300px, 60vw);
+    background: #0e1a2b; border: 3px solid #2e86f5;
+    box-shadow: 0 0 0 4px #1a1008, 0 10px 22px rgba(0,0,0,0.55);
+    border-radius: 10px; padding: 12px 16px; text-align: center;
+    transition: left 0.25s ease, top 0.25s ease;
+  }
+  .ftue-bubble .ftue-step-label {
+    display: block; font-family: 'Orbitron', sans-serif; font-weight: 700;
+    font-size: 10px; color: #6fb3ff; letter-spacing: 1px; margin-bottom: 5px;
+  }
+  .ftue-bubble p {
+    font-family: 'Press Start 2P', monospace; font-size: 11px; line-height: 1.7;
+    color: #fff; margin: 0; text-shadow: 0 2px 0 #060a12;
+  }
+  .ftue-skip {
+    position: fixed; pointer-events: auto;
+    top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right));
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px;
+    color: #cfd8e6; background: rgba(6,10,18,0.68);
+    border: 1px solid rgba(255,255,255,0.28); border-radius: 6px;
+    padding: 7px 13px; letter-spacing: 0.5px; cursor: pointer;
+  }
+  #ftue-complete {
+    position: fixed; inset: 0; z-index: 1410; display: none;
+    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+    background: rgba(6,10,18,0.72);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
   /* a solid fallback color paints instantly behind the background image,
      so there's never a flash of blank white while loading_bg_pixel.jpg
      (bundled locally, not fetched from a CDN) decodes */
@@ -1883,6 +1945,27 @@
   </div>
 </div>
 
+<div id="ftue-overlay">
+  <div class="ftue-dimband" id="ftueDimTop"></div>
+  <div class="ftue-dimband" id="ftueDimBottom"></div>
+  <div class="ftue-dimband" id="ftueDimLeft"></div>
+  <div class="ftue-dimband" id="ftueDimRight"></div>
+  <div class="ftue-spot-ring" id="ftueSpotRing"></div>
+  <div class="ftue-bubble" id="ftueBubble">
+    <span class="ftue-step-label" id="ftueStepLabel">STEP 1 / 3</span>
+    <p id="ftueBubbleText">DRAG HERE TO MOVE</p>
+  </div>
+  <button class="ftue-skip" onclick="SFX.click(); skipTutorial()">SKIP TUTORIAL</button>
+</div>
+
+<div id="ftue-complete">
+  <div class="overlay-card">
+    <h2>YOU'RE READY!</h2>
+    <div style="font-size:15px; opacity:0.85; margin-bottom:22px;">Nice shot! You've got the basics down - time to play for real.</div>
+    <button class="done-btn" onclick="SFX.click(); finishTutorial()">▶ START PLAYING</button>
+  </div>
+</div>
+
 <div id="settings-panel">
   <button class="back-circle-btn" onclick="SFX.click(); closeSettings()"><span class="chevron-left"></span></button>
   <div class="overlay-card">
@@ -2026,6 +2109,13 @@ let PROFILE_GEMS = Number(localStorage.getItem('kickoffDuelGems')) || 0;
 // immediately from localStorage on a returning launch, before any
 // server round-trip completes
 let PROFILE_FRAME_RANK = Number(localStorage.getItem('kickoffDuelFrameRank')) || null;
+// true once the guided practice tutorial (see startTutorial) has been
+// completed or skipped - defaults true (not false) so a returning launch
+// that hasn't yet round-tripped to the server never flashes the tutorial
+// by mistake; the real, authoritative value always comes from the server
+// (see cacheProfile) and only guestLogin()'s first-ever callback actually
+// acts on a `false` here
+let PROFILE_FTUE_COMPLETED = localStorage.getItem('kickoffDuelFtueCompleted') !== '0';
 // Shop → Aura selection (e.g. 'fire'), or null if none equipped - sent to
 // the server on match join (see createRoom/joinRoom/quickMatch emits) so
 // it can tell every client in the room to play the trail when this player
@@ -2117,6 +2207,7 @@ function cacheProfile(p) {
   PROFILE_AVATAR = p.avatar || null;
   PROFILE_HAS_GOOGLE = !!p.hasGoogle;
   PROFILE_FRAME_RANK = p.frameRank || null;
+  PROFILE_FTUE_COMPLETED = p.ftueCompleted !== false;
   PROFILE_EQUIPPED_AURA = p.equippedAura || null;
   PROFILE_EQUIPPED_PITCH = p.equippedPitch || null;
   PROFILE_EQUIPPED_BALL = p.equippedBall || null;
@@ -2129,6 +2220,7 @@ function cacheProfile(p) {
   if (PROFILE_COUNTRY) localStorage.setItem('kickoffDuelProfileCountry', PROFILE_COUNTRY); else localStorage.removeItem('kickoffDuelProfileCountry');
   if (PROFILE_AVATAR) localStorage.setItem('kickoffDuelProfileAvatar', PROFILE_AVATAR); else localStorage.removeItem('kickoffDuelProfileAvatar');
   localStorage.setItem('kickoffDuelHasGoogle', PROFILE_HAS_GOOGLE ? '1' : '0');
+  localStorage.setItem('kickoffDuelFtueCompleted', PROFILE_FTUE_COMPLETED ? '1' : '0');
   if (PROFILE_FRAME_RANK) localStorage.setItem('kickoffDuelFrameRank', String(PROFILE_FRAME_RANK)); else localStorage.removeItem('kickoffDuelFrameRank');
   if (PROFILE_EQUIPPED_AURA) localStorage.setItem('kickoffDuelEquippedAura', PROFILE_EQUIPPED_AURA); else localStorage.removeItem('kickoffDuelEquippedAura');
   if (PROFILE_EQUIPPED_PITCH) localStorage.setItem('kickoffDuelEquippedPitch', PROFILE_EQUIPPED_PITCH); else localStorage.removeItem('kickoffDuelEquippedPitch');
@@ -2306,8 +2398,15 @@ function guestLogin() {
       }
       cacheProfile(res);
       document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('mode-select').style.display = 'flex';
       SFX.menuMusic.start();
+      // brand-new account (see ftueCompleted's server-side default) - run
+      // the guided practice tutorial instead of going straight to the menu;
+      // startTutorial() itself shows mode-select once it's done/skipped
+      if (!PROFILE_FTUE_COMPLETED) {
+        startTutorial();
+      } else {
+        document.getElementById('mode-select').style.display = 'flex';
+      }
     });
   }, onConnectFail);
 }
@@ -5192,6 +5291,452 @@ const onlineConfig = {
   },
   scene: [OnlineScene]
 };
+
+// ============================================================
+// GUIDED PRACTICE TUTORIAL (FTUE) — a fully local, network-free Phaser
+// scene run in its own separate Phaser.Game instance (never alongside a
+// real match's `gameInstance`/OnlineScene - see `tutorialGameInstance`
+// below). Reuses OnlineScene's own art/sprite-sheet layout constants
+// (FIELD, CHAR_*, SECTOR_POSE, JERSEY_*, createSprintButton) so the
+// practice player/pitch look identical to a real match, but every input
+// handler here drives LOCAL state directly instead of a socket.emit -
+// there's no room, no bots, no server round-trip, by design (see the
+// FTUE plan: bots have no passive mode, so a real bot match would fight
+// against a scripted, controllable pace).
+// ============================================================
+
+// three steps, each completed by actually performing the taught action
+// (not a tap-to-continue) - `target` says which coachmark shape/position
+// positionFtueSpotlight() should show while this step is active
+const FTUE_STEPS = [
+  { key: 'move', label: 'STEP 1 / 3', text: 'DRAG HERE<br>TO MOVE', target: 'joystick' },
+  { key: 'sprint', label: 'STEP 2 / 3', text: 'TAP TO<br>SPRINT', target: 'sprint' },
+  { key: 'kick', label: 'STEP 3 / 3', text: 'TAP HERE TO<br>KICK THE GOAL', target: 'kick' },
+];
+
+class TutorialScene extends Phaser.Scene {
+  constructor() { super('tutorial'); }
+
+  preload() {
+    this.load.image('fieldTexture', currentFieldTextureSrc());
+    this.load.image('ballTexture', currentBallTextureSrc());
+    this.load.image('sprintIconReady', 'assets/sprint_btn_icon.png');
+    this.load.image('sprintIconActive', 'assets/sprint_btn_icon_active.png');
+    this.load.image('sprintBadge', 'assets/sprint_btn_badge.png');
+    // whatever jersey (if any) is already equipped - matches how the real
+    // match renders this same player everywhere else. A genuinely brand-new
+    // account (the only account type that ever reaches this scene) has
+    // none equipped yet, so this is normally just the plain default kit.
+    const hasJersey = PROFILE_EQUIPPED_JERSEY && JERSEY_CHAR_SRC[PROFILE_EQUIPPED_JERSEY];
+    this.playerTexKey = hasJersey ? 'jerseyChar_' + PROFILE_EQUIPPED_JERSEY : 'charBlue';
+    this.playerLayout = hasJersey ? JERSEY_LAYOUTS[PROFILE_EQUIPPED_JERSEY] : CHAR_LAYOUT_DEFAULT;
+    if (hasJersey) {
+      this.load.spritesheet(this.playerTexKey, JERSEY_CHAR_SRC[PROFILE_EQUIPPED_JERSEY], { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    } else {
+      this.load.spritesheet('charBlue', 'assets/char_blue.png', { frameWidth: CHAR_W, frameHeight: CHAR_H });
+    }
+  }
+
+  create() {
+    const W = FIELD.w, H = FIELD.h;
+
+    if (!this.textures.exists('particleDot')) {
+      const pg = this.add.graphics();
+      pg.fillStyle(0xffffff, 1);
+      pg.fillCircle(4, 4, 4);
+      pg.generateTexture('particleDot', 8, 8);
+      pg.destroy();
+    }
+
+    this.add.rectangle(W / 2, H / 2, W, H, 0x0b1220);
+    const fieldImg = this.add.image(W / 2, H / 2, 'fieldTexture');
+    fieldImg.setScale(W / fieldImg.width, H / fieldImg.height);
+
+    // ---- Player ----
+    this.playerStart = { x: 700, y: 400 };
+    this.player = {
+      x: this.playerStart.x, y: this.playerStart.y,
+      circle: this.add.sprite(this.playerStart.x, this.playerStart.y, this.playerTexKey, 0),
+      shadow: this.add.ellipse(this.playerStart.x, this.playerStart.y + 28, 34, 12, 0x000000, 0.3),
+      pose: 'front', flip: false, walkDist: 0, lastMoveAt: 0, kick: null,
+      layout: this.playerLayout,
+    };
+
+    // ---- Ball - starts a short, fixed distance to the player's right, so
+    // the very first kick (once step 3 resets both to this same formation -
+    // see goToStep) sends it in a straight, guaranteed-scoring line without
+    // needing any real aiming from a first-time player ----
+    this.ballStart = { x: 770, y: 400 };
+    this.ball = {
+      x: this.ballStart.x, y: this.ballStart.y, prevX: this.ballStart.x, prevY: this.ballStart.y,
+      spinAngle: 0,
+      circle: this.add.image(this.ballStart.x, this.ballStart.y, 'ballTexture'),
+      shadow: this.add.ellipse(this.ballStart.x, this.ballStart.y + 18, 22, 8, 0x000000, 0.3),
+    };
+
+    // ---- Sprint button - reused exactly as-is (already decoupled from
+    // socket internally); badge/cost hidden since sprint is free here ----
+    this.sprintBtn = createSprintButton(this);
+    this.sprintBtn.badge.setVisible(false);
+    this.sprintBtn.costText.setVisible(false);
+    this.sprintBtn.container.on('pointerdown', () => this.triggerLocalSprint());
+
+    this.speedMult = 1;
+    this.sprintActiveUntil = 0;
+    this.sprintUsed = false;
+    this.moveDistTotal = 0;
+    this.ballKicking = false;
+
+    this.setupTutorialJoystick();
+    this.setupTutorialKickZone();
+
+    this.stepIndex = -1;
+    this.goToStep(0);
+  }
+
+  // identical visual/behavior to OnlineScene.setupOnlineJoystick (same base/
+  // knob circles, same left-half zone) - the only difference is what happens
+  // with the resulting vector: integrated into local player position each
+  // frame (see update()) instead of socket.emit('input', ...)
+  setupTutorialJoystick() {
+    const baseR = 120, knobR = 58;
+    const W = this.scale.width, H = this.scale.height;
+    const base = this.add.circle(0, 0, baseR, 0x0b1220, 0.35).setStrokeStyle(3, 0xffcb3d, 0.55).setVisible(false);
+    const inner = this.add.circle(0, 0, baseR - 10, 0xffffff, 0.04).setVisible(false);
+    const knob = this.add.circle(0, 0, knobR, 0x2e86f5, 0.85).setStrokeStyle(3, 0x9ccdff, 0.9).setVisible(false);
+    this.tutorialJoystick = { baseX: 0, baseY: 0, baseR, active: false, vec: { x: 0, y: 0 }, pointerId: null };
+    const zone = this.add.zone(0, 0, W / 2, H).setOrigin(0, 0).setInteractive();
+    const js = this.tutorialJoystick;
+    const showAt = (x, y) => { js.baseX = x; js.baseY = y; base.setPosition(x, y).setVisible(true); inner.setPosition(x, y).setVisible(true); knob.setPosition(x, y).setVisible(true); };
+    const hide = () => { base.setVisible(false); inner.setVisible(false); knob.setVisible(false); };
+    const updateKnob = (px, py) => {
+      const dx = px - js.baseX, dy = py - js.baseY;
+      const dist = Math.min(Math.sqrt(dx * dx + dy * dy), baseR);
+      const angle = Math.atan2(dy, dx);
+      const kx = js.baseX + Math.cos(angle) * dist, ky = js.baseY + Math.sin(angle) * dist;
+      knob.setPosition(kx, ky);
+      js.vec = { x: (kx - js.baseX) / baseR, y: (ky - js.baseY) / baseR };
+    };
+    zone.on('pointerdown', (p) => { if (js.active) return; js.active = true; js.pointerId = p.id; showAt(p.x, p.y); });
+    this.input.on('pointermove', (p) => { if (js.active && p.id === js.pointerId) updateKnob(p.x, p.y); });
+    this.input.on('pointerup', (p) => { if (p.id === js.pointerId) { js.active = false; js.vec = { x: 0, y: 0 }; hide(); } });
+  }
+
+  // same right-half tap zone/ripple visual as OnlineScene.setupOnlineKickZone
+  setupTutorialKickZone() {
+    const W = this.scale.width, H = this.scale.height;
+    const zone = this.add.zone(W / 2, 0, W / 2, H).setOrigin(0, 0).setInteractive();
+    zone.on('pointerdown', (p) => {
+      const r = this.add.circle(p.x, p.y, 26, 0xffcb3d, 0.5).setStrokeStyle(3, 0xfff3cf, 0.7);
+      this.tweens.add({ targets: r, scale: 2.4, alpha: 0, duration: 320, ease: 'Cubic.Out', onComplete: () => r.destroy() });
+      this.attemptKick();
+    });
+  }
+
+  attemptKick() {
+    const dx = this.ball.x - this.player.x, dy = this.ball.y - this.player.y;
+    if (Math.hypot(dx, dy) > 90 || this.ballKicking) return; // 90 = server's KICK_RANGE
+    const angle = Math.atan2(dy, dx);
+    if (Math.abs(Math.cos(angle)) > 0.15) this.player.flip = Math.cos(angle) > 0;
+    this.player.kick = { angle, until: this.time.now + 220, duration: 220 };
+    if (typeof SFX !== 'undefined') SFX.click();
+    // earlier steps' kick taps are just a free practice swing with nothing
+    // to aim at yet - only the dedicated 'kick' step (after goToStep resets
+    // the ball to the guaranteed straight-line setup) actually sends it flying
+    if (this.currentStepKey() !== 'kick') return;
+    this.ballKicking = true;
+    const targetX = 1430, targetY = this.ball.y; // just past NET_MAX_X (1422) - a scored goal
+    const dist = Phaser.Math.Distance.Between(this.ball.x, this.ball.y, targetX, targetY);
+    this.tweens.add({
+      targets: this.ball, x: targetX, y: targetY,
+      duration: Math.max(300, dist / 520 * 1000), // 520 = server's KICK_POWER, same feel
+      ease: 'Sine.Out',
+      onComplete: () => this.onGoalScored(),
+    });
+  }
+
+  // gem cost/server ack are both irrelevant here - purely cosmetic speed
+  // boost plus the same ring/cooldown visuals as a real sprint
+  triggerLocalSprint() {
+    if (this.time.now < this.sprintBtn.readyAt) return;
+    this.speedMult = 1.6; // matches server's SPRINT_SPEED_MULTIPLIER
+    this.sprintActiveUntil = this.time.now + 3000; // SPRINT_DURATION_MS
+    this.sprintBtn.totalMs = 3000 + 5000; // + SPRINT_COOLDOWN_MS
+    this.sprintBtn.readyAt = this.time.now + this.sprintBtn.totalMs;
+    if (typeof SFX !== 'undefined') SFX.click();
+    vibrate(20);
+    if (!this.sprintUsed) {
+      this.sprintUsed = true;
+      if (this.currentStepKey() === 'sprint') this.completeCurrentStep();
+    }
+  }
+
+  // verbatim copy of OnlineScene.updateSprintCooldown - reads/writes only
+  // this.sprintBtn/this.time, nothing OnlineScene-specific
+  updateSprintCooldown() {
+    const sb = this.sprintBtn;
+    const remaining = sb.readyAt - this.time.now;
+    const onCooldown = remaining > 0 && sb.totalMs > 0;
+    sb.cooldownGfx.clear();
+    if (onCooldown) {
+      sb.icon.setTexture('sprintIconActive');
+      const elapsedFrac = 1 - Phaser.Math.Clamp(remaining / sb.totalMs, 0, 1);
+      if (elapsedFrac > 0) {
+        sb.cooldownGfx.fillStyle(0x0b1220, 0.92);
+        sb.cooldownGfx.slice(0, 0, sb.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * elapsedFrac, false);
+        sb.cooldownGfx.fillPath();
+      }
+    } else {
+      sb.icon.setTexture('sprintIconReady');
+    }
+  }
+
+  currentStepKey() {
+    const step = FTUE_STEPS[this.stepIndex];
+    return step ? step.key : null;
+  }
+
+  goToStep(i) {
+    this.stepIndex = i;
+    const step = FTUE_STEPS[i];
+    if (!step) return;
+    if (step.key === 'kick') {
+      // guaranteed-setup reset regardless of wherever steps 1/2 left the
+      // player - see the ballStart comment above for why this formation
+      // always lines up into the goal on the very first kick
+      this.tweens.killTweensOf(this.ball);
+      this.ballKicking = false;
+      this.player.x = this.playerStart.x; this.player.y = this.playerStart.y;
+      this.ball.x = this.ballStart.x; this.ball.y = this.ballStart.y;
+      this.ball.prevX = this.ball.x; this.ball.prevY = this.ball.y;
+    }
+    if (typeof ftueShowStep === 'function') ftueShowStep(step);
+  }
+
+  completeCurrentStep() {
+    const next = this.stepIndex + 1;
+    if (next < FTUE_STEPS.length) {
+      this.goToStep(next);
+    } else if (typeof ftueShowComplete === 'function') {
+      ftueShowComplete();
+    }
+  }
+
+  onGoalScored() {
+    this.ballKicking = false;
+    // reuses the real match's own goal celebration verbatim (flash/shake/
+    // rays/particles/SFX) - it only ever touches this.scale/this.add/
+    // this.tweens/this.cameras/this.time/this.ball, all generic scene APIs,
+    // nothing OnlineScene-specific, so it works unmodified on this scene too
+    OnlineScene.prototype.celebrateGoal.call(this);
+    this.completeCurrentStep();
+  }
+
+  update(time, delta) {
+    this.updateSprintCooldown();
+    if (this.sprintActiveUntil && time > this.sprintActiveUntil) {
+      this.speedMult = 1;
+      this.sprintActiveUntil = 0;
+    }
+
+    const vec = this.tutorialJoystick.vec;
+    const mag = Math.hypot(vec.x, vec.y);
+    if (mag > 0.05 && !this.ballKicking) {
+      const speed = 260 * this.speedMult; // matches server's PLAYER_SPEED
+      const dx = vec.x * speed * (delta / 1000);
+      const dy = vec.y * speed * (delta / 1000);
+      // clamped to the real pitch bounds (see server's PITCH constant),
+      // inset by roughly the player's own radius
+      this.player.x = Phaser.Math.Clamp(this.player.x + dx, 192, 1408);
+      this.player.y = Phaser.Math.Clamp(this.player.y + dy, 165, 634);
+      const moved = Math.hypot(dx, dy);
+      if (moved > 0.05) {
+        let deg = Math.atan2(dy, dx) * 180 / Math.PI;
+        if (deg < 0) deg += 360;
+        const sector = Math.round(deg / 45) % 8;
+        [this.player.pose, this.player.flip] = SECTOR_POSE[sector];
+        this.player.walkDist += moved;
+        this.player.lastMoveAt = time;
+        this.moveDistTotal += moved;
+        if (this.currentStepKey() === 'move' && this.moveDistTotal > 150) this.completeCurrentStep();
+      }
+    }
+
+    this.player.circle.setPosition(this.player.x, this.player.y);
+    this.player.shadow.setPosition(this.player.x, this.player.y + 28);
+    if (this.player.kick && time < this.player.kick.until) {
+      const t = 1 - (this.player.kick.until - time) / this.player.kick.duration;
+      const ease = Math.sin(Math.min(Math.max(t, 0), 1) * Math.PI);
+      this.player.circle.setFlipX(!!this.player.flip);
+      this.player.circle.setScale(1 + ease * 0.35, 1 - ease * 0.22);
+      this.player.circle.setFrame(this.player.layout[this.player.pose].start);
+    } else {
+      this.player.circle.setScale(1, 1);
+      const poseLayout = this.player.layout[this.player.pose];
+      if (time - this.player.lastMoveAt < 180) {
+        this.player.circle.setFrame(poseLayout.start + (Math.floor(this.player.walkDist / CHAR_STRIDE) % poseLayout.count));
+      } else {
+        this.player.circle.setFrame(poseLayout.start);
+      }
+      this.player.circle.setFlipX(!!this.player.flip);
+    }
+
+    this.ball.circle.setPosition(this.ball.x, this.ball.y);
+    this.ball.shadow.setPosition(this.ball.x, this.ball.y + 18);
+    const rolled = Phaser.Math.Distance.Between(this.ball.x, this.ball.y, this.ball.prevX, this.ball.prevY);
+    this.ball.spinAngle += rolled / 16;
+    this.ball.circle.setRotation(this.ball.spinAngle);
+    this.ball.prevX = this.ball.x; this.ball.prevY = this.ball.y;
+  }
+}
+
+const tutorialConfig = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width: FIELD.w,
+  height: FIELD.h,
+  backgroundColor: '#0b1220',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  input: { activePointers: 3 },
+  scene: [TutorialScene],
+};
+let tutorialGameInstance = null;
+let ftueResizeHandlerBound = false;
+
+function ftueCanvasRect() {
+  const canvas = document.querySelector('#game-container canvas');
+  return canvas ? canvas.getBoundingClientRect() : null;
+}
+
+// world (0-1600 / 0-800) to real screen pixels - simple ratio because
+// #game-container canvas is force-stretched to 100%/100% (see its CSS),
+// so there's no Scale.FIT letterboxing to account for
+function ftueWorldToScreen(x, y) {
+  const rect = ftueCanvasRect();
+  if (!rect) return { x: 0, y: 0 };
+  return { x: rect.left + (x / FIELD.w) * rect.width, y: rect.top + (y / FIELD.h) * rect.height };
+}
+
+// positions the dimmer/spotlight-ring/speech-bubble for one step's target -
+// all three named targets are static screen regions (not moving sprites):
+// the joystick/kick zones are simply the left/right half of the canvas, and
+// the sprint button sits at a fixed pitch-relative position (mirrors
+// createSprintButton's own PITCH_RIGHT/PITCH_BOTTOM math)
+function positionFtueSpotlight(targetKey) {
+  const rect = ftueCanvasRect();
+  const ring = document.getElementById('ftueSpotRing');
+  const bubble = document.getElementById('ftueBubble');
+  const bands = {
+    top: document.getElementById('ftueDimTop'),
+    bottom: document.getElementById('ftueDimBottom'),
+    left: document.getElementById('ftueDimLeft'),
+    right: document.getElementById('ftueDimRight'),
+  };
+  if (!rect || !ring || !bubble || !bands.top) return;
+  let shape, x, y, w, h, bubbleX, bubbleY;
+  if (targetKey === 'joystick') {
+    shape = 'rect';
+    x = rect.left; y = rect.top; w = rect.width / 2; h = rect.height;
+    bubbleX = rect.left + rect.width * 0.25 - 130; bubbleY = rect.top + rect.height * 0.5 - 30;
+  } else if (targetKey === 'kick') {
+    shape = 'rect';
+    x = rect.left + rect.width / 2; y = rect.top; w = rect.width / 2; h = rect.height;
+    bubbleX = rect.left + rect.width * 0.75 - 130; bubbleY = rect.top + rect.height * 0.5 - 30;
+  } else {
+    shape = 'circle';
+    const PITCH_RIGHT = 162 + 1276, PITCH_BOTTOM = 135 + 529, r = 36;
+    const center = ftueWorldToScreen(PITCH_RIGHT - r - 6, PITCH_BOTTOM - r - 6);
+    const rr = (r + 34) * (rect.width / FIELD.w);
+    x = center.x - rr; y = center.y - rr; w = rr * 2; h = rr * 2;
+    bubbleX = center.x - 260; bubbleY = center.y - rr - 10;
+  }
+  ring.classList.remove('rect', 'circle');
+  ring.classList.add(shape);
+  ring.style.left = x + 'px'; ring.style.top = y + 'px';
+  ring.style.width = w + 'px'; ring.style.height = h + 'px';
+  // four bands tiling the full viewport minus the (x,y,w,h) hole - see the
+  // .ftue-dimband comment for why this replaced a single box-shadow cutout
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const set = (el, l, t, ww, hh) => { el.style.left = l + 'px'; el.style.top = t + 'px'; el.style.width = Math.max(0, ww) + 'px'; el.style.height = Math.max(0, hh) + 'px'; };
+  set(bands.top, 0, 0, vw, y);
+  set(bands.bottom, 0, y + h, vw, vh - (y + h));
+  set(bands.left, 0, y, x, h);
+  set(bands.right, x + w, y, vw - (x + w), h);
+  bubble.style.left = Math.max(8, Math.min(bubbleX, window.innerWidth - 308)) + 'px';
+  bubble.style.top = Math.max(8, Math.min(bubbleY, window.innerHeight - 90)) + 'px';
+}
+
+function ftueShowStep(step) {
+  document.getElementById('ftueStepLabel').textContent = step.label;
+  document.getElementById('ftueBubbleText').innerHTML = step.text;
+  positionFtueSpotlight(step.target);
+}
+
+function ftueCurrentTarget() {
+  const scene = tutorialGameInstance && tutorialGameInstance.scene.keys.tutorial;
+  const step = scene && FTUE_STEPS[scene.stepIndex];
+  return step ? step.target : null;
+}
+
+function ftueShowComplete() {
+  document.getElementById('ftue-overlay').style.display = 'none';
+  document.getElementById('ftue-complete').style.display = 'flex';
+}
+
+function startTutorial() {
+  if (tutorialGameInstance) return;
+  if (typeof Phaser === 'undefined') {
+    document.getElementById('engine-error').style.display = 'flex';
+    return;
+  }
+  hideAllMenus();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('stadium-bg').style.display = 'none';
+  document.getElementById('decor-layer').style.display = 'none';
+  SFX.menuMusic.stop();
+  document.getElementById('game-container').style.display = 'flex';
+  tutorialGameInstance = new Phaser.Game(tutorialConfig);
+  document.getElementById('ftue-overlay').style.display = 'block';
+  if (!ftueResizeHandlerBound) {
+    ftueResizeHandlerBound = true;
+    window.addEventListener('resize', () => {
+      const target = ftueCurrentTarget();
+      if (target) positionFtueSpotlight(target);
+    });
+    window.addEventListener('orientationchange', () => setTimeout(() => {
+      const target = ftueCurrentTarget();
+      if (target) positionFtueSpotlight(target);
+    }, 50));
+  }
+}
+
+// skip and a normal finish end the same way - skipping still counts as
+// "seen it" (see ftueCompleted), so it never nags a player who dismissed it
+function skipTutorial() {
+  finishTutorial();
+}
+
+function finishTutorial() {
+  document.getElementById('ftue-overlay').style.display = 'none';
+  document.getElementById('ftue-complete').style.display = 'none';
+  if (tutorialGameInstance) { tutorialGameInstance.destroy(true); tutorialGameInstance = null; }
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('stadium-bg').style.display = 'block';
+  document.getElementById('decor-layer').style.display = 'block';
+  document.getElementById('mode-select').style.display = 'flex';
+  document.querySelector('.settings-gear').style.display = 'flex';
+  document.querySelector('.exit-app-btn').style.display = 'flex';
+  SFX.menuMusic.start();
+  PROFILE_FTUE_COMPLETED = true;
+  localStorage.setItem('kickoffDuelFtueCompleted', '1');
+  if (PROFILE_USER_ID && PROFILE_AUTH_TOKEN) {
+    ensureSocket(() => {
+      socket.emit('updateProfile', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN, ftueCompleted: true }, (res) => {
+        if (res && res.ok) cacheProfile(res);
+      });
+    });
+  }
+}
 </script>
 </body>
 </html>

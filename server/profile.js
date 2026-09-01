@@ -121,6 +121,12 @@ async function toPublicProfile(doc) {
     frameRank: await getFrameRank(userId),
     coins: doc.coins || 0,
     gems: doc.gems || 0,
+    // `true` for any doc that predates this field (typeof check, not
+    // `!== false`, since `undefined` must also fall to the default) - only
+    // a genuinely fresh insert (which explicitly sets `false` below) ever
+    // triggers the FTUE tutorial; every already-existing player is treated
+    // as already having played before, with no separate "isNew" signal needed
+    ftueCompleted: typeof doc.ftueCompleted === 'boolean' ? doc.ftueCompleted : true,
   };
 }
 
@@ -181,6 +187,7 @@ async function guestLogin(deviceId) {
       lastSeenAt: now,
       coins: SIGNUP_BONUS_COINS,
       gems: SIGNUP_BONUS_GEMS,
+      ftueCompleted: false,
     };
     const result = await users.insertOne(insert);
     doc = { ...insert, _id: result.insertedId };
@@ -237,6 +244,7 @@ async function googleLogin(idToken, deviceId) {
         lastSeenAt: now,
         coins: SIGNUP_BONUS_COINS,
         gems: SIGNUP_BONUS_GEMS,
+        ftueCompleted: false,
       };
       const result = await users.insertOne(insert);
       doc = { ...insert, _id: result.insertedId };
@@ -247,13 +255,15 @@ async function googleLogin(idToken, deviceId) {
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
 
-async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch, equippedBall, equippedJersey } = {}) {
+async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch, equippedBall, equippedJersey, ftueCompleted } = {}) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
 
   const set = { lastSeenAt: new Date() };
   if (name !== undefined) set.name = sanitizeName(name);
   if (country !== undefined) set.country = sanitizeCountry(country);
+  // plain boolean, no null-clear state needed (unlike the equipped* cosmetics)
+  if (ftueCompleted !== undefined) set.ftueCompleted = !!ftueCompleted;
   if (avatar !== undefined) {
     const cleanAvatar = sanitizeAvatar(avatar);
     if (cleanAvatar !== undefined) set.avatar = cleanAvatar;

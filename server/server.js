@@ -1359,6 +1359,7 @@ io.on('connection', (socket) => {
       equippedPitch: data && data.equippedPitch,
       equippedBall: data && data.equippedBall,
       equippedJersey: data && data.equippedJersey,
+      ftueCompleted: data && data.ftueCompleted,
     }));
   });
 
