@@ -230,13 +230,16 @@
   #leaderboard-screen .lb-timer-pill {
     position: absolute; right: 0; top: calc(50% + clamp(14px, 2.75vh, 21px) + 4px);
     z-index: 3; overflow: hidden;
-    height: clamp(22px, 4.4vh, 34px); width: auto; aspect-ratio: 1582 / 414;
+    /* raised floor - at 7-11px (the old clamp) the countdown text was
+       technically present but too small to notice at a glance on a real
+       device, reported as "the timer isn't there" */
+    height: clamp(30px, 4.4vh, 38px); width: auto; aspect-ratio: 1582 / 414;
     background: center / 100% 100% no-repeat; background-image: url('assets/lb_timer_pill.png');
     display: flex; align-items: center; justify-content: flex-end;
     padding-right: 14%; box-sizing: border-box;
   }
   #leaderboard-screen .lb-timer-pill span {
-    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(7px, 1.5vh, 11px); color: #ffcb3d;
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(11px, 1.5vh, 14px); color: #ffcb3d;
     white-space: nowrap;
   }
   /* layered text-shadow fakes a thick outline (no separate stroke property
@@ -259,14 +262,14 @@
      out shortest at the same width) without touching the source images */
   #leaderboard-screen .lb-podium {
     flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: center;
-    gap: clamp(12px, 3.2vh, 26px); width: 100%;
+    gap: clamp(22px, 3.2vh, 26px); width: 100%;
     margin-bottom: 0;
   }
   #leaderboard-screen .lb-podium-col {
     display: flex; flex-direction: column; align-items: center;
-    width: clamp(60px, 14vh, 130px);
+    width: clamp(82px, 14vh, 130px);
   }
-  #leaderboard-screen .lb-podium-col.rank-1 { width: clamp(68px, 15.5vh, 145px); order: 2; }
+  #leaderboard-screen .lb-podium-col.rank-1 { width: clamp(92px, 15.5vh, 145px); order: 2; }
   #leaderboard-screen .lb-podium-col.rank-2 { order: 1; }
   #leaderboard-screen .lb-podium-col.rank-3 { order: 3; }
   /* wrap holds the layout footprint (width/margin) - the wreath overlay
@@ -275,7 +278,19 @@
      with no overflow:hidden */
   #leaderboard-screen .lb-podium-avatar-wrap {
     position: relative; width: 70%; aspect-ratio: 1 / 1;
-    margin-bottom: clamp(6px, 1.2vh, 12px);
+    /* the wreath overlay (see .avatar-frame-overlay/LB_WREATH_GEOMETRY) is
+       intentionally ~67% bigger than this box and roughly centered on it,
+       so it overshoots this box's own bottom edge by a fixed fraction of
+       the box's size regardless of viewport - a vh-based margin here can't
+       track that (it doesn't scale with the SAME thing the overshoot
+       scales with), which is what let the wreath's bottom edge sit right
+       on top of the pedestal's name text. Percentage margins on a block's
+       bottom resolve against the CONTAINING BLOCK'S WIDTH (a real, if
+       obscure, bit of the CSS box model) - since this wrap's own width (and
+       therefore its overshoot) is itself a fixed 70% of the column width,
+       expressing the margin as a percentage of that same column width is
+       what actually keeps pace with the overshoot at any size. */
+    margin-bottom: 29%;
   }
   #leaderboard-screen .lb-podium-avatar {
     width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
@@ -289,24 +304,28 @@
      this time scaled up as a whole (both W and H, no distortion) rather
      than just height - and the podium's gap above was widened to match,
      so the wider result doesn't overlap neighboring columns like before */
+  /* floor raised from 69/78px - at that size (height ~21px at this aspect
+     ratio) there wasn't room for both the name AND goals lines without one
+     spilling past the pedestal art's own bottom edge, into whatever sits
+     behind it */
   #leaderboard-screen .lb-pedestal {
-    position: relative; width: clamp(69px, 16.1vh, 150px); height: auto;
+    position: relative; width: clamp(100px, 16.1vh, 150px); height: auto;
     aspect-ratio: 1465 / 444;
   }
-  #leaderboard-screen .lb-podium-col.rank-1 .lb-pedestal { width: clamp(78px, 17.8vh, 167px); }
+  #leaderboard-screen .lb-podium-col.rank-1 .lb-pedestal { width: clamp(112px, 17.8vh, 167px); }
   #leaderboard-screen .lb-podium-col.rank-2 .lb-pedestal { aspect-ratio: 1440 / 449; }
   #leaderboard-screen .lb-podium-col.rank-3 .lb-pedestal { aspect-ratio: 1510 / 433; }
   #leaderboard-screen .lb-pedestal img { display: block; width: 100%; height: auto; }
   #leaderboard-screen .lb-pedestal .lb-ped-name {
     position: absolute; left: 12%; width: 76%; top: 40%;
     text-align: center; font-weight: 700; color: #fff;
-    font-size: clamp(6px, 1.3vh, 10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: clamp(8px, 1.3vh, 10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     text-shadow: 0 1px 2px rgba(0,0,0,0.7);
   }
   #leaderboard-screen .lb-pedestal .lb-ped-score {
     position: absolute; left: 12%; width: 76%; top: 63%;
     text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
-    font-size: clamp(6px, 1.3vh, 10px); text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+    font-size: clamp(8px, 1.3vh, 10px); text-shadow: 0 1px 2px rgba(0,0,0,0.7);
   }
   /* plain CSS panel, no gold-bordered art, per the reference */
   #leaderboard-screen .lb-list-panel {
@@ -389,8 +408,16 @@
   #leaderboard-info-screen .lbi-header-img {
     display: block; width: 100%; height: auto; aspect-ratio: 1996 / 295;
   }
+  /* fixed to the SCREEN's own corner (like .back-circle-btn elsewhere),
+     not the card - the card is only up to 360px wide and centered, so
+     anchoring to ITS corner left the button floating in the middle of a
+     wide screen, overlapping the "LEADERBOARD INFO" title art beneath it
+     instead of sitting clear of the panel entirely */
   #leaderboard-info-screen .lbi-close-btn {
-    position: absolute; right: -10px; top: -14px;
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    z-index: 1001;
     width: clamp(26px, 6.5vw, 38px); height: auto; aspect-ratio: 841 / 771;
     border: none; padding: 0; cursor: pointer;
     background: center / 100% 100% no-repeat;
@@ -2970,20 +2997,28 @@ let stagedAvatar = undefined; // undefined = unchanged this session, "avatar_pre
 
 const PRESET_AVATAR_COUNT = 6;
 
-function avatarSrc(id) {
-  return `assets/${id}.png`;
+// falls back to a per-seed deterministic preset (see avatarIdForSeed)
+// instead of requesting a broken "assets/null.png" whenever id is missing -
+// the normal state for any profile that never explicitly picked an avatar
+// (see defaultAvatarId's comment), which includes plenty of real
+// leaderboard entries, not just some rare edge case
+function avatarSrc(id, seed) {
+  return `assets/${id || avatarIdForSeed(seed)}.png`;
 }
 
-// deterministic, not actually random - same player always lands on the same
-// "random" default (derived from their userId) instead of it changing every
-// launch, without ever writing a real choice to the database until they
-// deliberately tap one in the preset grid
-function defaultAvatarId() {
-  const seed = PROFILE_USER_ID || DEVICE_ID || 'x';
+// deterministic, not actually random - the same seed always lands on the
+// same "random" preset instead of it changing every launch, without ever
+// writing a real choice to the database until someone deliberately taps
+// one in the preset grid
+function avatarIdForSeed(seed) {
+  const s = String(seed || 'x');
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
   const idx = (hash % PRESET_AVATAR_COUNT) + 1;
   return `avatar_preset_${String(idx).padStart(2, '0')}`;
+}
+function defaultAvatarId() {
+  return avatarIdForSeed(PROFILE_USER_ID || DEVICE_ID);
 }
 
 function currentAvatarId() {
@@ -3597,7 +3632,7 @@ function buildPodiumColumn(rank, entry) {
   avatarWrap.className = 'lb-podium-avatar-wrap';
   const avatar = document.createElement('img');
   avatar.className = 'lb-podium-avatar';
-  avatar.src = avatarSrc(entry ? entry.avatar : 'avatar_preset_01');
+  avatar.src = avatarSrc(entry ? entry.avatar : 'avatar_preset_01', entry && entry.userId);
   avatar.alt = '';
   avatarWrap.appendChild(avatar);
   // only a REAL winner earns the frame - an empty slot (fewer than 3 people
@@ -3643,7 +3678,7 @@ function buildLeaderboardRow(entry, isMe) {
   avatarWrap.className = 'lb-row-avatar-wrap';
   const avatar = document.createElement('img');
   avatar.className = 'lb-row-avatar';
-  avatar.src = avatarSrc(entry.avatar);
+  avatar.src = avatarSrc(entry.avatar, entry.userId);
   avatar.alt = '';
   avatarWrap.appendChild(avatar);
   applyAvatarFrame(avatarWrap, entry.frameRank);
