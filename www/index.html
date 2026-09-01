@@ -745,6 +745,16 @@
        content box that marginTop actually positions within does not */
     padding: 0;
   }
+  /* the base .coin-pill's `right` formula reserves room for .exit-app-btn +
+     .settings-gear (see its own comment) - neither exists on this screen,
+     so that reservation just leaves the pill floating ~110px short of the
+     actual corner. Smaller too: this screen has no other top-right chrome
+     to match sizes with, unlike the main menu's coin+gem+settings+exit row. */
+  #bet-select-screen .coin-pill {
+    right: max(16px, env(safe-area-inset-right));
+    height: 32px;
+  }
+  #bet-select-screen .coin-pill-amount { font-size: 7px; }
   /* ---- Bet Match: stake stepper screen, shown before matchmaking starts ----
      Every panel below is real art (see the bet_*.png assets - sliced from a
      single generated sheet) with the live number(s) absolutely-positioned
@@ -753,14 +763,14 @@
      - re-measure if any of these assets are ever regenerated/replaced. */
   .bet-panel-group {
     position: relative; z-index: 1;
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
     width: min(640px, 92vw);
     /* scaled by fitBetPanel() (see JS) to fill the screen - center origin
        keeps it visually centered in #bet-select-screen at any scale */
     transform-origin: 50% 50%;
   }
   .bet-title-img {
-    height: clamp(36px, 9vh, 58px); width: auto; margin-bottom: -6px;
+    height: clamp(26px, 8vh, 54px); width: auto; margin-bottom: -6px;
     filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
     position: relative; z-index: 1;
   }
@@ -770,11 +780,11 @@
      this game's chrome, just scaled up into a full panel */
   .bet-card {
     width: 100%;
-    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 9px;
     background: #0e1a2b; border: 4px solid #e9c873;
     box-shadow: 0 0 0 4px #1a1008, 0 12px 26px rgba(0,0,0,0.5);
     border-radius: 16px;
-    padding: 26px 20px 22px;
+    padding: 14px 18px 12px;
   }
   .bet-section-label { height: 20px; width: auto; margin-bottom: 2px; }
   .bet-team-btns { display: flex; gap: 14px; width: 100%; }
@@ -2768,7 +2778,36 @@ function onOnlineMatchEnd(winnerLabel, scoreA, scoreB) {
   if (outcome === 'victory') spawnMatchEndConfetti();
   else document.getElementById('matchEndConfetti').innerHTML = '';
   matchEnd.style.display = 'flex';
+  requestAnimationFrame(fitMatchEndPanel);
 }
+
+// Every #meOutcomeView/#meDrawView element is already sized off vh clamps
+// (see their CSS) so any ONE piece never blows past the screen - but
+// several floors hitting their px minimums at once on a short/cramped real
+// device can still sum to more height than the screen actually has,
+// clipping the top/bottom (title cut off, buttons pushed off-screen). This
+// is the same class of bug fitBetPanel() fixes for the Bet Match screen -
+// a final uniform scale-to-fit as a safety net under the vh-clamp sizing,
+// not a replacement for it. No corner-UI clearance to dodge here (unlike
+// the Bet screen's back-button/coin-pill), so straightforward centering.
+function fitMatchEndPanel() {
+  const container = document.getElementById('match-end');
+  if (!container || container.style.display !== 'flex') return;
+  const drawView = document.getElementById('meDrawView');
+  const outcomeView = document.getElementById('meOutcomeView');
+  const view = drawView.style.display === 'flex' ? drawView : (outcomeView.style.display === 'flex' ? outcomeView : null);
+  if (!view) return;
+  view.style.transform = 'none';
+  const availableH = container.clientHeight * 0.96;
+  const availableW = container.clientWidth * 0.94;
+  const naturalH = view.scrollHeight;
+  const naturalW = view.scrollWidth;
+  const rawScale = Math.min(availableH / naturalH, availableW / naturalW);
+  const scale = Math.max(0.4, Math.min(rawScale, 1.3));
+  view.style.transform = Math.abs(scale - 1) > 0.02 ? `scale(${scale})` : 'none';
+}
+window.addEventListener('resize', fitMatchEndPanel);
+window.addEventListener('orientationchange', () => setTimeout(fitMatchEndPanel, 50));
 
 function restartOnlineMatch() {
   document.getElementById('match-end').style.display = 'none';
@@ -3214,9 +3253,9 @@ function fitBetPanel() {
     backBtn ? backBtn.getBoundingClientRect().bottom : 0,
     coinPill ? coinPill.getBoundingClientRect().bottom : 0
   ) + 10;
-  const bottomClearance = 16;
+  const bottomClearance = 10;
   const availableH = screen.clientHeight - topClearance - bottomClearance;
-  const availableW = screen.clientWidth * 0.92;
+  const availableW = screen.clientWidth * 0.96;
   const naturalH = panel.scrollHeight;
   const naturalW = panel.scrollWidth;
   // whichever dimension is the tighter fit wins - scaling to fully use the
@@ -4235,9 +4274,11 @@ function createPauseButton(scene, onExit) {
   return container;
 }
 
-// Gem-powered sprint button - bottom-right, clear of the kick zone's own
-// "TAP ANYWHERE TO KICK" hint text beneath it. Needs the same setDepth(1000)
-// trick as createPauseButton since the kick zone covers this whole corner.
+// Gem-powered sprint button - anchored near the pitch's own bottom-right
+// corner (see PITCH_RIGHT/PITCH_BOTTOM below), well clear of the kick
+// zone's own "TAP ANYWHERE TO KICK" hint text over at the screen's actual
+// corner. Needs the same setDepth(1000) trick as createPauseButton since
+// the kick zone covers this whole corner.
 // Art is sprint_btn_icon(_active).png (the circle+ring+runner, baked as one
 // piece) plus a separate sprint_btn_badge.png gem-cost pedestal that only
 // shows in the ready state - swapping textures/visibility beats compositing
@@ -4245,13 +4286,18 @@ function createPauseButton(scene, onExit) {
 // Returns a handle the scene keeps (see this.sprintBtn) so update() can
 // redraw the cooldown wipe and triggerSprint() can read/write its state.
 function createSprintButton(scene) {
-  const W = scene.scale.width, H = scene.scale.height;
   const r = 36;
   // badge art is 509x282 (~1.8:1) - a short pill (gem + just enough room for
   // a 2-digit cost) rather than a full-width bar, and narrower than the
   // circle above it on purpose so it reads as a small tag, not another button
   const badgeW = 52, badgeH = badgeW * (282 / 509), gap = 4;
-  const x = W - 10 - r, y = H - 16 - r - gap - badgeH;
+  // anchored off the PITCH boundary (must match server's PITCH constant),
+  // not the screen's W/H - the actual green/ice playable field is inset
+  // from the full canvas by the decorative crowd/stand border baked into
+  // the field art, so anchoring off the raw canvas edges (as this used to)
+  // put the button out in that border, well past the pitch's own corner
+  const PITCH_RIGHT = 162 + 1276, PITCH_BOTTOM = 135 + 529;
+  const x = PITCH_RIGHT - r - 6, y = PITCH_BOTTOM - r - 6;
 
   const icon = scene.add.image(0, 0, 'sprintIconReady').setDisplaySize(r * 2, r * 2);
   // drawn fresh each frame in updateSprintCooldown() as a black wedge that
@@ -4627,12 +4673,12 @@ class OnlineScene extends Phaser.Scene {
     // data.poweredSlot is set. Countdown number sits in the banner art's own
     // empty timer-box (measured via the overlay-rectangle technique, see
     // asset conventions), same pattern as the match-end bet-result banners. */
-    const bannerW = 230, bannerH = bannerW * (333 / 1765);
+    const bannerW = 320, bannerH = bannerW * (333 / 1765);
     const bannerY = 14 + panelH + 44;
     this.powerBanner = this.add.image(W/2, bannerY, 'powerBallBanner').setDisplaySize(bannerW, bannerH).setVisible(false).setDepth(50);
     this.powerBannerTimer = this.add.text(W/2 + bannerW * 0.41, bannerY, '', {
-      fontFamily: 'Press Start 2P', fontSize: '18px', color: '#ffe9a8',
-      stroke: '#3a0f02', strokeThickness: 3,
+      fontFamily: 'Press Start 2P', fontSize: '26px', color: '#ffe9a8',
+      stroke: '#3a0f02', strokeThickness: 4,
     }).setOrigin(0.5).setVisible(false).setDepth(51);
     registerEditableUI(this, 'powerBanner', this.powerBanner);
 
