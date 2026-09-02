@@ -1537,16 +1537,16 @@
   }
   .drp-card::-webkit-scrollbar { display: none; }
   .drp-header {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
     width: 100%;
   }
-  .drp-calendar { height: 30px; width: auto; flex: 0 0 auto; }
-  .drp-title { height: 30px; width: auto; flex: 1 1 auto; min-width: 0; object-fit: contain; }
-  .drp-ball { height: 26px; width: auto; flex: 0 0 auto; }
-  .drp-subtitle { width: 84%; height: auto; display: block; }
+  .drp-calendar { height: 28px; width: auto; flex: 0 0 auto; }
+  .drp-title { height: 28px; width: auto; flex: 0 0 auto; object-fit: contain; }
+  .drp-ball { height: 24px; width: auto; flex: 0 0 auto; }
+  .drp-subtitle { width: 56%; height: auto; display: block; }
 
   /* -- 30-day journey panel -- */
-  .drp-thirty { position: relative; width: 88%; }
+  .drp-thirty { position: relative; width: 62%; }
   .drp-thirty-bg { width: 100%; height: auto; display: block; }
   .drp-thirty-fill-track {
     position: absolute; left: 7.46%; top: 51.2%; width: 81.44%; height: 5.3%;
@@ -1573,26 +1573,42 @@
   .drp-milestone-hit-20 { left: 50.2%; }
   .drp-milestone-hit-30 { left: 81.4%; }
 
-  /* -- 7-day streak row -- */
+  /* -- 7-day streak row - the main focal panel, framed to stand out
+     against the now-smaller 30-day journey panel above it -- */
+  .drp-seven-panel {
+    width: 100%; box-sizing: border-box; padding: 12px 8px 20px;
+    border-radius: 14px; border: 2px solid #ffd23f;
+    background: linear-gradient(180deg, rgba(255,178,43,0.14), rgba(8,12,20,0.3));
+    box-shadow: 0 0 18px rgba(255,178,43,0.3), inset 0 0 12px rgba(255,178,43,0.08);
+  }
+  .drp-seven-label {
+    font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 13px;
+    color: #ffe9a8; text-transform: uppercase; letter-spacing: 1.5px;
+    text-align: center; margin: 0 0 8px;
+  }
   .drp-seven { display: flex; gap: 3%; width: 100%; justify-content: center; }
   .drp-day-card {
     position: relative; flex: 1 1 0; min-width: 0;
-    filter: grayscale(0.75) brightness(0.55); transition: filter 0.2s;
+    filter: grayscale(0.45) brightness(0.72); transition: filter 0.2s;
   }
   .drp-day-card.reached { filter: none; }
   .drp-day-card img.drp-day-bg { width: 100%; height: auto; display: block; }
   .drp-day-reward {
-    position: absolute; left: 0; top: 30%; width: 100%; height: 62%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3%;
+    position: absolute; left: 0; top: 27%; width: 100%; height: 40%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4%;
   }
   .drp-day-reward img { width: 46%; height: auto; object-fit: contain; }
+  .drp-day-reward img.drp-jersey-icon {
+    width: 78%; max-height: 100%; background: rgba(255,255,255,0.16); border-radius: 6px;
+    padding: 5%; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.3);
+  }
   .drp-day-reward .drp-day-amount {
     font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: clamp(8px, 2.3vw, 11px);
     color: #ffe9a8; text-align: center; line-height: 1.1;
   }
   .drp-today-tag {
-    position: absolute; left: 50%; bottom: -14%; transform: translateX(-50%);
-    width: 78%; height: auto; z-index: 2;
+    position: absolute; left: 50%; bottom: -10%; transform: translateX(-50%);
+    width: 74%; height: auto; z-index: 2;
   }
 
   .drp-collect-btn {
@@ -2083,7 +2099,10 @@
       <button class="drp-milestone-hit drp-milestone-hit-30" onclick="SFX.click(); showMilestoneTooltip(30)" aria-label="Day 30 reward"></button>
     </div>
 
-    <div class="drp-seven" id="drpSeven"></div>
+    <div class="drp-seven-panel">
+      <div class="drp-seven-label">7-Day Streak</div>
+      <div class="drp-seven" id="drpSeven"></div>
+    </div>
 
     <button class="drp-collect-btn" onclick="SFX.click(); closeDailyRewardPopup()">
       <img src="assets/daily_collect_btn.png" alt="Collect" />
@@ -2649,7 +2668,7 @@ function showDailyRewardPopup(res) {
     card.innerHTML = `
       <img class="drp-day-bg" src="assets/daily_card${day}.png" alt="Day ${day}" />
       <div class="drp-day-reward">
-        <img src="${dailyRewardIconSrc(reward)}" alt="" />
+        <img class="${reward.jersey ? 'drp-jersey-icon' : ''}" src="${dailyRewardIconSrc(reward)}" alt="" />
         ${amountText ? `<div class="drp-day-amount">${amountText}</div>` : ''}
       </div>
       ${day === res.streakDay ? '<img class="drp-today-tag" src="assets/daily_today_tag.png" alt="Today" />' : ''}
