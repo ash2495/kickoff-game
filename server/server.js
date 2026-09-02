@@ -1354,6 +1354,11 @@ io.on('connection', (socket) => {
     cb(await profile.registerDevice(data && data.userId, data && data.authToken, data && data.deviceId));
   });
 
+  socket.on('deleteAccount', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.deleteAccount(data && data.userId, data && data.authToken));
+  });
+
   socket.on('updateProfile', async (data, cb) => {
     if (typeof cb !== 'function') return;
     cb(await profile.updateProfile(data && data.userId, data && data.authToken, {

@@ -1316,6 +1316,36 @@
   .profile-account-hint { font-size: 11px; color: #b7c2d6; margin-bottom: 8px; line-height: 1.3; }
   #profile-screen .login-btn { padding: 8px; font-size: 12px; margin-bottom: 0; }
   #profile-screen .done-btn { padding: 10px; font-size: 16px; margin-top: 2px; }
+  .delete-profile-btn {
+    display: block; width: 100%; aspect-ratio: 774 / 211; margin-top: 10px;
+    background: center / 100% 100% no-repeat url('assets/delete_profile_btn.png');
+    border: none; cursor: pointer; padding: 0;
+  }
+  .delete-profile-btn:active { transform: scale(0.96); }
+
+  /* -- Delete Profile confirmation flow: two stacked popups (see
+     openDeleteProfilePopup/openConfirmDeletePopup) - same fixed full-screen
+     translucent-blur pattern as #daily-reward-popup, each card a single
+     baked image with invisible hit-zone buttons positioned over its own
+     baked-in Cancel/Delete or No/Yes-Delete controls (coordinates measured
+     directly off each source PNG, see the comments in server/profile.js's
+     sibling deleteAccount for the actual deletion logic). -- */
+  #delete-profile-popup, #confirm-delete-popup {
+    position: fixed; inset: 0; z-index: 965; display: none;
+    align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+    background: rgba(6,10,18,0.7);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  #confirm-delete-popup { z-index: 966; }
+  .dp-card, .cd-card { position: relative; width: 100%; max-width: 420px; }
+  .dp-card img, .cd-card img { width: 100%; height: auto; display: block; }
+  .dp-hit, .cd-hit { position: absolute; background: transparent; border: none; padding: 0; cursor: pointer; }
+  .dp-hit-close  { left: 87.78%; top: 12.10%; width: 10.67%; height: 13.03%; }
+  .dp-hit-cancel { left: 7.66%;  top: 74.73%; width: 38.5%;  height: 16.49%; }
+  .dp-hit-delete { left: 49.95%; top: 73.94%; width: 40.83%; height: 17.29%; }
+  .cd-hit-close  { left: 83.9%;  top: 16.125%; width: 7.8%;   height: 9.25%; }
+  .cd-hit-no     { left: 14.6%;  top: 71.375%; width: 31.1%;  height: 11.75%; }
+  .cd-hit-yes    { left: 49.6%;  top: 70.5%;   width: 35.3%;  height: 12.75%; }
 
   #match-end {
     position: fixed; inset: 0; z-index: 960; display: none;
@@ -1854,6 +1884,7 @@
         </div>
         <button class="done-btn" onclick="SFX.click(); saveProfile()">SAVE</button>
         <div id="profileError" style="color:#ff6b6b; font-size:12px; margin-top:6px; min-height:14px;"></div>
+        <button class="delete-profile-btn" onclick="SFX.click(); openDeleteProfilePopup()" aria-label="Delete Profile"></button>
       </div>
       <div class="profile-col-stats">
         <div class="stats-title" role="img" aria-label="Statistics"></div>
@@ -1889,6 +1920,24 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="delete-profile-popup">
+  <div class="dp-card">
+    <img src="assets/delete_profile_popup.png" alt="Delete Profile?" />
+    <button class="dp-hit dp-hit-close" onclick="SFX.click(); closeDeleteProfilePopup()" aria-label="Close"></button>
+    <button class="dp-hit dp-hit-cancel" onclick="SFX.click(); closeDeleteProfilePopup()" aria-label="Cancel"></button>
+    <button class="dp-hit dp-hit-delete" onclick="SFX.click(); openConfirmDeletePopup()" aria-label="Delete"></button>
+  </div>
+</div>
+
+<div id="confirm-delete-popup">
+  <div class="cd-card">
+    <img src="assets/confirm_delete_popup.png" alt="Confirm Delete" />
+    <button class="cd-hit cd-hit-close" onclick="SFX.click(); closeConfirmDeletePopup()" aria-label="Close"></button>
+    <button class="cd-hit cd-hit-no" onclick="SFX.click(); closeConfirmDeletePopup()" aria-label="No"></button>
+    <button class="cd-hit cd-hit-yes" onclick="SFX.click(); confirmDeleteAccount()" aria-label="Yes, Delete"></button>
   </div>
 </div>
 
@@ -3773,6 +3822,47 @@ function saveProfile() {
       closeProfile();
     });
   });
+}
+
+// ---- Delete Profile: two-step confirmation (Delete Profile? -> Confirm
+// Delete), matching the "cannot be undone" copy baked into both popups'
+// art - there's no soft-delete/undo path, this really does remove the
+// account row server-side (see deleteAccount in server/profile.js) ----
+function openDeleteProfilePopup() {
+  document.getElementById('delete-profile-popup').style.display = 'flex';
+}
+function closeDeleteProfilePopup() {
+  document.getElementById('delete-profile-popup').style.display = 'none';
+}
+function openConfirmDeletePopup() {
+  document.getElementById('delete-profile-popup').style.display = 'none';
+  document.getElementById('confirm-delete-popup').style.display = 'flex';
+}
+function closeConfirmDeletePopup() {
+  document.getElementById('confirm-delete-popup').style.display = 'none';
+}
+function confirmDeleteAccount() {
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) { closeConfirmDeletePopup(); return; }
+  const onFail = () => {
+    closeConfirmDeletePopup();
+    document.getElementById('profileError').textContent = "Couldn't reach the server. Check your connection and try again.";
+  };
+  ensureSocket(() => {
+    socket.emit('deleteAccount', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN }, (res) => {
+      if (!res || !res.ok) {
+        closeConfirmDeletePopup();
+        document.getElementById('profileError').textContent = (res && res.error) || 'Could not delete profile.';
+        return;
+      }
+      // the account row is gone server-side - clear every cached credential
+      // and profile field so the next launch starts completely fresh (see
+      // the `if (!PROFILE_USER_ID)` boot branch up top), then reload rather
+      // than hand-resetting the dozen in-memory PROFILE_* variables this
+      // file tracks
+      localStorage.clear();
+      location.reload();
+    });
+  }, onFail);
 }
 
 // ==================== PRIVATE MATCH (online 1-4 players) ====================

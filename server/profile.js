@@ -329,6 +329,21 @@ async function registerDevice(userId, authToken, deviceId) {
   return { ok: true };
 }
 
+// permanently removes the account itself - no soft-delete/undo, matching
+// the confirmation copy the client shows ("cannot be undone"). Deliberately
+// does NOT try to scrub this userId out of the weekly leaderboard snapshot
+// (lastWeekWinners in the meta doc) - that's a once-a-week cache that
+// naturally rolls over on its own next reset, so a deleted account might
+// show as a stale name there for at most a few days, which is a fine
+// tradeoff against the complexity of reaching into that snapshot here.
+async function deleteAccount(userId, authToken) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
+  if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
+  const users = getUsers();
+  await users.deleteOne({ _id: new ObjectId(userId) });
+  return { ok: true };
+}
+
 async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch, equippedBall, equippedJersey, ftueCompleted } = {}) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
@@ -711,4 +726,4 @@ async function getLeaderboard(userId) {
   return { ok: true, top, me, lastWeekWinners, weekEndsAt: weekEndsAt(currentWeekId) };
 }
 
-module.exports = { guestLogin, googleLogin, registerDevice, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, creditGems, deductGems, claimDailyLogin };
+module.exports = { guestLogin, googleLogin, registerDevice, deleteAccount, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, creditGems, deductGems, claimDailyLogin };
