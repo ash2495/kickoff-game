@@ -721,6 +721,8 @@
     100% { transform: scale(1); }
   }
   .coin-pill-pulse { animation: coinPillPulse 0.28s ease-out; }
+  /* same pulse, for the gem pill (see flyGemsToHud) */
+  .gem-pill-pulse { animation: coinPillPulse 0.28s ease-out; }
 
   /* sits right of .coin-pill in .lobby-hud-row (see markup and the shared
      sizing override above) - gem_hud_bar.png bakes in its own gem icon
@@ -1574,12 +1576,12 @@
   .drp-milestone-hit-30 { left: 81.4%; }
 
   /* -- 7-day streak row - the main focal panel, framed to stand out
-     against the now-smaller 30-day journey panel above it -- */
+     against the now-smaller 30-day journey panel above it (a plain neutral
+     frame, not a colored overlay - just enough to group it visually) -- */
   .drp-seven-panel {
     width: 100%; box-sizing: border-box; padding: 12px 8px 20px;
-    border-radius: 14px; border: 2px solid #ffd23f;
-    background: linear-gradient(180deg, rgba(255,178,43,0.14), rgba(8,12,20,0.3));
-    box-shadow: 0 0 18px rgba(255,178,43,0.3), inset 0 0 12px rgba(255,178,43,0.08);
+    border-radius: 14px; border: 2px solid rgba(255,255,255,0.18);
+    background: rgba(8,12,20,0.35);
   }
   .drp-seven-label {
     font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 13px;
@@ -2104,7 +2106,7 @@
       <div class="drp-seven" id="drpSeven"></div>
     </div>
 
-    <button class="drp-collect-btn" onclick="SFX.click(); closeDailyRewardPopup()">
+    <button class="drp-collect-btn" onclick="SFX.click(); collectDailyReward()">
       <img src="assets/daily_collect_btn.png" alt="Collect" />
     </button>
   </div>
@@ -2497,7 +2499,11 @@ let pendingCoinWinAmount = 0;
 // pill's own baked-in coin icon, then the balance counts up once they land.
 // Called from exitOnlineMatch(), after #mode-select is already visible, so
 // getBoundingClientRect() below reflects the pill's real on-screen position.
-function flyCoinsToHud(amount) {
+// `origin` is an optional {x,y} override for where the coins start from -
+// e.g. collectDailyReward() passes the actual on-screen reward icon instead
+// of this generic mid-screen default (used by the Bet Match win path, which
+// has no single on-screen "source" element to fly from).
+function flyCoinsToHud(amount, origin) {
   const pillAmountEl = document.getElementById('coinPillAmount');
   const pillEl = pillAmountEl ? pillAmountEl.closest('.coin-pill') : null;
   if (!pillEl || amount <= 0) { refreshCoins(); return; }
@@ -2507,8 +2513,8 @@ function flyCoinsToHud(amount) {
   // .coin-pill-amount's left:25.3% comment) - aim there, not at the number
   const targetX = pillRect.left + pillRect.width * 0.13;
   const targetY = pillRect.top + pillRect.height / 2;
-  const startX = window.innerWidth / 2;
-  const startY = window.innerHeight * 0.55;
+  const startX = origin ? origin.x : window.innerWidth / 2;
+  const startY = origin ? origin.y : window.innerHeight * 0.55;
 
   const startBalance = PROFILE_COINS;
   const targetBalance = startBalance + amount;
@@ -2564,6 +2570,71 @@ function animateCoinCount(from, to, duration) {
   requestAnimationFrame(step);
 }
 
+// gem mirror of flyCoinsToHud/animateCoinCount - same fly-then-count-up
+// celebration, targeting the gem pill's own baked-in gem icon instead.
+// `origin` - see flyCoinsToHud's comment.
+function flyGemsToHud(amount, origin) {
+  const pillAmountEl = document.getElementById('gemPillAmount');
+  const pillEl = pillAmountEl ? pillAmountEl.closest('.gem-pill') : null;
+  if (!pillEl || amount <= 0) { refreshGems(); return; }
+
+  const pillRect = pillEl.getBoundingClientRect();
+  const targetX = pillRect.left + pillRect.width * 0.13;
+  const targetY = pillRect.top + pillRect.height / 2;
+  const startX = origin ? origin.x : window.innerWidth / 2;
+  const startY = origin ? origin.y : window.innerHeight * 0.55;
+
+  const startBalance = PROFILE_GEMS;
+  const targetBalance = startBalance + amount;
+  const gemCount = Math.min(8, Math.max(4, Math.round(amount / 5)));
+  let landed = 0;
+
+  for (let i = 0; i < gemCount; i++) {
+    setTimeout(() => {
+      const jitterX = (Math.random() - 0.5) * 90;
+      const jitterY = (Math.random() - 0.5) * 40;
+      const gem = document.createElement('img');
+      gem.src = 'assets/gem_icon.png';
+      gem.className = 'coin-fly-icon';
+      gem.style.left = (startX + jitterX) + 'px';
+      gem.style.top = (startY + jitterY) + 'px';
+      document.body.appendChild(gem);
+
+      const dx = targetX - (startX + jitterX);
+      const dy = targetY - (startY + jitterY);
+      const anim = gem.animate([
+        { transform: 'translate(0, 0) scale(1)', opacity: 1, offset: 0 },
+        { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 70}px) scale(1.05)`, opacity: 1, offset: 0.55 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.25)`, opacity: 0, offset: 1 },
+      ], { duration: 620 + Math.random() * 140, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' });
+
+      anim.onfinish = () => {
+        gem.remove();
+        SFX.coin();
+        pillEl.classList.remove('gem-pill-pulse');
+        void pillEl.offsetWidth;
+        pillEl.classList.add('gem-pill-pulse');
+        landed++;
+        if (landed === gemCount) animateGemCount(startBalance, targetBalance);
+      };
+    }, i * 90 + Math.random() * 40);
+  }
+}
+
+function animateGemCount(from, to, duration) {
+  duration = duration || 550;
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const label = formatCoins(Math.round(from + (to - from) * eased));
+    document.querySelectorAll('.gem-pill-amount').forEach((el) => { el.textContent = label; });
+    if (t < 1) requestAnimationFrame(step);
+    else setGems(to);
+  }
+  requestAnimationFrame(step);
+}
+
 // shows the main menu AND checks for an unclaimed daily-login reward - the
 // single wrapper used at every genuine "first time mode-select becomes
 // visible this session" point (fresh login, FTUE finishing, app launch
@@ -2584,8 +2655,10 @@ function checkDailyLoginReward() {
   ensureSocket(() => {
     socket.emit('claimDailyLogin', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN }, (res) => {
       if (!res || !res.ok || res.alreadyClaimedToday) return;
-      setCoins(res.coins);
-      setGems(res.gems);
+      // coins/gems are applied on collectDailyReward() instead of here, so
+      // the HUD numbers only move once the flying-currency animation lands
+      // (see collectDailyReward) rather than jumping silently before the
+      // player has even seen what they got
       if (res.streakReward && res.streakReward.jersey && !PROFILE_UNLOCKED_JERSEYS.includes(res.streakReward.jersey)) {
         PROFILE_UNLOCKED_JERSEYS = [...PROFILE_UNLOCKED_JERSEYS, res.streakReward.jersey];
         localStorage.setItem('kickoffDuelUnlockedJerseys', JSON.stringify(PROFILE_UNLOCKED_JERSEYS));
@@ -2685,6 +2758,31 @@ function showDailyRewardPopup(res) {
 
 function closeDailyRewardPopup() {
   document.getElementById('daily-reward-popup').style.display = 'none';
+}
+
+// the Collect button's actual handler - closes the popup, then applies the
+// grant via the same flying-coin/gem celebration used for a Bet Match win
+// (flyCoinsToHud/flyGemsToHud), so the HUD numbers visibly land rather than
+// just silently updating the moment the popup first appeared. The coins/
+// gems fly from today's own reward card (captured BEFORE the popup closes,
+// while it's still laid out on screen) rather than the generic mid-screen
+// point flyCoinsToHud/flyGemsToHud otherwise default to - so the animation
+// visibly originates from the reward the player just saw.
+function collectDailyReward() {
+  const res = LAST_DAILY_LOGIN_RESULT;
+  const cards = document.querySelectorAll('#drpSeven .drp-day-card');
+  const todayCard = res ? cards[res.streakDay - 1] : null;
+  let origin = null;
+  if (todayCard) {
+    const r = todayCard.querySelector('.drp-day-reward').getBoundingClientRect();
+    origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  closeDailyRewardPopup();
+  if (!res) return;
+  const coinsDelta = ((res.streakReward && res.streakReward.coins) || 0) + ((res.milestoneReward && res.milestoneReward.coins) || 0);
+  const gemsDelta = ((res.streakReward && res.streakReward.gems) || 0) + ((res.milestoneReward && res.milestoneReward.gems) || 0);
+  if (coinsDelta > 0) flyCoinsToHud(coinsDelta, origin); else setCoins(res.coins);
+  if (gemsDelta > 0) flyGemsToHud(gemsDelta, origin); else setGems(res.gems);
 }
 
 // tap-to-preview for the 30-day journey's gift icons - shows what's inside
