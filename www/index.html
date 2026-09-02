@@ -303,6 +303,14 @@
        expressing the margin as a percentage of that same column width is
        what actually keeps pace with the overshoot at any size. */
     margin-bottom: 29%;
+    /* same reasoning, top side - the wreath is roughly CENTERED on this
+       box but not exactly (LB_WREATH_GEOMETRY's centerY sits just past the
+       midpoint for all three ranks), so it overshoots the TOP edge too,
+       by up to ~41% of this box's own height (worst case: rank 2/silver,
+       holePct 60.1 + centerY 52.35) - previously unaccounted for, which
+       let the wreath's top edge sit on top of the "LAST WEEK WINNERS"
+       label above the podium. Same %-of-column-width margin technique. */
+    margin-top: 30%;
   }
   #leaderboard-screen .lb-podium-avatar {
     width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
