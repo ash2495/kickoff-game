@@ -233,10 +233,22 @@
     /* raised floor - at 7-11px (the old clamp) the countdown text was
        technically present but too small to notice at a glance on a real
        device, reported as "the timer isn't there" */
-    height: clamp(30px, 4.4vh, 38px); width: auto; aspect-ratio: 1582 / 414;
+    --pill-h: clamp(30px, 4.4vh, 38px);
+    --pill-w: calc(var(--pill-h) * 1582 / 414);
+    height: var(--pill-h); width: var(--pill-w);
     background: center / 100% 100% no-repeat; background-image: url('assets/lb_timer_pill.png');
     display: flex; align-items: center; justify-content: flex-end;
-    padding-right: 14%; box-sizing: border-box;
+    /* NOT `padding-right: 14%` (what this used to be) - a percentage
+       padding always resolves against the CONTAINING BLOCK's width (here,
+       .lb-header, ~900px), not this element's own ~126px width, so "14%"
+       actually computed to ~126px - consuming the pill's entire own width
+       as padding and squeezing the flex content into a 0-width box, which
+       then rendered/overflowed outside the pill (past its left edge) and
+       got clipped away by overflow:hidden - reported as "the timer is
+       missing" (the pill art itself was fine, the number just never
+       appeared). Computing 14% of the pill's own --pill-w via calc instead
+       of a bare percentage sidesteps that containing-block gotcha entirely. */
+    padding-right: calc(var(--pill-w) * 0.14); box-sizing: border-box;
   }
   #leaderboard-screen .lb-timer-pill span {
     font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(11px, 1.5vh, 14px); color: #ffcb3d;
@@ -316,15 +328,26 @@
   #leaderboard-screen .lb-podium-col.rank-2 .lb-pedestal { aspect-ratio: 1440 / 449; }
   #leaderboard-screen .lb-podium-col.rank-3 .lb-pedestal { aspect-ratio: 1510 / 433; }
   #leaderboard-screen .lb-pedestal img { display: block; width: 100%; height: auto; }
+  /* wraps name+score together in a flex column instead of two independently
+     absolutely-positioned lines (top:40%/top:63%) - the old fixed
+     percentages didn't account for the pedestal art's own dark-plate area
+     starting at a different height per rank (gold/silver ~34%, bronze
+     ~28%), so on the shorter/wider silver+bronze pedestals the score line
+     started before the name line's own box had finished, visibly
+     overlapping into an unreadable smush. A flex column with a real gap
+     guarantees separation regardless of the pedestal's aspect ratio. */
+  #leaderboard-screen .lb-pedestal .lb-ped-text {
+    position: absolute; left: 10%; width: 80%; top: 33%; bottom: 4%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(2px, 1.2%, 5px); overflow: hidden;
+  }
   #leaderboard-screen .lb-pedestal .lb-ped-name {
-    position: absolute; left: 12%; width: 76%; top: 40%;
-    text-align: center; font-weight: 700; color: #fff;
+    width: 100%; text-align: center; font-weight: 700; color: #fff;
     font-size: clamp(8px, 1.3vh, 10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     text-shadow: 0 1px 2px rgba(0,0,0,0.7);
   }
   #leaderboard-screen .lb-pedestal .lb-ped-score {
-    position: absolute; left: 12%; width: 76%; top: 63%;
-    text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
+    width: 100%; text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 800; color: #ffcb3d;
     font-size: clamp(8px, 1.3vh, 10px); text-shadow: 0 1px 2px rgba(0,0,0,0.7);
   }
   /* plain CSS panel, no gold-bordered art, per the reference */
@@ -4224,15 +4247,18 @@ function buildPodiumColumn(rank, entry) {
   const pedImg = document.createElement('img');
   pedImg.src = LB_PEDESTAL_SRC[rank];
   pedImg.alt = '';
+  const text = document.createElement('div');
+  text.className = 'lb-ped-text';
   const name = document.createElement('div');
   name.className = 'lb-ped-name';
   name.textContent = entry ? entry.name : '—';
   const score = document.createElement('div');
   score.className = 'lb-ped-score';
   score.textContent = entry ? entry.goals.toLocaleString() : '0';
+  text.appendChild(name);
+  text.appendChild(score);
   pedestal.appendChild(pedImg);
-  pedestal.appendChild(name);
-  pedestal.appendChild(score);
+  pedestal.appendChild(text);
 
   col.appendChild(avatarWrap);
   col.appendChild(pedestal);
