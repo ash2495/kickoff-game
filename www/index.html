@@ -1620,13 +1620,19 @@
   .drp-collect-btn img { width: 100%; height: auto; display: block; }
   .drp-collect-btn:active { transform: scale(0.96); }
 
-  /* -- milestone inspect tooltip (tap a gift icon on the 30-day track) -- */
+  /* -- milestone inspect tooltip (tap a gift icon on the 30-day track) - a
+     real tooltip, not a modal: the backdrop is just an invisible full-screen
+     tap-catcher for "tap outside to dismiss", and the card itself is
+     positioned in JS (see showMilestoneTooltip) directly under whichever
+     gift icon was tapped, sized small since it only needs to show 2-3 icons
+     and a short line of text -- */
   #drp-milestone-tooltip {
     position: fixed; inset: 0; z-index: 995; display: none;
-    align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
-    background: rgba(4,7,13,0.55);
+    background: transparent;
   }
-  .drp-ms-card { position: relative; width: 100%; max-width: 300px; }
+  .drp-ms-card {
+    position: fixed; width: 30vw; min-width: 118px; max-width: 145px;
+  }
   .drp-ms-card img.drp-ms-bg { width: 100%; height: auto; display: block; }
   .drp-ms-slot {
     position: absolute; display: flex; flex-direction: column; align-items: center;
@@ -2794,14 +2800,25 @@ function showMilestoneTooltip(day) {
   if (!info || !LAST_DAILY_LOGIN_RESULT) return;
   const claimed = LAST_DAILY_LOGIN_RESULT.totalLoginDays >= day;
   document.getElementById('drpMsBg').src = info.img;
-  document.getElementById('drpMsCard').classList.toggle('claimed', claimed);
+  const card = document.getElementById('drpMsCard');
+  card.classList.toggle('claimed', claimed);
   document.getElementById('drpMsSlots').innerHTML = info.slots.map((slot) => `
     <div class="drp-ms-slot" style="left:${slot.left}%; top:${slot.top}%; width:${slot.width}%; height:${slot.height}%;">
       <img src="${dailyRewardIconSrc(slot.reward)}" alt="" />
       ${dailyRewardAmountText(slot.reward) ? `<div class="drp-ms-amount">${dailyRewardAmountText(slot.reward)}</div>` : ''}
     </div>
   `).join('');
-  document.getElementById('drp-milestone-tooltip').style.display = 'flex';
+
+  document.getElementById('drp-milestone-tooltip').style.display = 'block';
+
+  // anchor directly under the tapped gift icon (like a real tooltip, not a
+  // centered modal), clamped so it never runs off either edge of the screen
+  const hitRect = document.querySelector('.drp-milestone-hit-' + day).getBoundingClientRect();
+  const cardWidth = card.offsetWidth;
+  let left = hitRect.left + hitRect.width / 2 - cardWidth / 2;
+  left = Math.max(6, Math.min(left, window.innerWidth - cardWidth - 6));
+  card.style.left = left + 'px';
+  card.style.top = (hitRect.bottom + 6) + 'px';
 }
 function closeMilestoneTooltip(e) {
   if (e && e.target.closest('.drp-ms-card')) return;
