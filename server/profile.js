@@ -308,6 +308,27 @@ async function googleLogin(idToken, deviceId) {
   return { ok: true, ...(await toPublicProfile(doc)), authToken: issueToken(doc._id.toString()) };
 }
 
+// called once per boot by an already-logged-in session (see registerDevice
+// client-side) to add the CURRENT device id to this account's deviceIds,
+// even though guestLogin/googleLogin (the only other place deviceIds ever
+// gets written) isn't in the picture for a session that's already holding a
+// valid userId/authToken. Without this, an existing account stays keyed to
+// whatever device id it first signed up with - harmless normally, but if
+// that first id was the old random-UUID-cached-in-localStorage scheme and
+// the player clears app storage, guestLogin's fresh id would never match
+// it, silently minting a second account. Proactively keeping deviceIds
+// current (in particular with the durable native device id, once that
+// ships client-side) is what makes a future storage clear actually recover
+// the same account rather than losing it.
+async function registerDevice(userId, authToken, deviceId) {
+  if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
+  if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
+  if (typeof deviceId !== 'string' || !deviceId) return { ok: false, error: 'Missing device ID.' };
+  const users = getUsers();
+  await users.updateOne({ _id: new ObjectId(userId) }, { $addToSet: { deviceIds: deviceId } });
+  return { ok: true };
+}
+
 async function updateProfile(userId, authToken, { name, country, avatar, equippedAura, equippedPitch, equippedBall, equippedJersey, ftueCompleted } = {}) {
   if (typeof userId !== 'string' || !ObjectId.isValid(userId)) return { ok: false, error: 'Invalid profile.' };
   if (!verifyToken(userId, authToken)) return { ok: false, error: 'Not authorized.' };
@@ -690,4 +711,4 @@ async function getLeaderboard(userId) {
   return { ok: true, top, me, lastWeekWinners, weekEndsAt: weekEndsAt(currentWeekId) };
 }
 
-module.exports = { guestLogin, googleLogin, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, creditGems, deductGems, claimDailyLogin };
+module.exports = { guestLogin, googleLogin, registerDevice, updateProfile, getStats, incrementStats, getLeaderboard, deductCoins, creditCoins, creditGems, deductGems, claimDailyLogin };

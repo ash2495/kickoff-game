@@ -2296,15 +2296,44 @@ function renameInLobby(value) {
 }
 
 // ---- Player profile (Guest / Google login) ----
-// DEVICE_ID is a locally-generated UUID, not a native hardware/app ID - it's
-// simpler, needs no extra Capacitor plugin, and is no less durable in
-// practice (modern Android already resets real device identifiers on
-// reinstall). It persists for guest restore as long as app data isn't
-// cleared; Google Sign-In is the durable cross-reinstall path.
-let DEVICE_ID = localStorage.getItem('kickoffDuelDeviceId');
-if (!DEVICE_ID) {
-  DEVICE_ID = crypto.randomUUID();
-  localStorage.setItem('kickoffDuelDeviceId', DEVICE_ID);
+// DEVICE_ID identifies a guest account without Google Sign-In. Prefers the
+// native @capacitor/device plugin's getId() - on Android 8+ that's backed
+// by Settings.Secure.ANDROID_ID, which lives in system settings rather than
+// this app's own storage, so it survives the player clearing app data (the
+// scenario that used to silently mint a second guest account, since the
+// old locally-generated UUID lived in the exact localStorage bucket that
+// gets wiped). Falls back to a localStorage-cached random UUID when the
+// plugin isn't available at all (e.g. this file opened directly in a plain
+// browser for local testing, with no Capacitor runtime injected) - the
+// plugin's own web implementation already does the same thing internally,
+// so this fallback only matters for a raw static-file preview.
+// Resolved once and memoized - see getDeviceId().
+let DEVICE_ID = null;
+let deviceIdPromise = null;
+function getDeviceId() {
+  if (deviceIdPromise) return deviceIdPromise;
+  deviceIdPromise = (async () => {
+    const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Device;
+    if (plugin && plugin.getId) {
+      try {
+        const result = await plugin.getId();
+        if (result && result.identifier) {
+          DEVICE_ID = result.identifier;
+          localStorage.setItem('kickoffDuelDeviceId', DEVICE_ID);
+          return DEVICE_ID;
+        }
+      } catch (e) {
+        // fall through to the localStorage fallback below
+      }
+    }
+    DEVICE_ID = localStorage.getItem('kickoffDuelDeviceId');
+    if (!DEVICE_ID) {
+      DEVICE_ID = crypto.randomUUID();
+      localStorage.setItem('kickoffDuelDeviceId', DEVICE_ID);
+    }
+    return DEVICE_ID;
+  })();
+  return deviceIdPromise;
 }
 let PROFILE_USER_ID = localStorage.getItem('kickoffDuelUserId') || null;
 let PROFILE_AUTH_TOKEN = localStorage.getItem('kickoffDuelAuthToken') || null;
@@ -2421,6 +2450,7 @@ if (!PROFILE_USER_ID) {
   // same temporal-dead-zone deferral reason as guestLogin() above
   document.getElementById('mode-select').style.display = 'none';
   setTimeout(resumeActiveMatchOrShowMenu, 0);
+  setTimeout(registerCurrentDevice, 0);
 }
 // deferred for the same temporal-dead-zone reason as guestLogin() above -
 // refreshMainMenuAvatar() doesn't touch `socket`, but keep it consistent
@@ -2860,7 +2890,7 @@ function closeMilestoneTooltip(e) {
   document.getElementById('drp-milestone-tooltip').style.display = 'none';
 }
 
-function guestLogin() {
+async function guestLogin() {
   document.getElementById('loginError').textContent = '';
   document.getElementById('loginRetryBtn').style.display = 'none';
   document.getElementById('loginSpinner').style.display = 'inline-block';
@@ -2871,8 +2901,9 @@ function guestLogin() {
     document.getElementById('loginError').textContent = "Couldn't reach the server. Check your connection and try again.";
     document.getElementById('loginRetryBtn').style.display = 'block';
   };
+  const deviceId = await getDeviceId();
   ensureSocket(() => {
-    socket.emit('guestLogin', { deviceId: DEVICE_ID }, (res) => {
+    socket.emit('guestLogin', { deviceId }, (res) => {
       if (!res || !res.ok) {
         document.getElementById('loginSpinner').style.display = 'none';
         document.getElementById('loginStatusText').textContent = 'Could not sign in';
@@ -2895,6 +2926,31 @@ function guestLogin() {
   }, onConnectFail);
 }
 
+// fire-and-forget, called once per boot for an already-logged-in session
+// (see the `else` branch above) - keeps this account's deviceIds current
+// with whatever getDeviceId() resolves to now, even though guestLogin/
+// googleLogin (the only other writers of deviceIds) aren't in the picture
+// for a session that already holds a valid userId/authToken. Without this,
+// an account stays keyed to whichever device id it first signed up with -
+// in particular, an account created before the native-device-id switch
+// above would still only be keyed to its old random-UUID-in-localStorage
+// id, so a future storage clear would never reconnect it even though the
+// native id itself is now stable. No UI feedback either way - this is
+// silent background upkeep, not a user-facing action.
+function registerCurrentDevice() {
+  if (!PROFILE_USER_ID || !PROFILE_AUTH_TOKEN) return;
+  getDeviceId().then((deviceId) => {
+    ensureSocket(() => {
+      // the server's socket handlers all no-op without a callback (see
+      // every other socket.on(...) in server.js) - this one's result is
+      // silent background upkeep either way, so the callback itself does
+      // nothing, but it has to be a real function or the emit never reaches
+      // profile.registerDevice at all
+      socket.emit('registerDevice', { userId: PROFILE_USER_ID, authToken: PROFILE_AUTH_TOKEN, deviceId }, () => {});
+    });
+  });
+}
+
 // Google Sign-In is offered as an upgrade from the Profile screen (not a
 // front-door choice) - every player already has a guest profile by the time
 // this can be called, so the server links it to the Google account instead
@@ -2908,11 +2964,12 @@ function connectGoogle() {
     errEl.textContent = 'Google Sign-In only works in the installed app, not this preview.';
     return;
   }
-  plugin.signInWithGoogle().then((result) => {
+  plugin.signInWithGoogle().then(async (result) => {
     const idToken = result && result.credential && result.credential.idToken;
     if (!idToken) { errEl.textContent = 'Google sign-in did not return a token.'; return; }
+    const deviceId = await getDeviceId();
     ensureSocket(() => {
-      socket.emit('googleLogin', { idToken, deviceId: DEVICE_ID }, (res) => {
+      socket.emit('googleLogin', { idToken, deviceId }, (res) => {
         if (!res || !res.ok) {
           errEl.textContent = (res && res.error) || 'Could not connect Google account.';
           return;

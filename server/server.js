@@ -1349,6 +1349,11 @@ io.on('connection', (socket) => {
     cb(await profile.googleLogin(data && data.idToken, data && data.deviceId));
   });
 
+  socket.on('registerDevice', async (data, cb) => {
+    if (typeof cb !== 'function') return;
+    cb(await profile.registerDevice(data && data.userId, data && data.authToken, data && data.deviceId));
+  });
+
   socket.on('updateProfile', async (data, cb) => {
     if (typeof cb !== 'function') return;
     cb(await profile.updateProfile(data && data.userId, data && data.authToken, {
