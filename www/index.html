@@ -196,6 +196,21 @@
   }
   .shop-corner-btn img { width: 100%; height: 100%; display: block; }
   .shop-corner-btn:active { transform: scale(0.94); }
+  /* sits immediately left of .shop-corner-btn (same bottom offset, same
+     size), rather than the opposite bottom-left corner (already taken by
+     .leaderboard-corner-btn) - offset is shop's own right-inset plus its
+     width plus a fixed gap, so it tracks the shop button's real position
+     at any viewport size instead of a separately-tuned magic number */
+  .cosmetics-corner-btn {
+    position: absolute;
+    right: calc(max(16px, env(safe-area-inset-right)) + clamp(64px, 13vh, 92px) + 10px);
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 2;
+    width: clamp(64px, 13vh, 92px); height: auto; aspect-ratio: 954 / 899;
+    border: none; padding: 0; background: none; cursor: pointer;
+  }
+  .cosmetics-corner-btn img { width: 100%; height: 100%; display: block; }
+  .cosmetics-corner-btn:active { transform: scale(0.94); }
 
   /* ---- Leaderboard screen ---- */
   #leaderboard-screen {
@@ -483,6 +498,18 @@
     position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%;
     transform: translateX(-50%); z-index: 2;
     height: clamp(30px, 12vh, 83px); width: auto; aspect-ratio: 1071 / 344;
+  }
+  /* Cosmetics mode reuses this whole screen (see openCosmetics/SHOP_MODE)
+     but has no equivalent baked wordmark art yet, so its title is plain
+     styled text instead of an image - swapped in/out with shop-title-img
+     rather than adding a second near-identical screen just for this */
+  #shop-screen .shop-title-text {
+    position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%); z-index: 2;
+    font-family: 'Orbitron', sans-serif; font-weight: 800; letter-spacing: 2px;
+    font-size: clamp(16px, 5vh, 34px); color: #ffcb3d;
+    text-shadow: -1.5px 0 #1a1008, 0 1.5px #1a1008, 1.5px 0 #1a1008, 0 -1.5px #1a1008,
+                 0 3px 6px rgba(0,0,0,0.6);
   }
   /* positioned to match the thin left column baked into the panel art
      (measured at ~1.6%-13.9% width, ~26.4%-93.8% height of the panel
@@ -1960,6 +1987,9 @@
   <button class="leaderboard-corner-btn" onclick="SFX.click(); openLeaderboard()" aria-label="Leaderboard">
     <img src="assets/menu_leaderboard_icon.png" alt="" />
   </button>
+  <button class="cosmetics-corner-btn" onclick="SFX.click(); openCosmetics()" aria-label="Cosmetics">
+    <img src="assets/menu_cosmetics_icon.png" alt="" />
+  </button>
   <button class="shop-corner-btn" onclick="SFX.click(); openShop()" aria-label="Shop">
     <img src="assets/menu_shop_icon.png" alt="" />
   </button>
@@ -2006,6 +2036,7 @@
 <div id="shop-screen">
   <button class="back-circle-btn" onclick="SFX.click(); closeShop()"><span class="chevron-left"></span></button>
   <img class="shop-title-img" src="assets/shop_text.png" alt="Shop" />
+  <div class="shop-title-text" id="cosmeticsTitleText" style="display:none;">COSMETICS</div>
   <div class="shop-sidebar">
     <button class="shop-cat-btn selected" data-cat="pitches" onclick="SFX.click(); selectShopCategory('pitches', this)"><img src="assets/shop_cat_pitches.png" alt="Pitches" /></button>
     <button class="shop-cat-btn" data-cat="balls" onclick="SFX.click(); selectShopCategory('balls', this)"><img src="assets/shop_cat_balls.png" alt="Balls" /></button>
@@ -3895,6 +3926,8 @@ function hideProfilePill() {
   if (pill) pill.style.display = 'none';
   const lbBtn = document.querySelector('.leaderboard-corner-btn');
   if (lbBtn) lbBtn.style.display = 'none';
+  const cosmeticsBtn = document.querySelector('.cosmetics-corner-btn');
+  if (cosmeticsBtn) cosmeticsBtn.style.display = 'none';
   const shopBtn = document.querySelector('.shop-corner-btn');
   if (shopBtn) shopBtn.style.display = 'none';
 }
@@ -3904,6 +3937,8 @@ function showProfilePillIfOnMainMenu() {
   if (pill && onMainMenu) pill.style.display = 'flex';
   const lbBtn = document.querySelector('.leaderboard-corner-btn');
   if (lbBtn && onMainMenu) lbBtn.style.display = 'block';
+  const cosmeticsBtn = document.querySelector('.cosmetics-corner-btn');
+  if (cosmeticsBtn && onMainMenu) cosmeticsBtn.style.display = 'block';
   const shopBtn = document.querySelector('.shop-corner-btn');
   if (shopBtn && onMainMenu) shopBtn.style.display = 'block';
 }
@@ -4135,6 +4170,31 @@ const PREMIUM_IDS_BY_CAT = { jersey: PREMIUM_JERSEY_IDS, aura: PREMIUM_AURA_IDS 
 const UNLOCKED_BY_CAT = { jersey: () => PROFILE_UNLOCKED_JERSEYS, aura: () => PROFILE_UNLOCKED_AURAS };
 const LOCK_MESSAGE_BY_CAT = { jersey: '🔒 Reach a 7-day login streak', aura: '🔒 Reach a 30-day login streak' };
 
+// Cosmetics screen (see openCosmetics/SHOP_MODE) shows what the player
+// actually OWNS, as opposed to the Shop's "browse everything, equip what's
+// free" - classic pitch lives ONLY here, not in SHOP_ITEMS, since it's
+// free-for-everyone by default rather than something to shop for.
+//
+// FUTURE REFERENCE (not yet implemented): classic pitch is meant to be the
+// ONLY cosmetic that's free for every player, permanently. Every other
+// cosmetic below in SHOP_ITEMS - every other pitch, every ball, every aura,
+// every jersey - is intended to eventually require an actual purchase
+// (gems or real money) before it can be equipped. That purchase/pricing
+// system doesn't exist yet, so today everything in SHOP_ITEMS remains
+// freely equippable straight from the Shop, exactly as before this
+// comment was added. This is just a record of where the ownership line is
+// meant to fall once that ships, so whoever builds it later doesn't have
+// to re-derive the intent: reuse the same pattern already proven by
+// PREMIUM_JERSEY_IDS/PREMIUM_AURA_IDS (an id list + an unlockedX array on
+// the user doc) rather than inventing a new one, and getCosmeticsItems()
+// below is where the "what does this player actually own" filter already
+// lives, ready to have a real purchase-gated array plugged into it.
+const COSMETICS_FREE_ITEMS = {
+  pitches: [
+    { id: 'classic', name: 'Classic', icon: 'assets/pitch_classic.png', ratio: 2.0296, previewImg: 'assets/pitch_preview_classic.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain', cat: 'pitches' },
+  ],
+};
+
 // per-category item list - empty categories just show "Coming soon" until
 // their art arrives (see the sidebar icons themselves)
 const SHOP_ITEMS = {
@@ -4145,7 +4205,6 @@ const SHOP_ITEMS = {
   // balls/jersey/aura (title baked into the art itself), replacing the old
   // separate titleImg + in-match-texture split that used to render here
   pitches: [
-    { id: 'classic', name: 'Classic', icon: 'assets/pitch_classic.png', ratio: 2.0296, previewImg: 'assets/pitch_preview_classic.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
     { id: 'beach', name: 'Beach', icon: 'assets/pitch_beach.png', ratio: 2.0323, previewImg: 'assets/pitch_preview_beach.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
     { id: 'rainy', name: 'Rainy', icon: 'assets/pitch_rainy.png', ratio: 2.2404, previewImg: 'assets/pitch_preview_rainy.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
     { id: 'winter', name: 'Winter', icon: 'assets/pitch_winter.png', ratio: 2.2278, previewImg: 'assets/pitch_preview_winter.jpg', cardPreview: true, readyForEquip: true, previewFit: 'contain' },
@@ -4219,9 +4278,49 @@ SHOP_ITEMS.balls.forEach((i) => { i.cat = 'balls'; });
 SHOP_ITEMS.jersey.forEach((i) => { i.cat = 'jersey'; });
 SHOP_ITEMS.aura.forEach((i) => { i.cat = 'aura'; });
 
+// 'shop' (browse everything, equip what's free) or 'cosmetics' (only what
+// this player actually owns) - both share the exact same #shop-screen
+// markup/CSS (see openCosmetics), just fed a different item list per
+// category and a different title (see the shop-title-img/shop-title-text
+// swap below)
+let SHOP_MODE = 'shop';
+
+// "owned" for a category = the always-free COSMETICS_FREE_ITEMS entries
+// (currently just classic pitch) plus whichever SHOP_ITEMS in that category
+// are gated by PREMIUM_JERSEY_IDS/PREMIUM_AURA_IDS and already unlocked -
+// the only two ownership mechanisms that actually exist today. See the
+// FUTURE REFERENCE comment on COSMETICS_FREE_ITEMS for what's still missing
+// (a real paid-purchase path for everything else in SHOP_ITEMS).
+function getCosmeticsItems(cat) {
+  const owned = (COSMETICS_FREE_ITEMS[cat] || []).slice();
+  (SHOP_ITEMS[cat] || []).forEach((item) => {
+    const premiumIds = PREMIUM_IDS_BY_CAT[item.cat];
+    const unlockedFn = UNLOCKED_BY_CAT[item.cat];
+    if (premiumIds && premiumIds.includes(item.id) && unlockedFn && unlockedFn().includes(item.id)) {
+      owned.push(item);
+    }
+  });
+  return owned;
+}
+
 function openShop() {
   hideAllMenus();
+  SHOP_MODE = 'shop';
   document.getElementById('shop-screen').style.display = 'flex';
+  document.querySelector('#shop-screen .shop-title-img').style.display = 'block';
+  document.getElementById('cosmeticsTitleText').style.display = 'none';
+  document.querySelectorAll('#shop-screen .shop-cat-btn').forEach((b, i) => b.classList.toggle('selected', i === 0));
+  renderShopGrid('pitches');
+}
+// same screen as openShop (see SHOP_MODE) - only what this player actually
+// owns instead of the full catalog
+function openCosmetics() {
+  hideAllMenus();
+  SHOP_MODE = 'cosmetics';
+  document.getElementById('shop-screen').style.display = 'flex';
+  document.querySelector('#shop-screen .shop-title-img').style.display = 'none';
+  document.getElementById('cosmeticsTitleText').style.display = 'block';
+  document.querySelectorAll('#shop-screen .shop-cat-btn').forEach((b, i) => b.classList.toggle('selected', i === 0));
   renderShopGrid('pitches');
 }
 function closeShop() {
@@ -4238,11 +4337,11 @@ function selectShopCategory(cat, btn) {
 }
 
 function renderShopGrid(cat) {
-  const items = SHOP_ITEMS[cat] || [];
+  const items = SHOP_MODE === 'cosmetics' ? getCosmeticsItems(cat) : (SHOP_ITEMS[cat] || []);
   const grid = document.getElementById('shopGrid');
   grid.innerHTML = '';
   if (!items.length) {
-    grid.innerHTML = '<div class="shop-empty-msg">Coming soon</div>';
+    grid.innerHTML = `<div class="shop-empty-msg">${SHOP_MODE === 'cosmetics' ? "You haven't unlocked any of these yet" : 'Coming soon'}</div>`;
     renderShopDetail(null);
     return;
   }
