@@ -5235,6 +5235,62 @@ function currentFieldTextureSrc() {
   return PITCH_TEXTURE_SRC[PROFILE_EQUIPPED_PITCH] || PITCH_TEXTURE_SRC.classic;
 }
 
+// Shop -> Pitches weather flavor: a purely cosmetic particle overlay for
+// the two pitches whose art implies weather (Rainy, Winter) - no gameplay
+// effect at all (ball/player physics are untouched), just atmosphere.
+// Self-only, like the rest of the pitch cosmetic (see PROFILE_EQUIPPED_PITCH's
+// own comment) - each client renders weather for their OWN equipped pitch,
+// not whatever the opponent has equipped.
+// Shared by both match scenes (OnlineScene/TutorialScene), which set up the
+// field identically - called once from each scene's create(), after the
+// field image and the particleDot texture are in place. No manual cleanup
+// needed: the emitter dies for free when that scene's whole Phaser.Game
+// instance is destroyed between matches (see gameInstance.destroy(true) /
+// tutorialGameInstance.destroy(true)).
+function addPitchWeatherEffect(scene, W, H) {
+  const pitch = PROFILE_EQUIPPED_PITCH;
+  if (pitch === 'rainy') {
+    if (!scene.textures.exists('rainDrop')) {
+      const pg = scene.add.graphics();
+      pg.fillStyle(0xcfe8ff, 1);
+      pg.fillRect(0, 0, 3, 20);
+      pg.generateTexture('rainDrop', 3, 20);
+      pg.destroy();
+    }
+    scene.add.particles(0, 0, 'rainDrop', {
+      x: { min: -40, max: W + 40 },
+      y: -20,
+      speedX: { min: -60, max: -30 },
+      speedY: { min: 550, max: 750 },
+      rotate: -12,
+      alpha: { min: 0.35, max: 0.6 },
+      lifespan: 1500,
+      frequency: 14,
+      quantity: 1,
+    }).setDepth(40);
+  } else if (pitch === 'winter') {
+    if (!scene.textures.exists('particleDot')) {
+      const pg = scene.add.graphics();
+      pg.fillStyle(0xffffff, 1);
+      pg.fillCircle(4, 4, 4);
+      pg.generateTexture('particleDot', 8, 8);
+      pg.destroy();
+    }
+    scene.add.particles(0, 0, 'particleDot', {
+      x: { min: -20, max: W + 20 },
+      y: -20,
+      speedX: { min: -25, max: 25 },
+      speedY: { min: 40, max: 90 },
+      scale: { min: 0.6, max: 1.5 },
+      alpha: { min: 0.75, max: 1 },
+      tint: 0xffffff,
+      lifespan: 13000,
+      frequency: 170,
+      quantity: 1,
+    }).setDepth(40);
+  }
+}
+
 // ball skin - self-only, same as the pitch (never sent to opponents; each
 // client just renders their own equipped ball on the shared ball object).
 // real 32x32 sprite per skin, sized to match ball.png exactly since the
@@ -5347,6 +5403,7 @@ class OnlineScene extends Phaser.Scene {
     // aspect mismatch is minor so the stretch isn't noticeable on a grass texture
     const fieldImg = this.add.image(W/2, H/2, 'fieldTexture');
     fieldImg.setScale(W / fieldImg.width, H / fieldImg.height);
+    addPitchWeatherEffect(this, W, H);
 
     // goal frames/nets are already drawn into the field art itself, so no
     // separate box/crosshatch is drawn here
@@ -6017,6 +6074,7 @@ class TutorialScene extends Phaser.Scene {
     this.add.rectangle(W / 2, H / 2, W, H, 0x0b1220);
     const fieldImg = this.add.image(W / 2, H / 2, 'fieldTexture');
     fieldImg.setScale(W / fieldImg.width, H / fieldImg.height);
+    addPitchWeatherEffect(this, W, H);
 
     // ---- Player ----
     this.playerStart = { x: 700, y: 400 };
